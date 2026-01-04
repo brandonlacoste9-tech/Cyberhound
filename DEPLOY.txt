@@ -1,0 +1,85 @@
+# =============================================================================
+# CYBERHOUND DEPLOMENT & OPERATIONS CHEAT SHEET
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. THE NOSE (Extraction Layer - Cloud Run Jobs)
+# -----------------------------------------------------------------------------
+# Role: Scrapes websites and uploads raw JSON to Bucket.
+# Path: ./Cyberhound/extraction
+
+# Build & Push Container
+cd Cyberhound/extraction
+gcloud builds submit --tag gcr.io/[PROJECT_ID]/cyberhound-nose
+
+# Update Job Definition
+gcloud run jobs update cyberhound-nose \
+  --image gcr.io/[PROJECT_ID]/cyberhound-nose
+
+# Force Trigger (Manual Run)
+gcloud run jobs execute cyberhound-nose
+
+# -----------------------------------------------------------------------------
+# 2. THE BRAIN (Intelligence Layer - Cloud Functions)
+# -----------------------------------------------------------------------------
+# Role: Triggered by GCS upload. Analyzes with Gemini. Updates 'latest_deals.json'.
+# Path: ./Cyberhound/intelligence/cloud_brain
+
+# Deploy/Update Function
+cd Cyberhound/intelligence/cloud_brain
+gcloud functions deploy cyberhound-brain \
+  --gen2 \
+  --runtime=python311 \
+  --region=us-central1 \
+  --source=. \
+  --entry-point=process_new_scan \
+  --trigger-event-filters="type=google.cloud.storage.object.v1.finalized" \
+  --trigger-event-filters="bucket=[YOUR_BUCKET_NAME]"
+
+# -----------------------------------------------------------------------------
+# 3. THE PROXY (Messenger Layer - Cloud Run Service)
+# -----------------------------------------------------------------------------
+# Role: API for Frontend to get deals. Handles Stripe Webhooks & Email Alerts.
+# Path: ./Cyberhound/proxy
+
+# Build & Deploy
+cd Cyberhound/proxy
+gcloud run deploy cyberhound-proxy \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars CYBERHOUND_BUCKET=[YOUR_BUCKET_NAME] \
+  --set-env-vars STRIPE_SECRET_KEY=[SK_LIVE_...] \
+  --set-env-vars RESEND_API_KEY=[RE_...]
+
+# -----------------------------------------------------------------------------
+# 4. THE FACE (Distribution Layer - Vercel)
+# -----------------------------------------------------------------------------
+# Role: The React User Interface.
+# Path: ./Cyberhound/distribution
+
+# Local Dev
+cd Cyberhound/distribution
+npm run dev
+
+# Deploy
+# Note: Ensure API_URL in src/App.tsx points to your Cloud Run Proxy URL first!
+vercel --prod
+
+# -----------------------------------------------------------------------------
+# 5. ENVIRONMENT VARIABLES (Secrets)
+# -----------------------------------------------------------------------------
+# Set these in your Cloud Run / Functions console or via CLI:
+
+# Proxy:
+# - STRIPE_SECRET_KEY: For processing payments
+# - STRIPE_WEBHOOK_SECRET: For verifying webhooks
+# - RESEND_API_KEY: For sending Sniper Alerts
+# - CYBERHOUND_BUCKET: Name of your GCS bucket
+
+# Brain (Cloud Function):
+# - GCP_PROJECT: Your Project ID (Auto-set usually)
+# - VERTEX_API_KEY: (If not using ADC)
+
+# Nose (Cloud Job):
+# - CYBERHOUND_BUCKET: Name of your GCS bucket

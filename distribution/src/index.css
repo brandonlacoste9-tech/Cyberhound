@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --neon-green: #00ff41;
+  --neon-dim: rgba(0, 255, 65, 0.1);
+}
+
+body {
+  background-color: #000;
+  color: var(--neon-green);
+  font-family: 'JetBrains Mono', monospace;
+  overflow-x: hidden;
+}
+
+/* Scanline Effect */
+.scanlines::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  z-index: 50;
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
+}
+
+/* CRT Flicker */
+.crt::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: rgba(18, 16, 16, 0.1);
+  opacity: 0;
+  z-index: 50;
+  pointer-events: none;
+  animation: flicker 0.15s infinite;
+}
+
+@keyframes flicker {
+  0% { opacity: 0.027906; }
+  5% { opacity: 0.048532; }
+  10% { opacity: 0.023847; }
+  15% { opacity: 0.090302; }
+  20% { opacity: 0.015077; }
+  25% { opacity: 0.076865; }
+  30% { opacity: 0.019253; }
+  35% { opacity: 0.052671; }
+  40% { opacity: 0.025255; }
+  45% { opacity: 0.057393; }
+  50% { opacity: 0.012353; }
+  55% { opacity: 0.079282; }
+  60% { opacity: 0.021008; }
+  65% { opacity: 0.059346; }
+  70% { opacity: 0.014299; }
+  75% { opacity: 0.066498; }
+  80% { opacity: 0.027041; }
+  85% { opacity: 0.053153; }
+  90% { opacity: 0.020583; }
+  95% { opacity: 0.08865; }
+  100% { opacity: 0.030999; }
+}
+
+/* Text Glow */
+.text-glow {
+  text-shadow: 0 0 5px var(--neon-green), 0 0 10px var(--neon-green);
+}
+
+.border-glow {
+  box-shadow: 0 0 5px var(--neon-green), inset 0 0 5px var(--neon-green);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #000; 
+}
+::-webkit-scrollbar-thumb {
+  background: #003b00; 
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00ff41; 
+}

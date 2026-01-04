@@ -1,0 +1,59 @@
+{
+  "system_id": "CYBERHOUND-ALPHA-1",
+  "project_root": "c:/Users/north/zyeute-v3-1/Cyberhound",
+  
+  "nodes": {
+    "Nose": {
+      "type": "extraction",
+      "platform": "Cloud Run Jobs",
+      "target": "cyberhound-nose",
+      "schedule": "0 */6 * * *",
+      "bucket_path": "gs://[BUCKET]/raw/"
+    },
+    "Brain": {
+      "type": "intelligence",
+      "platform": "Cloud Functions (Gen 2)",
+      "target": "cyberhound-brain",
+      "trigger": "storage.object.finalized",
+      "model": "gemini-1.5-flash-001"
+    },
+    "Proxy": {
+      "type": "messenger",
+      "platform": "Cloud Run Services",
+      "target": "cyberhound-proxy",
+      "public_url": "https://cyberhound-proxy-[ID].run.app"
+    },
+    "Face": {
+      "type": "distribution",
+      "platform": "Vercel",
+      "repo": "cyberhound-fe"
+    }
+  },
+
+  "automation_rules": [
+    {
+      "trigger": "stripe_payment.success",
+      "condition": "package == 'inferno'",
+      "actions": ["promote_deal_db", "create_activity_log", "trigger_blast_sequence"]
+    },
+    {
+      "trigger": "stripe_payment.success",
+      "condition": "package == 'volcano'",
+      "actions": ["promote_deal_db", "create_activity_log", "trigger_veo_generation", "social_blast"]
+    },
+    {
+      "trigger": "brain_scan.complete",
+      "condition": "v_score > 150",
+      "actions": ["create_activity_log", "trigger_veo_generation"]
+    }
+  ],
+
+  "revenue_config": {
+    "stripe_enabled": true,
+    "affiliate_wrapping": true,
+    "packages": {
+      "flame": "price_1Sloh7CzqBvMqSYFKDjJKPM7",
+      "inferno": "price_1Sloh8CzqBvMqSYFG6R4bX8u"
+    }
+  }
+}

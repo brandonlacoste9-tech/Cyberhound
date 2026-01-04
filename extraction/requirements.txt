@@ -1,0 +1,4 @@
+playwright
+asyncio
+google-cloud-aiplatform
+google-cloud-storage

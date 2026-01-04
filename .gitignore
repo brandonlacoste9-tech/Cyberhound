@@ -1,0 +1,18 @@
+# Node
+node_modules/
+dist/
+.env
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.pytest_cache/
+
+# System
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/

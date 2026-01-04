@@ -1,0 +1,27 @@
+{
+  "Shopify": {
+    "base_url": "shopify.com",
+    "affiliate_param": "ref=cyberhound_hq",
+    "network": "Impact"
+  },
+  "Adobe": {
+    "base_url": "adobe.com",
+    "affiliate_param": "mv=affiliate&mv2=cyberhound_hq",
+    "network": "Adobe"
+  },
+  "DigitalOcean": {
+    "base_url": "digitalocean.com",
+    "affiliate_param": "refid=cyberhound_node",
+    "network": "PartnerStack"
+  },
+  "OpenAI": {
+    "base_url": "openai.com",
+    "affiliate_param": "ref=cyberhound_ai",
+    "network": "Direct"
+  },
+  "NordVPN": {
+    "base_url": "nordvpn.com",
+    "affiliate_param": "coupon=cyberhound",
+    "network": "CJ"
+  }
+}

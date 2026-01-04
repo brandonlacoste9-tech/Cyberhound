@@ -1,0 +1,72 @@
+[
+  {
+    "name": "CryptoHound",
+    "theme_color": "purple",
+    "target_prompt": "Find cryptocurrency exchange sign-up bonuses, ledger wallet discounts, and token airdrops.",
+    "targets": ["coinbase.com", "ledger.com", "binance.com"],
+    "affiliates": { "Coinbase": "ref=cryptohound", "Ledger": "ref=cryptohound_cold" }
+  },
+  {
+    "name": "StyleHound",
+    "theme_color": "pink",
+    "target_prompt": "Find sneaker drops (Jordan, Yeezy), luxury fashion sales, and streetwear discounts.",
+    "targets": ["nike.com", "ssense.com", "farfetch.com"],
+    "affiliates": { "Nike": "ref=stylehound_kicks", "Ssense": "ref=stylehound_lux" }
+  },
+  {
+    "name": "TravelHound",
+    "theme_color": "cyan",
+    "target_prompt": "Find mistake fares, hotel flash sales, and business class upgrades.",
+    "targets": ["expedia.com", "booking.com", "skyscanner.com"],
+    "affiliates": { "Expedia": "ref=travelhound_fly", "Booking": "ref=travelhound_stay" }
+  },
+  {
+    "name": "GamerHound",
+    "theme_color": "green",
+    "target_prompt": "Find GPU discounts (Nvidia, AMD), Steam sales, and console bundles.",
+    "targets": ["newegg.com", "steampowered.com", "bestbuy.com"],
+    "affiliates": { "Newegg": "ref=gamerhound_rig", "BestBuy": "ref=gamerhound_play" }
+  },
+  {
+    "name": "CreditHound",
+    "theme_color": "gold",
+    "target_prompt": "Find credit card sign-up bonuses (Amex, Chase), high-yield savings accounts, and loan offers.",
+    "targets": ["nerdwallet.com", "bankrate.com", "creditkarma.com"],
+    "affiliates": { "Amex": "ref=credithound_plat", "Chase": "ref=credithound_sapphire" }
+  },
+  {
+    "name": "ToolHound",
+    "theme_color": "orange",
+    "target_prompt": "Find power tool discounts (DeWalt, Milwaukee), hardware sales, and workshop gear.",
+    "targets": ["homedepot.com", "lowes.com", "acmetools.com"],
+    "affiliates": { "HomeDepot": "ref=toolhound_build", "Acme": "ref=toolhound_drill" }
+  },
+  {
+    "name": "BeautyHound",
+    "theme_color": "rose",
+    "target_prompt": "Find luxury skincare sales, makeup palette drops, and perfume discounts.",
+    "targets": ["sephora.com", "ulta.com", "glossier.com"],
+    "affiliates": { "Sephora": "ref=beautyhound_glow", "Ulta": "ref=beautyhound_glam" }
+  },
+  {
+    "name": "CourseHound",
+    "theme_color": "blue",
+    "target_prompt": "Find discounts on online learning platforms (Udemy, Coursera, Masterclass).",
+    "targets": ["udemy.com", "coursera.org", "masterclass.com"],
+    "affiliates": { "Udemy": "ref=coursehound_learn", "Masterclass": "ref=coursehound_pro" }
+  },
+  {
+    "name": "HostHound",
+    "theme_color": "indigo",
+    "target_prompt": "Find web hosting deals, domain registration discounts, and VPN offers.",
+    "targets": ["bluehost.com", "hostgator.com", "namecheap.com"],
+    "affiliates": { "Bluehost": "ref=hosthound_server", "Namecheap": "ref=hosthound_dns" }
+  },
+  {
+    "name": "SupplementHound",
+    "theme_color": "red",
+    "target_prompt": "Find protein powder sales, vitamin discounts, and fitness supplement bundles.",
+    "targets": ["bodybuilding.com", "iherb.com", "gnc.com"],
+    "affiliates": { "iHerb": "ref=supphound_health", "GNC": "ref=supphound_gains" }
+  }
+]
