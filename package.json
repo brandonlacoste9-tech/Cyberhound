@@ -1,0 +1,19 @@
+{
+  "name": "cyberhound",
+  "version": "1.0.0",
+  "description": "Autonomous deal intelligence agent",
+  "keywords": ["deals", "scraping", "ai", "affiliate", "dashboard"],
+  "author": "",
+  "license": "MIT",
+  "modules": {
+    "nose": "Python/Playwright web scraper",
+    "brain": "Vertex AI deal scoring",
+    "proxy": "Node.js affiliate tracker",
+    "face": "React/Tailwind dashboard",
+    "fabricator": "Niche instance generator"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brandonlacoste9-tech/Cyberhound"
+  }
+}
