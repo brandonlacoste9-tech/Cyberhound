@@ -16,10 +16,9 @@ interface Deal {
 }
 
 // 1. GHOST DATA (SIMULATION MODE)
-// If the backend is empty/sleeping, we show these so the UI looks active.
 const GHOST_INTEL: Deal[] = [
     { id: 'sim-1', brand: 'FLIPPER ZERO', title: 'Multi-tool Device for Geeks', summary: 'Restock detected. High demand item.', price: '.00', url: 'https://flipperzero.one/', value_score: 99, source: 'INTERCEPT', image: 'https://cdn.shopify.com/s/files/1/0556/4203/0246/files/flipper-zero-classic.png?v=1635345688' },
-    { id: 'sim-2', brand: 'STARLINK', title: 'Standard Kit - Refurbished', summary: 'Hardware discount detected in your sector.', price: '.00', url: 'https://www.starlink.com/', value_score: 85, source: 'SATELLITE', image: 'https://api.starlink.com/public-files/hardware_v4_standard.png' },
+    { id: 'sim-2', brand: 'STARLINK', title: 'Standard Kit - Refurbished', summary: 'Hardware discount detected.', price: '.00', url: 'https://www.starlink.com/', value_score: 85, source: 'SATELLITE', image: 'https://api.starlink.com/public-files/hardware_v4_standard.png' },
     { id: 'sim-3', brand: 'PROTON', title: 'Proton Unlimited - Lifetime', summary: 'Privacy suite Black Friday extension.', price: '50% OFF', url: 'https://proton.me/', value_score: 92, source: 'ENCRYPTED', image: 'https://proton.me/images/logos/proton-logo-square.svg' }
 ];
 
@@ -76,20 +75,16 @@ function App() {
       const data = await response.json();
       const deals = Array.isArray(data) ? data : (data.extracted_intel || []);
       
-      // 2. INTELLIGENT FALLBACK
       if (deals.length === 0) {
-          console.warn("Sector empty. Engaging Simulation Mode.");
           setIntel(GHOST_INTEL);
-          setStatus('SIMULATION MODE (LIVE FEED SILENT)');
+          setStatus('SIMULATION MODE');
       } else {
           setIntel(deals);
           setStatus('TARGETS ACQUIRED');
       }
-    } catch (error) {
-      console.error("Error fetching intel:", error);
-      // Fallback on error too
+    } catch {
       setIntel(GHOST_INTEL);
-      setStatus('OFFLINE MODE (GHOST DATA ACTIVE)');
+      setStatus('OFFLINE MODE');
     } finally {
       setLoading(false);
     }
@@ -103,7 +98,7 @@ function App() {
       const data = await response.json();
       setStatus(SCAN COMPLETE:  TARGETS FOUND);
       fetchIntel(); 
-    } catch (error) {
+    } catch {
         setStatus('SCAN FAILED');
         setLoading(false);
     }
@@ -113,7 +108,6 @@ function App() {
     <div className="min-h-screen bg-neutral-950 text-green-400 font-mono p-4 selection:bg-green-900 selection:text-white pb-24">
       <div className="fixed inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-50 bg-[length:100%_4px,3px_100%]"></div>
       
-      {/* NAV */}
       <nav className="max-w-6xl mx-auto mb-8 flex justify-between items-center border-b border-green-900/50 pb-4 relative z-20">
           <div className="flex items-center gap-4">
             <img src="/logo.jpg" alt="Cyberhound" className="w-10 h-10 rounded-full border border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.5)]" />
@@ -129,14 +123,11 @@ function App() {
           </div>
       </nav>
 
-      {/* === SECTOR A: COMMAND === */}
       {currentView === 'COMMAND' && (
           <div className="max-w-6xl mx-auto relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in zoom-in duration-300">
             
-            {/* LEFT COLUMN: CONTROLS & MAP */}
             <div className="lg:col-span-2 flex flex-col h-full gap-6">
                 
-                {/* HEADER */}
                 <header className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
                         <h1 className="text-4xl font-black tracking-tighter text-white">HUNTING GROUNDS</h1>
@@ -147,7 +138,6 @@ function App() {
                     </button>
                 </header>
 
-                {/* STATUS & ACTIONS */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-neutral-900/80 border border-green-800 p-6 rounded-lg backdrop-blur-sm relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-2 opacity-20"><Activity size={40} /></div>
@@ -171,35 +161,24 @@ function App() {
                     </div>
                 </div>
 
-                {/* 3. THE RESTORED MAP (Fills the Void) */}
                 <div className="grow border border-green-900/50 bg-black/40 rounded-lg relative overflow-hidden group min-h-[300px] flex items-center justify-center shadow-[inset_0_0_50px_rgba(0,0,0,0.8)]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-green-900/10 via-black to-black"></div>
-                    
-                    {/* Radar Sweep Animation */}
                     <div className="absolute inset-0 border-b border-green-500/20 origin-top animate-[spin_4s_linear_infinite]"></div>
-                    
-                    {/* Map Content */}
                     <div className="text-center relative z-10">
                         <Globe size={64} className="mx-auto mb-4 text-green-800 group-hover:text-green-600 transition-colors duration-500" />
                         <p className="text-green-600 tracking-[0.5em] text-[10px] font-bold">GLOBAL SCAN GRID</p>
                         <p className="text-green-800 text-[9px] mt-2">MONITORING 1,024 NODES</p>
                     </div>
-
-                    {/* Fake Data Points */}
-                    <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-green-500 rounded-full animate-ping"></div>
-                    <div className="absolute bottom-1/3 right-1/4 w-1 h-1 bg-yellow-500 rounded-full animate-pulse"></div>
                 </div>
 
-                {/* System Log Footer */}
                 <div className="font-mono text-[10px] text-green-900 bg-black/50 p-2 rounded border border-green-900/30">
-                    <p>> ROOT ACCESS: GRANTED</p>
-                    <p>> ENCRYPTION: AES-256 [ACTIVE]</p>
-                    <p className="animate-pulse">> LISTENING FOR SIGNALS...</p>
+                    <p>&gt; ROOT ACCESS: GRANTED</p>
+                    <p>&gt; ENCRYPTION: AES-256 [ACTIVE]</p>
+                    <p className="animate-pulse">&gt; LISTENING FOR SIGNALS...</p>
                 </div>
 
             </div>
 
-            {/* RIGHT COLUMN: FEED */}
             <div className="lg:col-span-1 border-l border-green-900/30 pl-0 lg:pl-8 flex flex-col h-[calc(100vh-180px)]">
                 <h2 className="text-xl font-bold mb-6 flex items-center gap-2 border-b border-green-900 pb-2 text-green-100">
                     <Radio size={18} className="animate-pulse text-green-500" /> RECENT INTERCEPTS
@@ -219,7 +198,6 @@ function App() {
                         </div>
                     </div>
 
-                    {/* DEAL FEED */}
                     {intel.map((deal, idx) => (
                     <a key={idx} href={deal.url} target="_blank" rel="noreferrer" className="block group bg-neutral-900 border border-green-900 hover:border-green-400 hover:shadow-[0_0_20px_rgba(34,197,94,0.2)] transition-all rounded-lg overflow-hidden relative">
                         <div className="flex flex-row h-24">
@@ -255,7 +233,6 @@ function App() {
           </div>
       )}
 
-      {/* === SECTOR B: ARMORY === */}
       {currentView === 'ARMORY' && (
           <div className="max-w-6xl mx-auto relative z-10 animate-in fade-in slide-in-from-right duration-300">
               <header className="text-center mb-12">
