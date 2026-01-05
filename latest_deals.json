@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1704300000,
+    "brand": "Adobe",
+    "summary": "Creative Cloud All Apps - 40% OFF Student Deal detected via Playwright Scan.",
+    "value_score": 95.5,
+    "discount_amount": 40,
+    "duration_months": 12,
+    "detected_at": "2026-01-04T12:00:00",
+    "url": "https://adobe.com/creativecloud"
+  },
+  {
+    "id": 1704300100,
+    "brand": "Shopify",
+    "summary": "$1/month for 3 months trial detected on Landing Page.",
+    "value_score": 88.0,
+    "discount_amount": 99,
+    "duration_months": 3,
+    "detected_at": "2026-01-04T12:05:00",
+    "url": "https://shopify.com/pricing"
+  }
+]
