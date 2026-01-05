@@ -1,4 +1,4 @@
-import { Lock, Unlock, Zap, Fingerprint } from 'lucide-react';
+import { Lock, Unlock, Zap } from 'lucide-react';
 
 interface MysteryTickerProps {
     unlocked?: boolean;
@@ -85,3 +85,4 @@ const MysteryTicker = ({ unlocked = false, onUnlock }: MysteryTickerProps) => {
 };
 
 export default MysteryTicker;
+

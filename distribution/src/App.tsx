@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Scan, ShieldAlert, Zap, Terminal, Lock, Unlock, Radio, ExternalLink, Activity, Megaphone, Grid, LayoutDashboard, Cpu } from 'lucide-react';
+import { Scan, ShieldAlert, Terminal, Lock, Unlock, Radio, ExternalLink, Activity, Megaphone, Grid, LayoutDashboard, Cpu } from 'lucide-react';
 import MysteryTicker from './components/MysteryTicker';
 
 // --- DATA STRUCTURES ---
@@ -368,3 +368,4 @@ function App() {
 }
 
 export default App;
+
