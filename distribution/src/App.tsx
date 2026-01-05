@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Scan, ShieldAlert, Zap, Terminal, Lock, Unlock, Mail, Radio, ExternalLink, Activity, Megaphone, Grid, LayoutDashboard, Cpu } from 'lucide-react';
+import { Scan, ShieldAlert, Zap, Terminal, Lock, Unlock, Radio, ExternalLink, Activity, Megaphone, Grid, LayoutDashboard, Cpu } from 'lucide-react';
 import MysteryTicker from './components/MysteryTicker';
 
 // --- DATA STRUCTURES ---
@@ -109,10 +109,8 @@ function App() {
       }
   };
   
-  // Pass unlock logic to ticker
+  // Pass unlock logic to ticker (in future if extended)
   const onUnlockRequest = () => {
-    // If not pro, trigger paywall or login based on user action. 
-    // For now, trigger login.
     handleLogin();
   };
 
@@ -143,6 +141,7 @@ function App() {
       setStatus(SCAN COMPLETE:  TARGETS FOUND);
       fetchIntel(); 
     } catch (error) {
+        console.error("Scan error:", error);
         setStatus('SCAN FAILED');
         setLoading(false);
     }
@@ -261,8 +260,7 @@ function App() {
                     <Radio size={18} className="animate-pulse" /> RECENT INTERCEPTS
                 </h2>
                 <div className="space-y-4 h-[calc(100vh-250px)] overflow-y-auto pr-2 custom-scrollbar">
-                    {/* Only show ticker if it has relevant placeholder logic or data, for now keep it simple */}
-                    <MysteryTicker />
+                    <MysteryTicker unlocked={isPro} onUnlock={handleLogin} />
                     
                     {/* SINGLE SPONSORED NODE (Not clogged) */}
                     <div className="group border border-yellow-600/30 bg-yellow-900/5 p-4 rounded relative overflow-hidden cursor-pointer hover:bg-yellow-900/10" onClick={() => setCurrentView('ARMORY')}>
@@ -363,4 +361,3 @@ function App() {
 }
 
 export default App;
-
