@@ -215,7 +215,7 @@ function App() {
       <footer className="fixed bottom-0 left-0 right-0 bg-black/90 border-t border-green-900/50 py-2 px-4 backdrop-blur text-center text-[10px] text-green-800 flex justify-between items-center z-50">
             <div>CYBERHOUND OS v3.1</div>
             <div className="flex gap-4">
-                <a href="mailto:intel@cyberhound.io" className="hover:text-green-400">ENCRYPTED COMMS</a>
+                <a href="mailto:cyberhoundog@gmail.com" className="hover:text-green-400">ENCRYPTED COMMS</a>
                 <a href="#" className="hover:text-yellow-500 text-yellow-700">SPONSOR NODE</a>
             </div>
       </footer>
@@ -224,4 +224,5 @@ function App() {
 }
 
 export default App;
+
 
