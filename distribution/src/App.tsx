@@ -116,21 +116,58 @@ function App() {
                     </div>
                 </div>
 
-                {/* ACTION BOX */}
-                <div className="bg-green-900/10 border border-green-800 p-6 rounded-lg backdrop-blur-sm flex items-center">
-                    <button 
-                        onClick={() => triggerScan('appsumo')}
-                        disabled={loading}
-                        className="w-full bg-green-700 hover:bg-green-600 text-black font-bold py-4 rounded flex justify-center items-center gap-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(34,197,94,0.4)]"
-                    >
-                        {loading ? <Zap className="animate-spin" /> : <Scan />}
-                        {loading ? 'EXECUTING PROTOCOL...' : 'APPSUMO SCAN'}
-                    </button>
-                </div>
-            </div>
+                {/* ACTION BOX - "WHO LET THE DOGS OUT" EDITION */}
+                <div className="bg-green-900/10 border border-green-800 p-6 rounded-lg backdrop-blur-sm flex items-center relative overflow-hidden group">
+                    {/* Background Pulse Effect */}
+                    <div className={`absolute inset-0 bg-red-900/20 transition-opacity duration-500 ${loading ? 'opacity-100 animate-pulse' : 'opacity-0'}`}></div>
+                    
+                    <div className="grid grid-cols-2 gap-3 w-full relative z-10">
+                        <button 
+                            onClick={() => triggerScan("appsumo")}
+                            disabled={loading}
+                            className={`
+                                font-black py-4 rounded flex justify-center items-center gap-2 transition-all 
+                                disabled:opacity-80 disabled:cursor-not-allowed
+                                ${loading 
+                                    ? 'bg-red-600 text-black shadow-[0_0_30px_rgba(220,38,38,0.6)]' 
+                                    : 'bg-green-700 hover:bg-green-600 text-black hover:shadow-[0_0_20px_rgba(34,197,94,0.4)]'
+                                }
+                            `}
+                        >
+                            {loading ? (
+                                <span className="tracking-widest animate-bounce">US! US!</span>
+                            ) : (
+                                <>
+                                    <Scan size={20} strokeWidth={3} />
+                                    <span className="text-xs md:text-sm tracking-widest">WHO LET THE DOGS OUT?</span>
+                                </>
+                            )}
+                        </button>
 
-            {/* MAP / DATA VISUALIZER (PLACEHOLDER) */}
-            <div className="border border-green-900 bg-black/50 aspect-video rounded-lg flex items-center justify-center relative overflow-hidden group">
+                        <button 
+                            onClick={() => triggerScan("amazon")}
+                            disabled={loading}
+                            className={`
+                                font-black py-4 rounded flex justify-center items-center gap-2 transition-all 
+                                disabled:opacity-80 disabled:cursor-not-allowed
+                                ${loading 
+                                    ? 'bg-orange-600 text-black shadow-[0_0_30px_rgba(234,88,12,0.6)]' 
+                                    : 'bg-orange-600 hover:bg-orange-500 text-black hover:shadow-[0_0_20px_rgba(234,88,12,0.4)]'
+                                }
+                            `}
+                        >
+                            {loading ? (
+                                <span className="tracking-widest animate-bounce">US! US!</span>
+                            ) : (
+                                <>
+                                    <Scan size={20} strokeWidth={3} />
+                                    <span className="text-xs md:text-sm tracking-widest">AMAZON SECTOR</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+<div className="border border-green-900 bg-black/50 aspect-video rounded-lg flex items-center justify-center relative overflow-hidden group">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-green-900/20 via-black to-black"></div>
                 <div className="text-center relative z-10">
                     <div className="text-6xl mb-4 opacity-20 group-hover:opacity-40 transition-opacity">🌐</div>
@@ -224,5 +261,6 @@ function App() {
 }
 
 export default App;
+
 
 
