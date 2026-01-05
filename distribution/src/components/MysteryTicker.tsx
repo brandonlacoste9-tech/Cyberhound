@@ -1,45 +1,87 @@
-import { Lock, EyeOff } from 'lucide-react';
+import { Lock, Unlock, Zap, Fingerprint } from 'lucide-react';
 
-export default function MysteryTicker() {
-  const triggerPaywall = () => { window.open("https://buy.stripe.com/7sYfZgdJP9Kdd4i95v1Fe08", "_blank"); };
-
-  return (
-    <div 
-      onClick={triggerPaywall}
-      className="mb-4 group border border-yellow-600/40 bg-yellow-900/10 p-4 rounded relative overflow-hidden cursor-pointer hover:border-yellow-500 transition-all hover:shadow-[0_0_15px_rgba(234,179,8,0.2)]"
-    >
-      {/* "PRO ONLY" BADGE */}
-      <div className="absolute top-0 right-0 bg-yellow-600 text-black font-bold text-[10px] px-2 py-0.5 uppercase tracking-wider flex items-center gap-1 z-10">
-          <Lock size={10} /> Pro Clearance
-      </div>
-
-      <div className="flex justify-between items-center mt-2 relative z-10">
-          <div>
-              {/* REDACTED NAME */}
-              <div className="flex items-center gap-2 mb-1">
-                  <span className="bg-yellow-500/20 text-yellow-500 px-1.5 py-0.5 rounded text-[10px] border border-yellow-500/30">
-                      ENTERPRISE
-                  </span>
-                  {/* BLURRED TEXT EFFECT */}
-                  <h3 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-400 to-gray-600 select-none blur-[3px]">
-                      SALESFORCE
-                  </h3>
-                  <EyeOff size={14} className="text-yellow-600 animate-pulse" />
-              </div>
-
-              {/* VISIBLE BAIT */}
-              <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-black text-green-400">FREE FOREVER</span>
-                  <span className="text-xs text-yellow-100/60 italic">
-                      (Was /mo)
-                  </span>
-              </div>
-          </div>
-      </div>
-      
-      {/* SCANLINE EFFECT OVERLAY */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%)] bg-[length:100%_2px] pointer-events-none opacity-50"></div>
-    </div>
-  );
+interface MysteryTickerProps {
+    unlocked?: boolean;
+    onUnlock?: () => void;
 }
 
+const MysteryTicker = ({ unlocked = false, onUnlock }: MysteryTickerProps) => {
+    
+    // MOCK DATA FOR THE MYSTERY BOX
+    const SECRET_DEAL = {
+        title: 'LIFETIME ACCESS: FLUTTERFLOW',
+        price: '???',
+        real_price: ' (Was )',
+        source: 'SECRET SOURCE',
+        url: 'https://buy.stripe.com/7sYfZgdJP9Kdd4i95v1Fe08' // Stripe Link
+    };
+
+    const triggerPaywall = () => {
+        if (onUnlock) {
+            onUnlock();
+        } else {
+            // Fallback if no handler
+            window.open('https://buy.stripe.com/7sYfZgdJP9Kdd4i95v1Fe08', '_blank');
+        }
+    };
+
+    return (
+        <div className='relative overflow-hidden rounded-lg border border-yellow-500/30 bg-yellow-900/10 mb-4 p-4'>
+            {/* Header */}
+            <div className='flex justify-between items-center mb-2'>
+                <div className='flex items-center gap-2 text-yellow-500'>
+                    <Zap size={14} className='animate-pulse' />
+                    <span className='text-xs font-bold tracking-widest'>CLASSIFIED SIGINT</span>
+                </div>
+                <span className='bg-yellow-500/20 text-yellow-500 text-[9px] px-2 py-0.5 rounded animate-pulse'>
+                    HIGH VALUE TARGET
+                </span>
+            </div>
+
+            {/* Content Container */}
+            <div className='relative'>
+                
+                {/* BLURRED CONTENT LAYER */}
+                <div className={'flex gap-4 items-center transition-all duration-700 ' + (unlocked ? 'blur-0' : 'blur-md opacity-50')}>
+                     <div className='w-16 h-16 bg-yellow-700/50 rounded flex items-center justify-center font-black text-2xl text-black'>?</div>
+                     <div>
+                        <h3 className='font-bold text-yellow-400 text-lg'>{unlocked ? SECRET_DEAL.title : 'REDACTED ASSET #929'}</h3>
+                        <p className='text-yellow-600/70 text-xs'>{unlocked ? SECRET_DEAL.real_price : '████████████'}</p>
+                     </div>
+                </div>
+
+                {/* LOCK OVERLAY (If Locked) */}
+                {!unlocked && (
+                    <div className='absolute inset-0 z-10 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500'>
+                        <button 
+                            onClick={triggerPaywall}
+                            className='bg-black/80 hover:bg-black text-yellow-500 border border-yellow-500/50 px-6 py-2 rounded flex items-center gap-3 backdrop-blur-md transition-all hover:scale-105 hover:shadow-[0_0_15px_rgba(234,179,8,0.3)]'
+                        >
+                            <Lock size={16} />
+                            <span className='font-bold text-xs tracking-widest'>DECRYPT DATA ()</span>
+                        </button>
+                    </div>
+                )}
+                
+                {/* UNLOCKED STATE (If Unlocked) */}
+                {unlocked && (
+                    <div className='mt-2 flex justify-end'>
+                         <a 
+                             href={SECRET_DEAL.url} 
+                             target='_blank' 
+                             className='flex items-center gap-2 text-xs font-bold text-black bg-yellow-500 px-3 py-1 rounded hover:bg-yellow-400'
+                         >
+                            <Unlock size={12} /> ACCESS ASSET
+                         </a>
+                    </div>
+                )}
+
+            </div>
+            
+            {/* Scanline decoration */}
+            <div className='absolute inset-0 pointer-events-none bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.5)_50%)] bg-[length:100%_4px] opacity-20'></div>
+        </div>
+    );
+};
+
+export default MysteryTicker;
