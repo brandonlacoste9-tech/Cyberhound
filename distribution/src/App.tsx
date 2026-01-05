@@ -88,9 +88,7 @@ function App() {
     }
   };
 
-  const triggerPaywall = () => {
-      alert("🔒 PRO INTEL REQUIRED\n\nTo reveal the source of this price error, you need a Clearance Key.\n\n[Stripe Checkout - $9/mo]");
-  };
+  const triggerPaywall = () => { window.open("https://buy.stripe.com/7sYfZgdJP9Kdd4i95v1Fe08", "_blank"); };
 
   return (
     <div className="min-h-screen bg-cyber-black text-cyber-green font-mono overflow-hidden relative flex flex-col">
@@ -257,4 +255,5 @@ function App() {
 }
 
 export default App;
+
 

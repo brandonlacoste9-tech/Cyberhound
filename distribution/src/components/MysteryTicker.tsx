@@ -1,9 +1,7 @@
 import { Lock, EyeOff } from 'lucide-react';
 
 export default function MysteryTicker() {
-  const triggerPaywall = () => {
-    alert("🔒 SECURITY PROTOCOL ACTIVE\n\nThis intercept is CLASSIFIED.\nUpgrade to PRO to decrypt the source.");
-  };
+  const triggerPaywall = () => { window.open("https://buy.stripe.com/7sYfZgdJP9Kdd4i95v1Fe08", "_blank"); };
 
   return (
     <div 
@@ -44,3 +42,4 @@ export default function MysteryTicker() {
     </div>
   );
 }
+
