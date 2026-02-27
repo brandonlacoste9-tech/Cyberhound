@@ -1,0 +1,258 @@
+{
+  "sweep_timestamp": "2026-02-27 02:54:25.604840",
+  "market": "South Korea",
+  "regulation": "AI Basic Act (Jan 22, 2026)",
+  "total_targets": 10,
+  "high_risk_count": 3,
+  "currency": "KRW",
+  "potential_monthly_revenue_krw": 36000000,
+  "targets": [
+    {
+      "name": "Toss Bank",
+      "sector": "fintech",
+      "location": "Seoul",
+      "risk_level": "CRITICAL",
+      "revenue_usd": 450000000,
+      "employees": 1200,
+      "ai_systems": [
+        "AI Credit Scoring",
+        "Fraud Detection"
+      ],
+      "compliance_gaps": [
+        "msit_approval",
+        "risk_assessment",
+        "explainability"
+      ],
+      "compliance_score": 8,
+      "msit_status": {
+        "required": true,
+        "reasons": [
+          "AI Credit Scoring: credit",
+          "AI Credit Scoring: scoring",
+          "Sector: fintech"
+        ],
+        "timeline": "30-60 days for approval",
+        "penalty": "Up to KRW 30M + operational suspension"
+      },
+      "revenue_potential_krw": 5000000
+    },
+    {
+      "name": "Riiid",
+      "location": "Seoul",
+      "sector": "education_ai",
+      "risk_level": "CRITICAL",
+      "ai_systems": [
+        "AI Tutoring",
+        "Assessment Scoring"
+      ],
+      "compliance_gaps": [
+        "msit_registration",
+        "bias_auditing",
+        "explainability"
+      ],
+      "compliance_score": 8,
+      "msit_status": {
+        "required": true,
+        "reasons": [
+          "Assessment Scoring: scoring",
+          "Assessment Scoring: assessment",
+          "Sector: education_ai"
+        ],
+        "timeline": "30-60 days for approval",
+        "penalty": "Up to KRW 30M + operational suspension"
+      },
+      "revenue_potential_krw": 5000000
+    },
+    {
+      "name": "Vuno",
+      "location": "Seoul",
+      "sector": "healthcare_ai",
+      "risk_level": "CRITICAL",
+      "ai_systems": [
+        "Medical Imaging AI",
+        "Diagnostic Support"
+      ],
+      "compliance_gaps": [
+        "medical_device_registration",
+        "clinical_validation",
+        "msit_approval"
+      ],
+      "compliance_score": 8,
+      "msit_status": {
+        "required": true,
+        "reasons": [
+          "Medical Imaging AI: medical",
+          "Diagnostic Support: diagnostic",
+          "Sector: healthcare_ai"
+        ],
+        "timeline": "30-60 days for approval",
+        "penalty": "Up to KRW 30M + operational suspension"
+      },
+      "revenue_potential_krw": 5000000
+    },
+    {
+      "name": "Socar",
+      "location": "Seoul",
+      "sector": "mobility",
+      "risk_level": "HIGH",
+      "ai_systems": [
+        "Dynamic Pricing",
+        "Fraud Detection"
+      ],
+      "compliance_gaps": [
+        "pricing_transparency",
+        "data_residency"
+      ],
+      "compliance_score": 6,
+      "msit_status": {
+        "required": false,
+        "reasons": [],
+        "timeline": "N/A",
+        "penalty": "Up to KRW 30M + operational suspension"
+      },
+      "revenue_potential_krw": 3000000
+    },
+    {
+      "name": "Skelter Labs",
+      "location": "Seoul",
+      "sector": "computer_vision",
+      "risk_level": "HIGH",
+      "ai_systems": [
+        "Facial Recognition",
+        "Object Detection"
+      ],
+      "compliance_gaps": [
+        "biometric_consent",
+        "surveillance_disclosure"
+      ],
+      "compliance_score": 6,
+      "msit_status": {
+        "required": true,
+        "reasons": [
+          "Facial Recognition: facial"
+        ],
+        "timeline": "30-60 days for approval",
+        "penalty": "Up to KRW 30M + operational suspension"
+      },
+      "revenue_potential_krw": 3000000
+    },
+    {
+      "name": "Samsung SDS",
+      "sector": "cloud_ai",
+      "location": "Seongnam",
+      "risk_level": "HIGH",
+      "revenue_usd": 12000000000,
+      "employees": 12000,
+      "ai_systems": [
+        "Brity RPA",
+        "AI Contact Center"
+      ],
+      "compliance_gaps": [
+        "data_residency",
+        "audit_logs"
+      ],
+      "compliance_score": 5,
+      "msit_status": {
+        "required": false,
+        "reasons": [],
+        "timeline": "N/A",
+        "penalty": "Up to KRW 30M + operational suspension"
+      },
+      "revenue_potential_krw": 3000000
+    },
+    {
+      "name": "Kakao Enterprise",
+      "sector": "cloud_ai",
+      "location": "Seongnam",
+      "risk_level": "HIGH",
+      "revenue_usd": 2800000000,
+      "employees": 3500,
+      "ai_systems": [
+        "Kakao i",
+        "Face Recognition"
+      ],
+      "compliance_gaps": [
+        "msit_registration",
+        "consent_mechanism"
+      ],
+      "compliance_score": 5,
+      "msit_status": {
+        "required": false,
+        "reasons": [],
+        "timeline": "N/A",
+        "penalty": "Up to KRW 30M + operational suspension"
+      },
+      "revenue_potential_krw": 3000000
+    },
+    {
+      "name": "Naver Cloud",
+      "sector": "cloud_ai",
+      "location": "Seongnam",
+      "risk_level": "HIGH",
+      "revenue_usd": 5600000000,
+      "employees": 8000,
+      "ai_systems": [
+        "HyperCLOVA",
+        "Clova Face Recognition"
+      ],
+      "compliance_gaps": [
+        "user_notification",
+        "human_oversight"
+      ],
+      "compliance_score": 5,
+      "msit_status": {
+        "required": false,
+        "reasons": [],
+        "timeline": "N/A",
+        "penalty": "Up to KRW 30M + operational suspension"
+      },
+      "revenue_potential_krw": 3000000
+    },
+    {
+      "name": "Kurly (Market Kurly)",
+      "sector": "ecommerce",
+      "location": "Seoul",
+      "risk_level": "MEDIUM",
+      "revenue_usd": 890000000,
+      "employees": 2500,
+      "ai_systems": [
+        "Recommendation Engine",
+        "Demand Forecasting"
+      ],
+      "compliance_gaps": [
+        "consent_management",
+        "data_retention"
+      ],
+      "compliance_score": 5,
+      "msit_status": {
+        "required": false,
+        "reasons": [],
+        "timeline": "N/A",
+        "penalty": "Up to KRW 30M + operational suspension"
+      },
+      "revenue_potential_krw": 3000000
+    },
+    {
+      "name": "Woowa Brothers (Baemin)",
+      "location": "Seoul",
+      "sector": "food_delivery_ai",
+      "risk_level": "HIGH",
+      "ai_systems": [
+        "Delivery Optimization AI",
+        "Route Prediction"
+      ],
+      "compliance_gaps": [
+        "location_data_consent",
+        "algorithmic_transparency"
+      ],
+      "compliance_score": 5,
+      "msit_status": {
+        "required": false,
+        "reasons": [],
+        "timeline": "N/A",
+        "penalty": "Up to KRW 30M + operational suspension"
+      },
+      "revenue_potential_krw": 3000000
+    }
+  ]
+}
