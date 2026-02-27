@@ -1,0 +1,64 @@
+{
+  "company": "Stingray Digital Group Inc",
+  "industry": "Digital Music / Media",
+  "campaign_objective": "Brand Awareness + B2B Lead Gen",
+  "generated_at": "2026-02-27 02:47:48.486396",
+  "variants": [
+    {
+      "variant": 1,
+      "headline": "La Musique Qu\u00e9b\u00e9coise, Sans Limites",
+      "subhead": "D\u00e9couvrez Stingray - Votre ambiance, votre culture",
+      "body": "Des milliers de cha\u00eenes musicales pens\u00e9es pour le Qu\u00e9bec. De la pop au folk, en passant par le hip-hop d'ici. Stingray, c'est la bande-son de votre vie.",
+      "cta": "Essayez Gratuitement",
+      "audience": "25-45 ans, amateurs de musique locale",
+      "platform": "Meta/Facebook",
+      "creative_type": "Image + Texte",
+      "cultural_notes": "Uses 'd'ici' (from here) - key Quebec identity marker"
+    },
+    {
+      "variant": 2,
+      "headline": "Votre Caf\u00e9 a Besoin de la Bonne Vibe",
+      "subhead": "Stingray Business - Musique l\u00e9gale pour commerces",
+      "body": "Arr\u00eatez les playlists Spotify ill\u00e9gales. Stingray Business offre des licences compl\u00e8tes et une s\u00e9lection musicale qui fait vibrer vos clients.",
+      "cta": "Obtenez Votre Devis",
+      "audience": "Propri\u00e9taires de caf\u00e9/restaurant",
+      "platform": "Meta/Instagram",
+      "creative_type": "Carrousel",
+      "cultural_notes": "Addresses pain point (illegal Spotify) with solution"
+    },
+    {
+      "variant": 3,
+      "headline": "Cette Toune L\u00e0, Vous La Connaissez?",
+      "subhead": "Stingray vous fait d\u00e9couvrir les hits du Qu\u00e9bec",
+      "body": "Red\u00e9couvrez les classiques qu\u00e9b\u00e9cois et les nouveaux talents d'ici. Avec Stingray, la musique locale n'a jamais \u00e9t\u00e9 aussi accessible.",
+      "cta": "\u00c9coutez Maintenant",
+      "audience": "35-55 ans, nostalgie culturelle",
+      "platform": "Meta/Video",
+      "creative_type": "Vid\u00e9o 15s",
+      "cultural_notes": "'Toune' is pure Joual - creates instant connection"
+    },
+    {
+      "variant": 4,
+      "headline": "Fait au Qu\u00e9bec. \u00c9cout\u00e9 au Qu\u00e9bec.",
+      "subhead": "Stingray - La plateforme 100% locale",
+      "body": "Pourquoi \u00e9couter des algorithmes am\u00e9ricains quand on a les meilleurs curateurs d'ici? Stingray c\u00e9l\u00e8bre la culture qu\u00e9b\u00e9coise, une toune \u00e0 la fois.",
+      "cta": "Rejoignez la Communaut\u00e9",
+      "audience": "Patriotes culturels, 30-50 ans",
+      "platform": "Meta/Facebook",
+      "creative_type": "Image statique + texte",
+      "cultural_notes": "Patriotic angle - 'Fait au Qu\u00e9bec' triggers pride"
+    },
+    {
+      "variant": 5,
+      "headline": "Le Son de Montr\u00e9al, C'est Ici",
+      "subhead": "Stingray - L'\u00e2me musicale de la m\u00e9tropole",
+      "body": "Du Mile-End \u00e0 Hochelag', d\u00e9couvrez la diversit\u00e9 musicale de Montr\u00e9al. Stingray met en valeur les artistes qui font vibrer notre ville.",
+      "cta": "D\u00e9couvrez les Stations",
+      "audience": "Montr\u00e9alais, 20-40 ans",
+      "platform": "Meta/Instagram Stories",
+      "creative_type": "Story interactive",
+      "cultural_notes": "Hyper-local neighborhood references create authenticity"
+    }
+  ],
+  "notes": "All copy uses Quebecois French (Joual) for cultural resonance. Bill 96 compliant."
+}

@@ -1,0 +1,64 @@
+{
+  "company": "WM Group Solutions Inc",
+  "industry": "Business Solutions / Consulting",
+  "campaign_objective": "B2B Lead Generation",
+  "generated_at": "2026-02-27 02:47:48.490451",
+  "variants": [
+    {
+      "variant": 1,
+      "headline": "Votre Entreprise M\u00e9rite Mieux que des Solutions G\u00e9n\u00e9riques",
+      "subhead": "WM Group - Des strat\u00e9gies taill\u00e9es pour le Qu\u00e9bec",
+      "body": "Les consultants am\u00e9ricains ne comprennent pas votre r\u00e9alit\u00e9. WM Group conna\u00eet le march\u00e9 qu\u00e9b\u00e9cois et parle votre langue - litt\u00e9ralement.",
+      "cta": "Parlez \u00e0 un Expert Local",
+      "audience": "PDG PME, 40-60 ans",
+      "platform": "Meta/LinkedIn",
+      "creative_type": "Image professionnelle + texte",
+      "cultural_notes": "Contrast with 'American consultants' - local trust angle"
+    },
+    {
+      "variant": 2,
+      "headline": "La Facture 96 Vous Inqui\u00e8te?",
+      "subhead": "WM Group vous guide vers la conformit\u00e9 - en fran\u00e7ais",
+      "body": "Ne laissez pas les amendes de l'OQLF ralentir votre croissance. WM Group traduit vos documents, adapte votre site, et vous prot\u00e8ge.",
+      "cta": "Audit Gratuit de Conformit\u00e9",
+      "audience": "Entreprises en expansion au Qu\u00e9bec",
+      "platform": "Meta/Facebook",
+      "creative_type": "Infographie",
+      "cultural_notes": "Direct Bill 96 pain point - compliance urgency"
+    },
+    {
+      "variant": 3,
+      "headline": "Faites Affaire en Bon Qu\u00e9b\u00e9cois",
+      "subhead": "WM Group - L'expertise locale qui parle vrai",
+      "body": "Pas de jargon corporatif. Pas de solutions import\u00e9es. Juste des r\u00e9sultats concrets pour des entrepreneurs d'ici.",
+      "cta": "Commencez Votre Projet",
+      "audience": "Entrepreneurs locaux, 35-55 ans",
+      "platform": "Meta/Facebook",
+      "creative_type": "Vid\u00e9o t\u00e9moignage",
+      "cultural_notes": "'Parle vrai' - authenticity promise in local dialect"
+    },
+    {
+      "variant": 4,
+      "headline": "De Trois-Rivi\u00e8res \u00e0 Gasp\u00e9, On Conna\u00eet Votre March\u00e9",
+      "subhead": "WM Group - Pr\u00e9sent dans toutes les r\u00e9gions du Qu\u00e9bec",
+      "body": "Le march\u00e9 qu\u00e9b\u00e9cois n'est pas monolithique. WM Group adapte vos strat\u00e9gies aux r\u00e9alit\u00e9s de chaque r\u00e9gion, de la m\u00e9tropole aux r\u00e9gions.",
+      "cta": "D\u00e9couvrez Notre R\u00e9seau",
+      "audience": "Entreprises r\u00e9gionales",
+      "platform": "Meta/Instagram",
+      "creative_type": "Carte interactive",
+      "cultural_notes": "Regional inclusivity - Quebec is more than Montreal"
+    },
+    {
+      "variant": 5,
+      "headline": "Arr\u00eatez de Traduire. Commencez \u00e0 Communiquer.",
+      "subhead": "WM Group - La nuance culturelle que les agences manquent",
+      "body": "Une traduction mot-\u00e0-mot ne suffit pas. WM Group capture l'essence de votre message pour qu'il r\u00e9sonne avec les Qu\u00e9b\u00e9cois.",
+      "cta": "Voir Nos R\u00e9alisations",
+      "audience": "Marques nationales expanding to Quebec",
+      "platform": "Meta/LinkedIn",
+      "creative_type": "Carrousel cas d'\u00e9tudes",
+      "cultural_notes": "Translation vs. communication - value proposition"
+    }
+  ],
+  "notes": "Copy emphasizes local expertise and Bill 96 compliance."
+}
