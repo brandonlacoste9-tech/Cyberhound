@@ -1,0 +1,64 @@
+{
+  "timestamp": "2026-02-27 02:30:02.886623",
+  "targets": [
+    {
+      "company": "Stingray Digital Group Inc",
+      "domain": "stingray.com",
+      "industry": "Music / Digital Media",
+      "location": "Montreal",
+      "employees": "500+",
+      "relevant_roles": [
+        {
+          "title": "Chief Marketing Officer",
+          "priority": "HIGHEST",
+          "rationale": "Controls ad budget, cares about brand positioning"
+        },
+        {
+          "title": "VP Marketing",
+          "priority": "HIGHEST",
+          "rationale": "Direct decision maker for agency selection"
+        },
+        {
+          "title": "General Counsel / Legal",
+          "priority": "HIGH",
+          "rationale": "Cares about Bill 96 compliance risk"
+        },
+        {
+          "title": "Digital Marketing Director",
+          "priority": "HIGH",
+          "rationale": "Handles Meta/Google ad campaigns"
+        }
+      ],
+      "suggested_approach": [
+        "marketing@stingray.com",
+        "info@stingray.com",
+        "contact@stingray.com",
+        "legal@stingray.com"
+      ]
+    },
+    {
+      "company": "WM Group Solutions Inc.",
+      "domain": "wmgroupsolutions.com",
+      "industry": "Business Solutions",
+      "location": "Montreal",
+      "relevant_roles": [
+        {
+          "title": "President / CEO",
+          "priority": "HIGHEST",
+          "rationale": "SMB owner, direct decision maker"
+        },
+        {
+          "title": "Business Development",
+          "priority": "HIGH",
+          "rationale": "Growth-focused, open to new channels"
+        }
+      ],
+      "suggested_approach": [
+        "info@wmgroupsolutions.com",
+        "contact@wmgroupsolutions.com",
+        "admin@wmgroupsolutions.com"
+      ]
+    }
+  ],
+  "notes": "Verify emails before strike. Use LinkedIn for confirmation."
+}

@@ -126,7 +126,7 @@ def strike_stingray():
     
     # You'll need to find their actual contact email
     # Options: contact@stingray.com, info@stingraydigital.com, etc.
-    target_email = "contact@stingraydigital.com"  # UPDATE THIS
+    target_email = "marketing@stingray.com"  # Primary: CMO/VP Marketing
     
     target_data = {
         "name": "Stingray Digital Group Inc",
@@ -141,7 +141,7 @@ def strike_wm_group():
     print("⚡ STRIKE PACKAGE: WM GROUP SOLUTIONS")
     print("="*60)
     
-    target_email = "info@wmgroupsolutions.com"  # UPDATE THIS
+    target_email = "info@wmgroupsolutions.com"  # Primary: Info/CEO contact
     
     target_data = {
         "name": "WM Group Solutions Inc",
