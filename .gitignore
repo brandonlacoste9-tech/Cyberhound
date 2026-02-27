@@ -1,0 +1,46 @@
+# 🔒 SECRETS & CREDENTIALS - NEVER COMMIT
+zyeute-key.json
+.env
+*.env
+.env.local
+.env.production
+email_config.py
+*_secrets.py
+
+# 🎯 DATA & BOOTY - PROPRIETARY INTELLIGENCE
+BUTIN_*.json
+*.pdf
+LE_BUTIN.json
+STRIKE_LIST.json
+AUDIT_LOG.json
+USA_RECON_INTEL.json
+Empire_Comms.log
+
+# 🐍 PYTHON
+test.py
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# 🧪 TESTING
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 💻 IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 📦 DEPENDENCIES
+*.egg-info/
+dist/
+build/
