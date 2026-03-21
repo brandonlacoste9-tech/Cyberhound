@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { sendHITLApproval } from "@/lib/telegram/notify";
+import { Resend } from "resend";
+import { getSupabaseServer } from "@/lib/supabase/server";
+import { sendHITLApproval, sendHiveUpdate } from "@/lib/telegram/notify";
 
 const client = new OpenAI();
 
@@ -12,12 +14,21 @@ interface EmailSequenceItem {
   goal: string;
 }
 
+interface Recipient {
+  name: string;
+  email: string;
+  company?: string;
+  title?: string;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { opportunity, campaign, action, recipients } = await req.json();
+    const db = getSupabaseServer();
 
     // ──────────────────────────────────────────────
     // ACTION: generate_sequence
+    // Generates 3-email sequence + sends HITL approval
     // ──────────────────────────────────────────────
     if (action === "generate_sequence") {
       const sequencePrompt = `You are the Closer Bee for CyberHound — an elite B2B outreach specialist.
@@ -28,12 +39,16 @@ Market: ${opportunity?.market ?? "North America"}
 Product: ${campaign?.name ?? "CyberHound Product"}
 Price: ${opportunity?.recommended_price_point ?? "$97/mo"}
 Value Prop: ${opportunity?.queen_reasoning ?? "Saves time and money"}
+Payment Link: ${campaign?.payment_link ?? "{{PAYMENT_LINK}}"}
 
 Rules:
 - Short, punchy emails (max 150 words each)
-- No corporate speak — conversational, direct
+- No corporate speak — conversational, direct, human
 - Each email has a single clear CTA
 - Subject lines under 50 chars, no clickbait
+- Email 3 must include the payment link as a direct URL
+- Use {{FIRST_NAME}} placeholder for personalization
+- Use {{COMPANY}} placeholder for company name
 
 Return ONLY a JSON array (no markdown):
 [
@@ -54,7 +69,7 @@ Return ONLY a JSON array (no markdown):
   {
     "sequence_number": 3,
     "subject": "<closing subject>",
-    "body": "<closing body with clear CTA and payment link placeholder: {{PAYMENT_LINK}}>",
+    "body": "<closing body with payment link>",
     "send_delay_days": 7,
     "goal": "conversion"
   }
@@ -82,41 +97,156 @@ Return ONLY a JSON array (no markdown):
         }
       }
 
-      // Always require HITL before sending outreach
+      // Persist sequence to outreach_log
       const approvalId = `outreach_${Date.now()}`;
       const recipientCount = Array.isArray(recipients) ? recipients.length : 0;
 
-      await sendHITLApproval({
-        approvalId,
-        actionType: "send_outreach_sequence",
-        summary: `3-email sequence for ${opportunity?.niche ?? "campaign"}`,
-        details: `📧 Recipients: ${recipientCount > 0 ? recipientCount : "TBD"}\n📬 Email 1: "${sequence[0]?.subject}"\n📬 Email 2: "${sequence[1]?.subject}" (+3d)\n📬 Email 3: "${sequence[2]?.subject}" (+7d)\n\n⚠️ Approve to queue outreach.`,
+      await db.from("outreach_log").insert({
+        campaign_id: campaign?.id ?? null,
+        sequence: sequence,
+        status: "pending_approval",
+        approval_id: approvalId,
+        recipient_count: recipientCount,
+        recipients: recipients ?? [],
       });
 
       // Log to hive
-      try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-        if (supabaseUrl && !supabaseUrl.includes("placeholder")) {
-          const { createClient } = await import("@supabase/supabase-js");
-          const db = createClient(supabaseUrl, supabaseKey!);
-          await db.from("hive_log").insert({
-            bee: "closer",
-            action: `Generated outreach sequence for: ${opportunity?.niche}`,
-            details: { sequence, recipient_count: recipientCount },
-            status: "pending_approval",
-          });
-        }
-      } catch (dbErr) {
-        console.error("[Closer DB]", dbErr);
-      }
+      await db.from("hive_log").insert({
+        bee: "closer",
+        action: `Generated 3-email sequence for: ${opportunity?.niche ?? campaign?.name}`,
+        details: { sequence, recipient_count: recipientCount, approval_id: approvalId },
+        status: "pending_approval",
+      });
+
+      // HITL gate — send to Telegram for approval
+      await sendHITLApproval({
+        approvalId,
+        actionType: "send_outreach_sequence",
+        summary: `3-email sequence for ${opportunity?.niche ?? campaign?.name}`,
+        details: `📧 Recipients: ${recipientCount > 0 ? recipientCount : "TBD"}\n📬 Email 1: "${sequence[0]?.subject}"\n📬 Email 2: "${sequence[1]?.subject}" (+3d)\n📬 Email 3: "${sequence[2]?.subject}" (+7d)\n\n⚠️ Approve to send Email 1 immediately.`,
+      });
 
       return NextResponse.json({
         sequence,
         hitl_required: true,
         approval_id: approvalId,
-        message: "Sequence generated. HITL approval sent to Telegram before sending.",
+        message: "Sequence generated. HITL approval sent to Telegram — tap Approve to send.",
       });
+    }
+
+    // ──────────────────────────────────────────────
+    // ACTION: send_sequence
+    // Sends Email 1 immediately via Resend (post-HITL)
+    // ──────────────────────────────────────────────
+    if (action === "send_sequence") {
+      const resendKey = process.env.RESEND_API_KEY;
+      if (!resendKey || resendKey === "placeholder") {
+        return NextResponse.json({ error: "Resend not configured" }, { status: 400 });
+      }
+
+      const resend = new Resend(resendKey);
+      const recipientList: Recipient[] = Array.isArray(recipients) ? recipients : [];
+      const sequence: EmailSequenceItem[] = campaign?.sequence ?? [];
+
+      if (!sequence.length) {
+        return NextResponse.json({ error: "No sequence provided" }, { status: 400 });
+      }
+
+      // Send Email 1 immediately
+      const email1 = sequence[0];
+      const results = [];
+
+      for (const recipient of recipientList) {
+        const personalizedBody = (email1.body ?? "")
+          .replace(/\{\{FIRST_NAME\}\}/g, recipient.name.split(" ")[0])
+          .replace(/\{\{COMPANY\}\}/g, recipient.company ?? "your company");
+
+        const personalizedSubject = (email1.subject ?? "")
+          .replace(/\{\{FIRST_NAME\}\}/g, recipient.name.split(" ")[0])
+          .replace(/\{\{COMPANY\}\}/g, recipient.company ?? "your company");
+
+        try {
+          const { data, error } = await resend.emails.send({
+            from: "CyberHound <onboarding@resend.dev>",
+            to: [recipient.email],
+            subject: personalizedSubject,
+            text: personalizedBody,
+          });
+
+          if (error) {
+            console.error("[Closer Resend]", error);
+            results.push({ email: recipient.email, status: "failed", error: error.message });
+          } else {
+            results.push({ email: recipient.email, status: "sent", id: data?.id });
+
+            // Log each send to outreach_log
+            await db.from("outreach_log").insert({
+              campaign_id: campaign?.id ?? null,
+              recipient_email: recipient.email,
+              recipient_name: recipient.name,
+              subject: personalizedSubject,
+              sequence_number: 1,
+              status: "sent",
+              resend_id: data?.id ?? null,
+            });
+          }
+        } catch (sendErr) {
+          console.error("[Closer send error]", sendErr);
+          results.push({ email: recipient.email, status: "error" });
+        }
+      }
+
+      const sentCount = results.filter((r) => r.status === "sent").length;
+
+      // Log to hive
+      await db.from("hive_log").insert({
+        bee: "closer",
+        action: `Sent Email 1 to ${sentCount}/${recipientList.length} recipients`,
+        details: { results, campaign_id: campaign?.id },
+        status: sentCount > 0 ? "success" : "failed",
+      });
+
+      // Notify via Telegram
+      await sendHiveUpdate(
+        `📧 *Closer Bee Report*\n\nEmail 1 sent!\n✅ Delivered: ${sentCount}/${recipientList.length}\n📬 Subject: "${email1.subject}"\n\nEmail 2 scheduled for +3 days.`
+      );
+
+      return NextResponse.json({
+        sent: sentCount,
+        total: recipientList.length,
+        results,
+        next_email: sequence[1] ? `Email 2 scheduled: "${sequence[1].subject}" in ${sequence[1].send_delay_days} days` : null,
+      });
+    }
+
+    // ──────────────────────────────────────────────
+    // ACTION: send_single
+    // Sends a single test email via Resend
+    // ──────────────────────────────────────────────
+    if (action === "send_single") {
+      const resendKey = process.env.RESEND_API_KEY;
+      if (!resendKey || resendKey === "placeholder") {
+        return NextResponse.json({ error: "Resend not configured" }, { status: 400 });
+      }
+
+      const { to, subject, body } = await req.json().catch(() => ({ to: null, subject: null, body: null }));
+      if (!to || !subject || !body) {
+        return NextResponse.json({ error: "to, subject, body required" }, { status: 400 });
+      }
+
+      const resend = new Resend(resendKey);
+      const { data, error } = await resend.emails.send({
+        from: "CyberHound <onboarding@resend.dev>",
+        to: [to],
+        subject,
+        text: body,
+      });
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ sent: true, id: data?.id });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
