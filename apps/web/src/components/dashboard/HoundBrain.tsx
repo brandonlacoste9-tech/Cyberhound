@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Zap, Play, Square } from "lucide-react";
+import { Send, Loader2, Play, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -21,16 +21,16 @@ const INITIAL_MESSAGES: Message[] = [
     id: "1",
     role: "queen",
     content:
-      "🐝 Queen Bee online. CyberHound v1.0 initialized. I'm scanning North American markets for high-MRR opportunities.\n\nAwaiting your directive — or type \"hunt\" to begin autonomous scouting.",
+      "Queen Bee online. CyberHound v1.0 initialized. Scanning North American markets for high-MRR opportunities.\n\nAwaiting your directive — or type \"hunt\" to begin autonomous scouting.",
     timestamp: new Date(),
   },
 ];
 
 const QUICK_COMMANDS = [
-  { label: "🎯 Hunt opportunities",  prompt: "Scout North American markets for 3 high-MRR SaaS opportunities. Rank them by score and give me your top pick." },
-  { label: "💰 Revenue strategy",    prompt: "What's the fastest path to $10K MRR given our current Colony OS stack? Be specific." },
-  { label: "🔍 Validate niche",      prompt: "Validate: AI-powered permit tracking for Canadian general contractors. Score it and give me a go/no-go." },
-  { label: "🚀 Build plan",          prompt: "Give me a 30-day execution plan to launch a SaaS in the trades space and hit $5K MRR." },
+  { label: "Hunt opportunities",  prompt: "Scout North American markets for 3 high-MRR SaaS opportunities. Rank by score and give me your top pick." },
+  { label: "Revenue strategy",    prompt: "What's the fastest path to $10K MRR? Be specific." },
+  { label: "Validate niche",      prompt: "Validate: AI-powered permit tracking for Canadian general contractors. Score it and give me a go/no-go." },
+  { label: "30-day build plan",   prompt: "Give me a 30-day execution plan to launch a SaaS in the trades space and hit $5K MRR." },
 ];
 
 export function HoundBrain() {
@@ -85,7 +85,7 @@ export function HoundBrain() {
         {
           id: (Date.now() + 1).toString(),
           role: "queen",
-          content: "⚠️ Hive connection error. Check API configuration in Settings.",
+          content: "Connection error. Check API configuration in Settings.",
           timestamp: new Date(),
         },
       ]);
@@ -107,7 +107,7 @@ export function HoundBrain() {
         {
           id: Date.now().toString(),
           role: "queen",
-          content: "⏸ Autonomous mode paused. Awaiting your directive.",
+          content: "Autonomous mode paused. Awaiting your directive.",
           timestamp: new Date(),
         },
       ]);
@@ -116,55 +116,48 @@ export function HoundBrain() {
 
   return (
     <div
-      className="rounded-xl flex flex-col"
-      style={{
-        height: "480px",
-        background: "var(--bg-card)",
-        border: "1px solid rgba(255,255,255,0.08)",
-      }}
+      className="card flex flex-col"
+      style={{ height: "460px" }}
     >
       {/* ── Header ──────────────────────────────────── */}
       <div
-        className="flex items-center gap-3 px-5 py-4 border-b shrink-0"
-        style={{ borderColor: "rgba(255,255,255,0.08)" }}
+        className="flex items-center justify-between px-5 py-4"
+        style={{ borderBottom: "1px solid var(--border)" }}
       >
-        <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-          style={{
-            background: "rgba(251,191,36,0.15)",
-            border: "1px solid rgba(251,191,36,0.3)",
-          }}
-        >
-          <Zap className="w-4 h-4" style={{ color: "var(--amber-400)" }} />
+        <div className="flex items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
+            style={{ background: "var(--status-amber-bg)" }}
+          >
+            🐝
+          </div>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+              Queen Bee
+            </p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Strategic orchestrator
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
-            Queen Bee
-          </p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Strategic orchestrator
-          </p>
-        </div>
-        <div className="ml-auto flex items-center gap-3">
-          {/* Autonomous toggle */}
+        <div className="flex items-center gap-3">
           <button
             onClick={toggleAutonomous}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
             style={
               autonomous
-                ? { background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.25)", color: "#f87171" }
-                : { background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)", color: "var(--amber-400)" }
+                ? { background: "var(--status-red-bg)", color: "var(--status-red)" }
+                : { background: "var(--status-amber-bg)", color: "var(--status-amber)" }
             }
           >
             {autonomous ? <><Square className="w-3 h-3" /> Stop</> : <><Play className="w-3 h-3" /> Auto</>}
           </button>
-          {/* Live indicator */}
           <div className="flex items-center gap-1.5">
             <span
-              className="w-2 h-2 rounded-full hound-pulse"
-              style={{ background: autonomous ? "var(--status-hunting)" : "var(--status-closing)" }}
+              className="w-2 h-2 rounded-full pulse"
+              style={{ background: autonomous ? "var(--status-amber)" : "var(--status-green)" }}
             />
-            <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
               {autonomous ? "Hunting" : "Live"}
             </span>
           </div>
@@ -172,7 +165,7 @@ export function HoundBrain() {
       </div>
 
       {/* ── Messages ────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -183,14 +176,13 @@ export function HoundBrain() {
               style={
                 msg.role === "queen"
                   ? {
-                      background: "rgba(251,191,36,0.07)",
-                      border: "1px solid rgba(251,191,36,0.14)",
+                      background: "var(--bg-muted)",
                       color: "var(--text-primary)",
+                      border: "1px solid var(--border)",
                     }
                   : {
-                      background: "rgba(255,255,255,0.07)",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: "var(--text-primary)",
+                      background: "var(--text-primary)",
+                      color: "#ffffff",
                     }
               }
             >
@@ -201,15 +193,15 @@ export function HoundBrain() {
         {loading && (
           <div className="flex justify-start">
             <div
-              className="flex items-center gap-2.5 px-4 py-3 rounded-2xl text-sm"
+              className="flex items-center gap-2 px-4 py-3 rounded-2xl text-sm"
               style={{
-                background: "rgba(251,191,36,0.07)",
-                border: "1px solid rgba(251,191,36,0.14)",
+                background: "var(--bg-muted)",
+                border: "1px solid var(--border)",
                 color: "var(--text-muted)",
               }}
             >
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Queen Bee thinking...
+              <Loader2 className="w-4 h-4 spin" />
+              Thinking...
             </div>
           </div>
         )}
@@ -223,11 +215,11 @@ export function HoundBrain() {
             <button
               key={cmd.label}
               onClick={() => sendMessage(cmd.prompt)}
-              className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all hover:opacity-80"
+              className="text-xs px-3 py-1.5 rounded-lg font-medium"
               style={{
-                background: "rgba(251,191,36,0.08)",
-                border: "1px solid rgba(251,191,36,0.16)",
-                color: "var(--amber-400)",
+                background: "var(--bg-muted)",
+                border: "1px solid var(--border)",
+                color: "var(--text-secondary)",
               }}
             >
               {cmd.label}
@@ -238,34 +230,32 @@ export function HoundBrain() {
 
       {/* ── Input ───────────────────────────────────── */}
       <div
-        className="px-5 py-4 border-t shrink-0"
-        style={{ borderColor: "rgba(255,255,255,0.08)" }}
+        className="px-5 py-4"
+        style={{ borderTop: "1px solid var(--border)" }}
       >
-        <div className="flex items-center gap-3">
+        <div
+          className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
+          style={{ background: "var(--bg-muted)", border: "1px solid var(--border-strong)" }}
+        >
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
-            placeholder="Direct the Queen Bee... or let her hunt autonomously"
+            placeholder="Direct the Queen Bee..."
             className="flex-1 bg-transparent text-sm outline-none border-none"
-            style={{
-              color: "var(--text-primary)",
-              padding: 0,
-              background: "transparent",
-            }}
+            style={{ color: "var(--text-primary)", padding: 0 }}
           />
           <button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || loading}
-            className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
+            className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
             style={{
-              background: "rgba(251,191,36,0.15)",
-              border: "1px solid rgba(251,191,36,0.3)",
-              color: "var(--amber-400)",
+              background: input.trim() ? "var(--text-primary)" : "var(--border)",
+              color: input.trim() ? "#fff" : "var(--text-muted)",
             }}
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

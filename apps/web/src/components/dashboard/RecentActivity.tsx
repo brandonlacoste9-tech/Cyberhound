@@ -1,23 +1,22 @@
 "use client";
 
-import { Crown, Search, Hammer, MessageSquare, DollarSign, CheckCircle, XCircle, Clock } from "lucide-react";
+import Link from "next/link";
+import { Crown, CheckCircle, XCircle, Clock } from "lucide-react";
 
 interface ActivityEntry {
   id: string;
   bee: string;
   beeIcon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
-  beeColor: string;
   action: string;
-  status: "success" | "vetoed" | "pending_approval";
+  status: "success" | "vetoed" | "pending";
   time: string;
 }
 
 const MOCK_ACTIVITY: ActivityEntry[] = [
   {
     id: "1",
-    bee: "Queen",
+    bee: "Queen Bee",
     beeIcon: Crown,
-    beeColor: "var(--amber-400)",
     action: "CyberHound initialized. Hive online. Awaiting first scout run.",
     status: "success",
     time: "just now",
@@ -25,88 +24,69 @@ const MOCK_ACTIVITY: ActivityEntry[] = [
 ];
 
 const STATUS_CONFIG = {
-  success:          { icon: CheckCircle, color: "var(--status-closing)", label: "Done"    },
-  vetoed:           { icon: XCircle,     color: "var(--status-vetoed)",  label: "Vetoed"  },
-  pending_approval: { icon: Clock,       color: "var(--amber-400)",      label: "Pending" },
+  success: { icon: CheckCircle, color: "var(--status-green)", bg: "var(--status-green-bg)", label: "Done"    },
+  vetoed:  { icon: XCircle,     color: "var(--status-red)",   bg: "var(--status-red-bg)",   label: "Vetoed"  },
+  pending: { icon: Clock,       color: "var(--status-amber)", bg: "var(--status-amber-bg)", label: "Pending" },
 };
 
 export function RecentActivity() {
   return (
-    <div
-      className="rounded-xl overflow-hidden"
-      style={{
-        background: "var(--bg-card)",
-        border: "1px solid rgba(255,255,255,0.08)",
-      }}
-    >
+    <div className="card h-full flex flex-col">
       {/* Header */}
       <div
-        className="flex items-center justify-between px-5 py-4 border-b"
-        style={{ borderColor: "rgba(255,255,255,0.08)" }}
+        className="px-5 py-4 flex items-center justify-between shrink-0"
+        style={{ borderBottom: "1px solid var(--border)" }}
       >
-        <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
+        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
           Hive Log
         </p>
-        <a
+        <Link
           href="/hive"
-          className="text-xs font-semibold transition-opacity hover:opacity-70"
-          style={{ color: "var(--amber-400)" }}
+          className="text-xs font-medium"
+          style={{ color: "var(--text-muted)" }}
         >
           View all →
-        </a>
+        </Link>
       </div>
 
-      {/* Activity list */}
-      <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+      {/* Feed */}
+      <div className="flex-1 overflow-y-auto">
         {MOCK_ACTIVITY.length === 0 ? (
-          <div className="px-5 py-10 text-center">
+          <div className="px-5 py-12 text-center">
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>
               No activity yet. Start the Hound to begin hunting.
             </p>
           </div>
         ) : (
-          MOCK_ACTIVITY.map((entry) => {
+          MOCK_ACTIVITY.map((entry, i) => {
             const sc = STATUS_CONFIG[entry.status];
             return (
-              <div key={entry.id} className="flex items-center gap-4 px-5 py-4">
-                {/* Bee icon */}
+              <div
+                key={entry.id}
+                className="flex items-start gap-3 px-5 py-4"
+                style={{ borderTop: i > 0 ? "1px solid var(--border)" : "none" }}
+              >
+                {/* Status icon */}
                 <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{
-                    background: `${entry.beeColor}18`,
-                    border: `1px solid ${entry.beeColor}28`,
-                  }}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ background: sc.bg }}
                 >
-                  <entry.beeIcon className="w-4 h-4" style={{ color: entry.beeColor }} />
+                  <sc.icon className="w-3.5 h-3.5" style={{ color: sc.color }} />
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-semibold" style={{ color: entry.beeColor }}>
-                      {entry.bee} Bee
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
+                      {entry.bee}
                     </span>
-                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    <span className="text-xs shrink-0" style={{ color: "var(--text-muted)" }}>
                       {entry.time}
                     </span>
                   </div>
-                  <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                     {entry.action}
                   </p>
-                </div>
-
-                {/* Status badge */}
-                <div
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg shrink-0"
-                  style={{
-                    background: `${sc.color}12`,
-                    border: `1px solid ${sc.color}25`,
-                  }}
-                >
-                  <sc.icon className="w-3.5 h-3.5" style={{ color: sc.color }} />
-                  <span className="text-xs font-semibold" style={{ color: sc.color }}>
-                    {sc.label}
-                  </span>
                 </div>
               </div>
             );

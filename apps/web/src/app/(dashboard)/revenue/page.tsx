@@ -2,16 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, BarChart, Bar, Cell,
 } from "recharts";
 import { DollarSign, TrendingUp, Users, RefreshCw, TrendingDown, Zap } from "lucide-react";
 
@@ -24,29 +16,26 @@ interface RevenueData {
   net_revenue_30d: number;
 }
 
-// Simulated MRR growth chart data — will populate from real Stripe events
 const MRR_CHART_DATA = [
-  { date: "Mar 1", mrr: 0, target: 1000 },
-  { date: "Mar 7", mrr: 0, target: 2500 },
-  { date: "Mar 14", mrr: 0, target: 5000 },
-  { date: "Mar 21", mrr: 0, target: 8400 },
+  { date: "Mar 1",  mrr: 0, target: 1000  },
+  { date: "Mar 7",  mrr: 0, target: 2500  },
+  { date: "Mar 14", mrr: 0, target: 5000  },
+  { date: "Mar 21", mrr: 0, target: 8400  },
   { date: "Mar 28", mrr: 0, target: 10000 },
 ];
 
 const CHANNEL_DATA = [
-  { channel: "Organic", revenue: 0, color: "#10b981" },
+  { channel: "Organic",  revenue: 0, color: "#10b981" },
   { channel: "Outreach", revenue: 0, color: "#f59e0b" },
   { channel: "Referral", revenue: 0, color: "#3b82f6" },
-  { channel: "Ads", revenue: 0, color: "#a78bfa" },
+  { channel: "Ads",      revenue: 0, color: "#8b5cf6" },
 ];
 
 function formatCents(cents: number): string {
   if (cents === 0) return "$0";
   return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    style: "currency", currency: "USD",
+    minimumFractionDigits: 0, maximumFractionDigits: 0,
   }).format(cents / 100);
 }
 
@@ -71,124 +60,95 @@ export default function RevenuePage() {
 
   useEffect(() => {
     fetchRevenue();
-    // Auto-refresh every 60s
     const interval = setInterval(fetchRevenue, 60_000);
     return () => clearInterval(interval);
   }, [fetchRevenue]);
 
-  const mrr = data?.mrr ?? 0;
-  const arr = data?.arr ?? 0;
-  const subs = data?.active_subscriptions ?? 0;
-  const net30d = data?.net_revenue_30d ?? 0;
-  const ltv = subs > 0 ? Math.round((mrr / subs) * 12) : 0; // simple LTV = ARPU * 12
+  const mrr   = data?.mrr ?? 0;
+  const arr   = data?.arr ?? 0;
+  const subs  = data?.active_subscriptions ?? 0;
+  const net30 = data?.net_revenue_30d ?? 0;
+  const ltv   = subs > 0 ? Math.round((mrr / subs) * 12) : 0;
 
   const stats = [
-    {
-      label: "MRR",
-      value: formatCents(mrr),
-      sub: `ARR: ${formatCents(arr)}`,
-      icon: DollarSign,
-      color: "var(--status-closing)",
-    },
-    {
-      label: "Active Subs",
-      value: String(subs),
-      sub: `+${data?.new_this_month ?? 0} this month`,
-      icon: Users,
-      color: "var(--status-building)",
-    },
-    {
-      label: "Net Revenue (30d)",
-      value: formatCents(net30d),
-      sub: "Stripe confirmed",
-      icon: TrendingUp,
-      color: "var(--amber-400)",
-    },
-    {
-      label: "Est. LTV",
-      value: ltv > 0 ? formatCents(ltv * 100) : "$0",
-      sub: "ARPU × 12 months",
-      icon: Zap,
-      color: "#a78bfa",
-    },
+    { label: "MRR",             value: formatCents(mrr),    sub: `ARR: ${formatCents(arr)}`,                icon: DollarSign, accent: "var(--status-green)", accentBg: "var(--status-green-bg)" },
+    { label: "Active Subs",     value: String(subs),        sub: `+${data?.new_this_month ?? 0} this month`, icon: Users,      accent: "var(--status-blue)",  accentBg: "var(--status-blue-bg)"  },
+    { label: "Net Revenue 30d", value: formatCents(net30),  sub: "Stripe confirmed",                         icon: TrendingUp, accent: "var(--status-amber)", accentBg: "var(--status-amber-bg)" },
+    { label: "Est. LTV",        value: ltv > 0 ? formatCents(ltv * 100) : "$0", sub: "ARPU × 12 months",   icon: Zap,        accent: "var(--status-gray)",  accentBg: "var(--status-gray-bg)"  },
   ];
 
   return (
-    <div className="p-7 space-y-7">
-      {/* Header */}
+    <div className="p-8 space-y-6">
+      {/* ── Header ──────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
+          <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
             Revenue
           </h1>
-          <p className="text-sm mt-1.5 font-medium" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
             Treasurer Bee — real-time MRR tracking across all campaigns
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-            Last sync: {lastRefresh.toLocaleTimeString()}
-          </p>
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Synced {lastRefresh.toLocaleTimeString()}
+          </span>
           <button
             onClick={fetchRevenue}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium"
             style={{
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.12)",
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border-strong)",
               color: "var(--text-secondary)",
             }}
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? "spin" : ""}`} />
             Refresh
           </button>
         </div>
       </div>
 
-      {/* Stats grid */}
+      {/* ── Stats grid ──────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-xl p-5"
-            style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.08)" }}
-          >
+          <div key={stat.label} className="card p-5">
             <div className="flex items-center justify-between mb-4">
               <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
                 {stat.label}
               </p>
               <div
                 className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ background: `${stat.color}18`, border: `1px solid ${stat.color}30` }}
+                style={{ background: stat.accentBg }}
               >
-                <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
+                <stat.icon className="w-4 h-4" style={{ color: stat.accent }} />
               </div>
             </div>
-            <p className="text-3xl font-black" style={{ color: "var(--text-primary)" }}>
+            <p className="text-3xl font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
               {loading ? "—" : stat.value}
             </p>
-            <p className="text-xs mt-2 font-medium" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs mt-1.5" style={{ color: "var(--text-muted)" }}>
               {stat.sub}
             </p>
           </div>
         ))}
       </div>
 
-      {/* Charts row */}
+      {/* ── Charts ──────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* MRR Growth — 2/3 */}
-        <div className="lg:col-span-2 rounded-xl p-5" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.08)" }}>
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
+        <div className="card p-5 lg:col-span-2">
+          <div className="flex items-center justify-between mb-5">
+            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
               MRR Growth vs Target
             </p>
-            <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-muted)" }}>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full" style={{ background: "#f59e0b" }} />
+            <div className="flex items-center gap-4 text-xs" style={{ color: "var(--text-muted)" }}>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full" style={{ background: "#2563eb" }} />
                 Actual
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full" style={{ background: "rgba(255,255,255,0.2)" }} />
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full" style={{ background: "#d1d5db" }} />
                 Target
               </span>
             </div>
@@ -197,55 +157,57 @@ export default function RevenuePage() {
             <AreaChart data={MRR_CHART_DATA}>
               <defs>
                 <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                  <stop offset="5%"  stopColor="#2563eb" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#2563eb" stopOpacity={0}    />
                 </linearGradient>
                 <linearGradient id="targetGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="rgba(255,255,255,0.15)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="rgba(255,255,255,0.15)" stopOpacity={0} />
+                  <stop offset="5%"  stopColor="#d1d5db" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#d1d5db" stopOpacity={0}   />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-              <XAxis dataKey="date" tick={{ fill: "var(--text-muted)", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "var(--text-muted)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="date" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
               <Tooltip
                 contentStyle={{
-                  background: "var(--bg-elevated)",
-                  border: "1px solid var(--glass-border)",
-                  borderRadius: "8px",
+                  background: "#fff",
+                  border: "1px solid var(--border)",
+                  borderRadius: "10px",
                   color: "var(--text-primary)",
                   fontSize: "12px",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
                 }}
                 formatter={(value: number, name: string) => [`$${value}`, name === "mrr" ? "MRR" : "Target"]}
               />
-              <Area type="monotone" dataKey="target" stroke="rgba(255,255,255,0.15)" strokeWidth={1} strokeDasharray="4 4" fill="url(#targetGrad)" />
-              <Area type="monotone" dataKey="mrr" stroke="#f59e0b" strokeWidth={2} fill="url(#mrrGrad)" />
+              <Area type="monotone" dataKey="target" stroke="#d1d5db" strokeWidth={1.5} strokeDasharray="4 4" fill="url(#targetGrad)" />
+              <Area type="monotone" dataKey="mrr"    stroke="#2563eb" strokeWidth={2}   fill="url(#mrrGrad)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         {/* Revenue by channel — 1/3 */}
-        <div className="rounded-xl p-5" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.08)" }}>
-          <p className="text-sm font-bold mb-4" style={{ color: "var(--text-primary)" }}>
+        <div className="card p-5">
+          <p className="text-sm font-semibold mb-5" style={{ color: "var(--text-primary)" }}>
             Revenue by Channel
           </p>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={CHANNEL_DATA} layout="vertical">
-              <XAxis type="number" tick={{ fill: "var(--text-muted)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
-              <YAxis type="category" dataKey="channel" tick={{ fill: "var(--text-muted)", fontSize: 10 }} axisLine={false} tickLine={false} width={55} />
+              <XAxis type="number" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+              <YAxis type="category" dataKey="channel" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} width={55} />
               <Tooltip
                 contentStyle={{
-                  background: "var(--bg-elevated)",
-                  border: "1px solid var(--glass-border)",
-                  borderRadius: "8px",
+                  background: "#fff",
+                  border: "1px solid var(--border)",
+                  borderRadius: "10px",
                   color: "var(--text-primary)",
                   fontSize: "12px",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
                 }}
                 formatter={(value: number) => [`$${value}`, "Revenue"]}
               />
               <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
-                {CHANNEL_DATA.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} fillOpacity={0.8} />
+                {CHANNEL_DATA.map((entry, i) => (
+                  <Cell key={`cell-${i}`} fill={entry.color} fillOpacity={0.85} />
                 ))}
               </Bar>
             </BarChart>
@@ -253,59 +215,37 @@ export default function RevenuePage() {
         </div>
       </div>
 
-      {/* Churn / health indicators */}
+      {/* ── Health indicators ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <HealthCard
-          label="Churn Rate"
-          value="0%"
-          sub="0 churned this month"
-          icon={TrendingDown}
-          color="var(--status-closing)"
-          good={true}
-        />
-        <HealthCard
-          label="ARPU"
-          value={subs > 0 ? formatCents(Math.round(mrr / subs)) : "$0"}
-          sub="Average revenue per user"
-          icon={DollarSign}
-          color="var(--amber-400)"
-          good={true}
-        />
-        <HealthCard
-          label="Target to $8.4K MRR"
-          value={formatCents(Math.max(0, 840000 - mrr))}
-          sub="Ron AI benchmark — 13 days"
-          icon={Zap}
-          color="var(--status-building)"
-          good={mrr >= 840000}
-        />
+        <HealthCard label="Churn Rate"           value="0%"                                                 sub="0 churned this month"       icon={TrendingDown} good={true}           accent="var(--status-green)" accentBg="var(--status-green-bg)" />
+        <HealthCard label="ARPU"                  value={subs > 0 ? formatCents(Math.round(mrr / subs)) : "$0"} sub="Average revenue per user"  icon={DollarSign}   good={true}           accent="var(--status-amber)" accentBg="var(--status-amber-bg)" />
+        <HealthCard label="Target to $8.4K MRR"  value={formatCents(Math.max(0, 840000 - mrr))}            sub="Ron AI benchmark — 13 days" icon={Zap}          good={mrr >= 840000}  accent="var(--status-blue)"  accentBg="var(--status-blue-bg)"  />
       </div>
     </div>
   );
 }
 
 function HealthCard({
-  label, value, sub, icon: Icon, color, good,
+  label, value, sub, icon: Icon, good, accent, accentBg,
 }: {
   label: string; value: string; sub: string;
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
-  color: string; good: boolean;
+  good: boolean; accent: string; accentBg: string;
 }) {
   return (
-    <div className="rounded-xl p-5" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.08)" }}>
+    <div className="card p-5">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</p>
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ background: `${color}18`, border: `1px solid ${color}30` }}
-        >
-          <Icon className="w-4 h-4" style={{ color }} />
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+          {label}
+        </p>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: accentBg }}>
+          <Icon className="w-4 h-4" style={{ color: accent }} />
         </div>
       </div>
-      <p className="text-2xl font-black" style={{ color: good ? "var(--status-closing)" : "var(--amber-400)" }}>
+      <p className="text-2xl font-bold" style={{ color: good ? "var(--status-green)" : "var(--status-amber)" }}>
         {value}
       </p>
-      <p className="text-sm mt-1.5" style={{ color: "var(--text-muted)" }}>{sub}</p>
+      <p className="text-xs mt-1.5" style={{ color: "var(--text-muted)" }}>{sub}</p>
     </div>
   );
 }

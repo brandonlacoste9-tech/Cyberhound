@@ -3,68 +3,46 @@ import { BeeStatusGrid } from "@/components/dashboard/BeeStatusGrid";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { QuickStats } from "@/components/dashboard/QuickStats";
 
-export const metadata = {
-  title: "Hound Brain | CyberHound",
-};
+export const metadata = { title: "Hound Brain | CyberHound" };
 
 export default function DashboardPage() {
   return (
-    <div className="p-7 space-y-7">
-      {/* ── Page header ───────────────────────────── */}
-      <div className="flex items-start justify-between">
+    <div className="p-8 space-y-8">
+      {/* ── Header ──────────────────────────────────── */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1
-            className="text-3xl font-black tracking-tight"
-            style={{ color: "var(--text-primary)" }}
-          >
+          <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
             Hound Brain
           </h1>
-          <p
-            className="text-sm mt-1.5 font-medium"
-            style={{ color: "var(--text-secondary)" }}
-          >
+          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
             Queen Bee command center — autonomous revenue operations
           </p>
         </div>
-        <HoundBrainStatus />
+        <div
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold"
+          style={{
+            background: "var(--status-green-bg)",
+            color: "var(--status-green)",
+          }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full pulse" style={{ background: "var(--status-green)" }} />
+          Hunting
+        </div>
       </div>
 
-      {/* ── Quick stats ───────────────────────────── */}
+      {/* ── Quick stats ─────────────────────────────── */}
       <QuickStats />
 
-      {/* ── Main grid ─────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Hound Brain chat — 2/3 */}
-        <div className="lg:col-span-2">
+      {/* ── Main grid ───────────────────────────────── */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2 space-y-6">
           <HoundBrain />
-        </div>
-        {/* Bee status panel — 1/3 */}
-        <div>
           <BeeStatusGrid />
         </div>
+        <div>
+          <RecentActivity />
+        </div>
       </div>
-
-      {/* ── Recent activity ───────────────────────── */}
-      <RecentActivity />
-    </div>
-  );
-}
-
-function HoundBrainStatus() {
-  return (
-    <div
-      className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold tracking-wider uppercase"
-      style={{
-        background: "rgba(251,191,36,0.1)",
-        border: "1px solid rgba(251,191,36,0.28)",
-        color: "var(--amber-400)",
-      }}
-    >
-      <span
-        className="w-2 h-2 rounded-full hound-pulse"
-        style={{ background: "var(--amber-400)" }}
-      />
-      Hunting
     </div>
   );
 }

@@ -17,9 +17,15 @@ interface Opportunity {
 }
 
 const COMPETITION_COLORS = {
-  low:    "var(--status-closing)",
-  medium: "var(--amber-400)",
-  high:   "var(--status-vetoed)",
+  low:    "var(--status-green)",
+  medium: "var(--status-amber)",
+  high:   "var(--status-red)",
+};
+
+const COMPETITION_BG = {
+  low:    "var(--status-green-bg)",
+  medium: "var(--status-amber-bg)",
+  high:   "var(--status-red-bg)",
 };
 
 export default function OpportunitiesPage() {
@@ -62,23 +68,20 @@ export default function OpportunitiesPage() {
     setOpportunities((prev) => prev.map((o) => (o.id === id ? { ...o, status: "rejected" } : o)));
 
   return (
-    <div className="p-7 space-y-7">
+    <div className="p-8 space-y-6">
       {/* ── Header ──────────────────────────────────── */}
       <div>
-        <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
+        <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
           Opportunities
         </h1>
-        <p className="text-sm mt-1.5 font-medium" style={{ color: "var(--text-secondary)" }}>
+        <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
           Scout Bee market research — identify and approve high-MRR niches
         </p>
       </div>
 
       {/* ── Scout input ─────────────────────────────── */}
-      <div
-        className="rounded-xl p-6"
-        style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.08)" }}
-      >
-        <p className="text-sm font-bold mb-4" style={{ color: "var(--text-primary)" }}>
+      <div className="card p-5">
+        <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
           Deploy Scout Bee
         </p>
         <div className="flex gap-3 flex-wrap">
@@ -88,14 +91,9 @@ export default function OpportunitiesPage() {
             onChange={(e) => setNiche(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleScout()}
             placeholder="e.g. AI scheduling for dental clinics, permit tracking SaaS..."
-            className="flex-1 min-w-0 text-sm"
-            style={{ minWidth: "240px" }}
+            style={{ flex: 1, minWidth: "240px" }}
           />
-          <select
-            value={market}
-            onChange={(e) => setMarket(e.target.value)}
-            className="text-sm"
-          >
+          <select value={market} onChange={(e) => setMarket(e.target.value)}>
             <option value="North America">North America</option>
             <option value="Canada">Canada</option>
             <option value="USA">USA</option>
@@ -104,19 +102,18 @@ export default function OpportunitiesPage() {
           <button
             onClick={handleScout}
             disabled={!niche.trim() || loading}
-            className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
             style={{
-              background: "rgba(251,191,36,0.15)",
-              border: "1px solid rgba(251,191,36,0.3)",
-              color: "var(--amber-400)",
+              background: "var(--text-primary)",
+              color: "#ffffff",
             }}
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {loading ? <Loader2 className="w-4 h-4 spin" /> : <Search className="w-4 h-4" />}
             {loading ? "Scouting..." : "Scout"}
           </button>
         </div>
         {error && (
-          <p className="text-sm mt-3 flex items-center gap-2" style={{ color: "var(--status-vetoed)" }}>
+          <p className="text-sm mt-3 flex items-center gap-2" style={{ color: "var(--status-red)" }}>
             <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
           </p>
@@ -126,19 +123,18 @@ export default function OpportunitiesPage() {
       {/* ── Opportunities list ──────────────────────── */}
       {opportunities.length === 0 ? (
         <div
-          className="rounded-xl p-16 text-center"
-          style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.08)" }}
+          className="card p-16 text-center"
         >
-          <Target className="w-12 h-12 mx-auto mb-4" style={{ color: "var(--text-muted)" }} />
-          <p className="text-base font-semibold" style={{ color: "var(--text-secondary)" }}>
+          <Target className="w-10 h-10 mx-auto mb-4" style={{ color: "var(--text-faint)" }} />
+          <p className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
             No opportunities scouted yet
           </p>
-          <p className="text-sm mt-2" style={{ color: "var(--text-muted)" }}>
+          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
             Enter a niche above and deploy Scout Bee to analyze market potential
           </p>
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {opportunities.map((opp) => (
             <OpportunityCard
               key={opp.id}
@@ -163,45 +159,59 @@ function OpportunityCard({
   onReject: () => void;
 }) {
   const scoreColor =
-    opp.score >= 75 ? "var(--status-closing)" :
-    opp.score >= 50 ? "var(--amber-400)" :
-    "var(--status-vetoed)";
+    opp.score >= 75 ? "var(--status-green)" :
+    opp.score >= 50 ? "var(--status-amber)" :
+    "var(--status-red)";
+
+  const scoreColorBg =
+    opp.score >= 75 ? "var(--status-green-bg)" :
+    opp.score >= 50 ? "var(--status-amber-bg)" :
+    "var(--status-red-bg)";
+
+  const statusConfig = {
+    discovered:       { label: "Discovered",      color: "var(--status-gray)",  bg: "var(--status-gray-bg)"  },
+    pending_approval: { label: "Pending Approval", color: "var(--status-amber)", bg: "var(--status-amber-bg)" },
+    approved:         { label: "Approved",         color: "var(--status-green)", bg: "var(--status-green-bg)" },
+    rejected:         { label: "Vetoed",           color: "var(--status-red)",   bg: "var(--status-red-bg)"   },
+  };
+  const sCfg = statusConfig[opp.status];
 
   return (
-    <div
-      className="rounded-xl p-6 space-y-5"
-      style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.08)" }}
-    >
+    <div className="card p-6 space-y-5">
       {/* Top row */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-2.5 flex-wrap">
-            <h3 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>
+            <h3 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>
               {opp.niche}
             </h3>
             <span
-              className="text-xs px-2.5 py-1 rounded-full font-semibold"
+              className="badge"
               style={{
-                background: `${COMPETITION_COLORS[opp.competition_level]}15`,
-                border: `1px solid ${COMPETITION_COLORS[opp.competition_level]}30`,
+                background: COMPETITION_BG[opp.competition_level],
                 color: COMPETITION_COLORS[opp.competition_level],
               }}
             >
               {opp.competition_level} competition
             </span>
-            <StatusBadge status={opp.status} />
+            <span className="badge" style={{ background: sCfg.bg, color: sCfg.color }}>
+              {sCfg.label}
+            </span>
           </div>
-          <p className="text-sm mt-1.5" style={{ color: "var(--text-muted)" }}>
+          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
             {opp.market}
           </p>
         </div>
         {/* Score */}
-        <div className="text-right shrink-0">
-          <p className="text-4xl font-black" style={{ color: scoreColor }}>
+        <div
+          className="text-center px-4 py-3 rounded-xl shrink-0"
+          style={{ background: scoreColorBg }}
+        >
+          <p className="text-3xl font-bold" style={{ color: scoreColor }}>
             {opp.score}
           </p>
-          <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-            score / 100
+          <p className="text-xs font-medium" style={{ color: scoreColor }}>
+            / 100
           </p>
         </div>
       </div>
@@ -210,23 +220,23 @@ function OpportunityCard({
       <div className="grid grid-cols-2 gap-4">
         <div
           className="rounded-xl p-4"
-          style={{ background: "rgba(52,211,153,0.07)", border: "1px solid rgba(52,211,153,0.18)" }}
+          style={{ background: "var(--status-green-bg)" }}
         >
           <p className="text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
             MRR Potential
           </p>
-          <p className="text-base font-bold" style={{ color: "var(--status-closing)" }}>
+          <p className="text-sm font-bold" style={{ color: "var(--status-green)" }}>
             {opp.estimated_mrr_potential}
           </p>
         </div>
         <div
           className="rounded-xl p-4"
-          style={{ background: "rgba(251,191,36,0.07)", border: "1px solid rgba(251,191,36,0.18)" }}
+          style={{ background: "var(--status-amber-bg)" }}
         >
           <p className="text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
             Price Point
           </p>
-          <p className="text-base font-bold" style={{ color: "var(--amber-400)" }}>
+          <p className="text-sm font-bold" style={{ color: "var(--status-amber)" }}>
             {opp.recommended_price_point}
           </p>
         </div>
@@ -234,7 +244,7 @@ function OpportunityCard({
 
       {/* Demand signals */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider mb-2.5" style={{ color: "var(--text-muted)" }}>
+        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
           Demand Signals
         </p>
         <div className="flex flex-wrap gap-2">
@@ -243,8 +253,8 @@ function OpportunityCard({
               key={i}
               className="text-xs px-3 py-1 rounded-lg"
               style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
+                background: "var(--bg-muted)",
+                border: "1px solid var(--border)",
                 color: "var(--text-secondary)",
               }}
             >
@@ -257,10 +267,10 @@ function OpportunityCard({
       {/* Queen reasoning */}
       <div
         className="rounded-xl p-4"
-        style={{ background: "rgba(251,191,36,0.05)", border: "1px solid rgba(251,191,36,0.12)" }}
+        style={{ background: "var(--status-amber-bg)", border: "1px solid rgba(217,119,6,0.15)" }}
       >
-        <p className="text-xs font-bold mb-2" style={{ color: "var(--amber-400)" }}>
-          👑 Queen Bee Assessment
+        <p className="text-xs font-bold mb-1.5" style={{ color: "var(--status-amber)" }}>
+          Queen Bee Assessment
         </p>
         <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
           {opp.queen_reasoning}
@@ -275,11 +285,11 @@ function OpportunityCard({
           </p>
           <button
             onClick={onReject}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
             style={{
-              background: "rgba(248,113,113,0.1)",
-              border: "1px solid rgba(248,113,113,0.25)",
-              color: "var(--status-vetoed)",
+              background: "var(--status-red-bg)",
+              color: "var(--status-red)",
+              border: "1px solid rgba(220,38,38,0.2)",
             }}
           >
             <XCircle className="w-4 h-4" />
@@ -287,11 +297,10 @@ function OpportunityCard({
           </button>
           <button
             onClick={onApprove}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
             style={{
-              background: "rgba(52,211,153,0.1)",
-              border: "1px solid rgba(52,211,153,0.25)",
-              color: "var(--status-closing)",
+              background: "var(--text-primary)",
+              color: "#ffffff",
             }}
           >
             <CheckCircle className="w-4 h-4" />
@@ -300,27 +309,5 @@ function OpportunityCard({
         </div>
       )}
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: Opportunity["status"] }) {
-  const config = {
-    discovered:       { label: "Discovered",        color: "var(--text-muted)"      },
-    pending_approval: { label: "Pending Approval",   color: "var(--amber-400)"       },
-    approved:         { label: "Approved",           color: "var(--status-closing)"  },
-    rejected:         { label: "Vetoed",             color: "var(--status-vetoed)"   },
-  };
-  const cfg = config[status];
-  return (
-    <span
-      className="text-xs px-2.5 py-1 rounded-full font-semibold"
-      style={{
-        background: `${cfg.color}15`,
-        border: `1px solid ${cfg.color}30`,
-        color: cfg.color,
-      }}
-    >
-      {cfg.label}
-    </span>
   );
 }
