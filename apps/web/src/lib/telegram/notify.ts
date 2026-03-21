@@ -15,7 +15,7 @@ interface SendMessageOptions {
 
 export async function sendTelegramAlert(options: SendMessageOptions): Promise<string | null> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
 
   if (!token || !chatId || token === "placeholder" || chatId === "0") {
     console.log("[Telegram] Not configured — skipping alert:", options.text.slice(0, 80));
