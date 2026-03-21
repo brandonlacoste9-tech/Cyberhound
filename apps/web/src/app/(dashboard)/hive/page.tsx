@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Crown, Search, Hammer, MessageSquare, DollarSign, CheckCircle, XCircle, Clock, Activity } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Crown, Search, Hammer, MessageSquare, DollarSign, CheckCircle, XCircle, Clock, Activity, RefreshCw } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const BEE_ICONS = {
   queen:     Crown,
@@ -10,17 +16,6 @@ const BEE_ICONS = {
   closer:    MessageSquare,
   treasurer: DollarSign,
 };
-
-const MOCK_LOG = [
-  {
-    id: "1",
-    bee: "queen" as const,
-    action: "CyberHound initialized. Hive online. All bees deployed.",
-    status: "success" as const,
-    time: "just now",
-    details: { version: "1.0.0", bees: 5 },
-  },
-];
 
 const STATUS_CONFIG = {
   success:          { icon: CheckCircle, color: "var(--status-green)", bg: "var(--status-green-bg)", label: "Success" },
@@ -31,23 +26,92 @@ const STATUS_CONFIG = {
 
 const FILTERS = ["all", "queen", "scout", "builder", "closer", "treasurer"] as const;
 
+interface LogEntry {
+  id: string;
+  created_at: string;
+  bee: keyof typeof BEE_ICONS;
+  action: string;
+  details: Record<string, unknown>;
+  status: keyof typeof STATUS_CONFIG;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 export default function HivePage() {
   const [activeFilter, setActiveFilter] = useState<typeof FILTERS[number]>("all");
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = MOCK_LOG.filter(
-    (e) => activeFilter === "all" || e.bee === activeFilter
-  );
+  const fetchLog = useCallback(async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from("hive_log")
+        .select("id, created_at, bee, action, details, status")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (activeFilter !== "all") {
+        query = query.eq("bee", activeFilter);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      setLog((data ?? []) as LogEntry[]);
+    } catch (err) {
+      console.error("[HiveLog]", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeFilter]);
+
+  useEffect(() => {
+    fetchLog();
+
+    // Real-time subscription
+    const channel = supabase
+      .channel("hive_log_changes")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "hive_log" }, () => {
+        fetchLog();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchLog]);
 
   return (
     <div className="p-8 space-y-6">
       {/* ── Header ──────────────────────────────────── */}
-      <div>
-        <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
-          Hive Log
-        </h1>
-        <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
-          Full audit trail of all bee actions — every decision, every execution
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
+            Hive Log
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
+            Full audit trail of all bee actions — every decision, every execution
+          </p>
+        </div>
+        <button
+          onClick={fetchLog}
+          disabled={loading}
+          className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium"
+          style={{
+            background: "var(--bg-surface)",
+            border: "1px solid var(--border-strong)",
+            color: "var(--text-secondary)",
+          }}
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? "spin" : ""}`} />
+          Refresh
+        </button>
       </div>
 
       {/* ── Filter bar ──────────────────────────────── */}
@@ -69,17 +133,25 @@ export default function HivePage() {
       </div>
 
       {/* ── Log entries ─────────────────────────────── */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="card p-16 text-center">
+          <RefreshCw className="w-8 h-8 mx-auto mb-3 spin" style={{ color: "var(--text-faint)" }} />
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Loading hive log...</p>
+        </div>
+      ) : log.length === 0 ? (
         <div className="card p-16 text-center">
           <Activity className="w-10 h-10 mx-auto mb-4" style={{ color: "var(--text-faint)" }} />
           <p className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
             No activity logged yet
           </p>
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+            Start a Scout run or send a directive to the Queen Bee
+          </p>
         </div>
       ) : (
         <div className="card divide-y" style={{ borderColor: "var(--border)" }}>
-          {filtered.map((entry) => {
-            const BeeIcon = BEE_ICONS[entry.bee];
+          {log.map((entry) => {
+            const BeeIcon = BEE_ICONS[entry.bee] ?? Crown;
             const sCfg = STATUS_CONFIG[entry.status] ?? STATUS_CONFIG.success;
 
             return (
@@ -99,13 +171,13 @@ export default function HivePage() {
                       {entry.bee} Bee
                     </span>
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      {entry.time}
+                      {timeAgo(entry.created_at)}
                     </span>
                   </div>
                   <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
                     {entry.action}
                   </p>
-                  {entry.details && (
+                  {entry.details && Object.keys(entry.details).length > 0 && (
                     <pre
                       className="text-xs mt-3 p-3 rounded-xl overflow-x-auto"
                       style={{

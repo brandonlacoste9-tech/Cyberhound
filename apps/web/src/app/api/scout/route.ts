@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHITLApproval } from "@/lib/telegram/notify";
 
 const client = new OpenAI();
@@ -96,47 +97,57 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
       }
     }
 
-    // Step 3: Persist to Supabase (non-blocking — don't fail if DB not configured)
-    const approvalId = `opp_${Date.now()}`;
+    // Step 3: Persist to Supabase
+    let opportunityId: string | null = null;
+    let hiveLogId: string | null = null;
+
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      const db = getSupabaseServer();
 
-      if (supabaseUrl && supabaseKey && !supabaseUrl.includes("placeholder")) {
-        const { createClient } = await import("@supabase/supabase-js");
-        const db = createClient(supabaseUrl, supabaseKey);
+      // Insert opportunity
+      const { data: oppRow, error: oppErr } = await db
+        .from("opportunities")
+        .insert({
+          niche: String(opportunity.niche ?? niche),
+          market: String(opportunity.market ?? market),
+          score: Number(opportunity.score ?? 0),
+          demand_signals: (opportunity.demand_signals as string[]) ?? [],
+          competition_level: (opportunity.competition_level as string) ?? "medium",
+          estimated_mrr_potential: String(opportunity.estimated_mrr_potential ?? "$0"),
+          recommended_price_point: String(opportunity.recommended_price_point ?? "$0"),
+          queen_reasoning: String(opportunity.queen_reasoning ?? ""),
+          status: "pending_approval",
+        })
+        .select("id")
+        .single();
 
-        const { data: oppRow } = await db
-          .from("opportunities")
-          .insert({
-            niche: String(opportunity.niche ?? niche),
-            market: String(opportunity.market ?? market),
-            description: String(opportunity.queen_reasoning ?? ""),
-            score: Number(opportunity.score ?? 0),
-            status: "pending_approval",
-            scout_data: opportunity,
-            queen_reasoning: String(opportunity.queen_reasoning ?? ""),
-          })
-          .select("id")
-          .single();
+      if (oppErr) console.error("[Scout DB opportunity]", oppErr);
+      if (oppRow?.id) opportunityId = oppRow.id;
 
-        if (oppRow?.id) {
-          // Log to hive
-          await db.from("hive_log").insert({
-            bee: "scout",
-            action: `Scouted opportunity: ${niche} in ${market}`,
-            details: opportunity,
-            status: "pending_approval",
-          });
+      // Log to hive
+      const { data: logRow, error: logErr } = await db
+        .from("hive_log")
+        .insert({
+          bee: "scout",
+          action: `Scouted opportunity: ${niche} in ${market}`,
+          details: { ...opportunity, opportunity_id: opportunityId },
+          status: "pending_approval",
+        })
+        .select("id")
+        .single();
 
-          // Create HITL approval record
-          await db.from("hitl_approvals").insert({
-            hive_log_id: null,
-            action_type: "approve_opportunity",
-            payload: { opportunity_id: oppRow.id, ...opportunity },
-            status: "pending",
-          });
-        }
+      if (logErr) console.error("[Scout DB hive_log]", logErr);
+      if (logRow?.id) hiveLogId = logRow.id;
+
+      // Create HITL approval record
+      if (hiveLogId) {
+        const { error: hitlErr } = await db.from("hitl_approvals").insert({
+          hive_log_id: hiveLogId,
+          action_type: "approve_opportunity",
+          payload: { opportunity_id: opportunityId, ...opportunity },
+          status: "pending",
+        });
+        if (hitlErr) console.error("[Scout DB hitl]", hitlErr);
       }
     } catch (dbErr) {
       console.error("[Scout DB]", dbErr);
@@ -146,14 +157,14 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
     const score = Number(opportunity.score ?? 0);
     if (score >= 60) {
       sendHITLApproval({
-        approvalId,
+        approvalId: opportunityId ?? `opp_${Date.now()}`,
         actionType: "approve_opportunity",
         summary: `${niche} — ${market}`,
         details: `📊 Score: ${score}/100\n💰 MRR Potential: ${opportunity.estimated_mrr_potential}\n💵 Price: ${opportunity.recommended_price_point}\n🏆 Competition: ${opportunity.competition_level}\n\n👑 ${opportunity.queen_reasoning}`,
       }).catch(console.error);
     }
 
-    return NextResponse.json({ opportunity });
+    return NextResponse.json({ opportunity, opportunityId });
   } catch (error) {
     console.error("[Scout API]", error);
     return NextResponse.json({ error: "Scout Bee encountered an error" }, { status: 500 });

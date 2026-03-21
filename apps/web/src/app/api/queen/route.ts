@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getSupabaseServer } from "@/lib/supabase/server";
 
 const client = new OpenAI();
 
@@ -41,6 +42,19 @@ export async function POST(req: NextRequest) {
     });
 
     const response = completion.choices[0]?.message?.content ?? "Queen Bee is processing...";
+
+    // Log to Supabase hive_log (non-blocking)
+    try {
+      const db = getSupabaseServer();
+      await db.from("hive_log").insert({
+        bee: "queen",
+        action: message.slice(0, 200),
+        details: { user_message: message, response: response.slice(0, 500) },
+        status: "success",
+      });
+    } catch (dbErr) {
+      console.error("[Queen DB]", dbErr);
+    }
 
     return NextResponse.json({ response });
   } catch (error) {
