@@ -7,26 +7,33 @@ export const metadata = { title: "Hound Brain | CyberHound" };
 
 export default function DashboardPage() {
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-6 space-y-6" style={{ position: "relative", zIndex: 1 }}>
+
       {/* ── Header ──────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
-            Hound Brain
+          <h1 className="text-2xl font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
+            Hound{" "}
+            <span className="text-gradient">Brain</span>
           </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
             Queen Bee command center — autonomous revenue operations
           </p>
         </div>
         <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full"
           style={{
-            background: "var(--status-green-bg)",
-            color: "var(--status-green)",
+            background: "var(--green-dim)",
+            border: "1px solid rgba(16,185,129,0.25)",
           }}
         >
-          <span className="w-1.5 h-1.5 rounded-full pulse" style={{ background: "var(--status-green)" }} />
-          Hunting
+          <span
+            className="w-1.5 h-1.5 rounded-full pulse"
+            style={{ background: "var(--green)", boxShadow: "0 0 6px var(--green)" }}
+          />
+          <span className="text-xs font-semibold" style={{ color: "var(--green)" }}>
+            Hunting
+          </span>
         </div>
       </div>
 

@@ -1,8 +1,19 @@
+/**
+ * Closer Bee v2 — Signal-Aware Hyper-Personalized Outreach
+ *
+ * New actions:
+ *  from_lead  — Full pipeline: fetch analyst lead → generate signal-aware sequence → HITL
+ *
+ * Upgraded:
+ *  generate_sequence — Now uses source/signal/pain_point/hook for hyper-personalization
+ *  send_sequence     — Now creates follow_up_sequences entries + updates analyst_leads status
+ */
 import { NextRequest, NextResponse } from "next/server";
-import { llm, LLM_MODEL } from "@/lib/llm/client";
+import { llm, LLM_MODEL, ask } from "@/lib/llm/client";
 import { Resend } from "resend";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHITLApproval, sendHiveUpdate } from "@/lib/telegram/notify";
+import { randomUUID } from "crypto";
 
 interface EmailSequenceItem {
   sequence_number: number;
@@ -17,11 +28,84 @@ interface Recipient {
   email: string;
   company?: string;
   title?: string;
+  // v2 signal fields
+  linkedin?: string;
+  pain_point?: string;
+  signal_type?: string;
+  source?: string;
+  budget?: string;
+  personalization_hook?: string;
+  recommended_service?: string;
+  lead_id?: string;
+}
+
+// ── Signal-aware prompt builder ───────────────────────────────────────────────
+function buildSignalAwarePrompt(recipient: Recipient, opportunity?: Record<string, unknown>, campaign?: Record<string, unknown>): string {
+  const source = recipient.source ?? "unknown";
+  const signal = recipient.signal_type ?? "general inquiry";
+  const painPoint = recipient.pain_point ?? "operational inefficiency";
+  const hook = recipient.personalization_hook ?? "";
+  const service = recipient.recommended_service ?? (opportunity?.niche as string) ?? "AI automation";
+  const budget = recipient.budget ? `Budget mentioned: ${recipient.budget}` : "";
+  const firstName = recipient.name?.split(" ")[0] ?? "there";
+
+  const sourceContext: Record<string, string> = {
+    upwork: "They posted a job on Upwork — they are actively buying RIGHT NOW. Be direct, reference their specific job post, and position as a premium alternative to hiring a freelancer.",
+    churn: "They are frustrated with a competitor product and venting publicly. Lead with empathy, acknowledge their pain, then pivot to how CyberHound solves exactly what their current tool fails at.",
+    reddit: "They shared a problem or asked for help on Reddit. They are in research/discovery mode. Be helpful and educational first, then introduce CyberHound as the solution they were looking for.",
+  };
+
+  const toneGuide = sourceContext[source] ?? `Professional B2B outreach. Niche: ${opportunity?.niche ?? "B2B SaaS"}. Market: ${opportunity?.market ?? "North America"}.`;
+
+  return `You are the Closer Bee for CyberHound — an elite AI-powered outreach specialist.
+
+Generate a 3-email cold outreach sequence for this warm lead:
+
+LEAD INTEL:
+- Name: ${firstName}
+- Company: ${recipient.company ?? (campaign as Record<string, unknown>)?.name ?? "their company"}
+- Title: ${recipient.title ?? "Decision Maker"}
+- Source: ${source.toUpperCase()} (${signal})
+- Pain Point: ${painPoint}
+- Personalization Hook: ${hook}
+- Recommended Service: ${service}
+${budget}
+${recipient.linkedin ? `- LinkedIn: ${recipient.linkedin}` : ""}
+- Payment Link: ${(campaign as Record<string, unknown>)?.payment_link ?? "https://cyberhound.dev"}
+
+TONE DIRECTIVE: ${toneGuide}
+
+CYBERHOUND SERVICES:
+- AI Automation Agents (custom workflows, n8n, Make.com replacement)
+- Web Scraping & Lead Intelligence (Firecrawl-powered)
+- Full-Stack Web App Development (Next.js, TypeScript)
+- AI-Powered Analytics Dashboards
+- Custom LLM Integrations (GPT-4, Claude, Gemini)
+
+SEQUENCE STRUCTURE:
+Email 1 (Day 0) — Pain Hook: Reference their EXACT signal, show you understand their problem, introduce CyberHound. CTA: 15-min call.
+Email 2 (Day 3) — Social Proof + Value: Share a relevant result/case study. Reinforce ROI. Soft CTA.
+Email 3 (Day 7) — Urgency Close: Final follow-up with urgency + payment link. Direct CTA.
+
+RULES:
+- Keep each email under 150 words
+- No generic fluff — every sentence must earn its place
+- Use {{FIRST_NAME}} and {{COMPANY}} as placeholders
+- Subject lines must be curiosity-driven, not salesy
+- Sign as: Brandon | CyberHound
+
+Return ONLY valid JSON array:
+[
+  { "sequence_number": 1, "subject": "...", "body": "...", "send_delay_days": 0, "goal": "pain_hook" },
+  { "sequence_number": 2, "subject": "...", "body": "...", "send_delay_days": 3, "goal": "social_proof" },
+  { "sequence_number": 3, "subject": "...", "body": "...", "send_delay_days": 7, "goal": "urgency_close" }
+]`;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { opportunity, campaign, action, recipients } = await req.json();
+    const body = await req.json();
+    const { opportunity, campaign, action, recipients } = body;
     const db = getSupabaseServer();
 
     // ──────────────────────────────────────────────
@@ -29,73 +113,24 @@ export async function POST(req: NextRequest) {
     // Generates 3-email sequence + sends HITL approval
     // ──────────────────────────────────────────────
     if (action === "generate_sequence") {
-      const sequencePrompt = `You are the Closer Bee for CyberHound — an elite B2B outreach specialist.
+      // v2: Use signal-aware prompt if recipient has source/signal data
+      const recipient: Recipient = Array.isArray(recipients) && recipients.length > 0
+        ? recipients[0]
+        : { name: "Decision Maker", email: "" };
 
-Generate a 3-email cold outreach sequence for this campaign:
-Niche: ${opportunity?.niche ?? "B2B SaaS"}
-Market: ${opportunity?.market ?? "North America"}
-Product: ${campaign?.name ?? "CyberHound Product"}
-Price: ${opportunity?.recommended_price_point ?? "$97/mo"}
-Value Prop: ${opportunity?.queen_reasoning ?? "Saves time and money"}
-Payment Link: ${campaign?.payment_link ?? "{{PAYMENT_LINK}}"}
+      const sequencePrompt = buildSignalAwarePrompt(recipient, opportunity, campaign);
 
-Rules:
-- Short, punchy emails (max 150 words each)
-- No corporate speak — conversational, direct, human
-- Each email has a single clear CTA
-- Subject lines under 50 chars, no clickbait
-- Email 3 must include the payment link as a direct URL
-- Use {{FIRST_NAME}} placeholder for personalization
-- Use {{COMPANY}} placeholder for company name
-
-Return ONLY a JSON array (no markdown):
-[
-  {
-    "sequence_number": 1,
-    "subject": "<subject line>",
-    "body": "<email body with line breaks as \\n>",
-    "send_delay_days": 0,
-    "goal": "awareness"
-  },
-  {
-    "sequence_number": 2,
-    "subject": "<follow-up subject>",
-    "body": "<follow-up body>",
-    "send_delay_days": 3,
-    "goal": "interest"
-  },
-  {
-    "sequence_number": 3,
-    "subject": "<closing subject>",
-    "body": "<closing body with payment link>",
-    "send_delay_days": 7,
-    "goal": "conversion"
-  }
-]`;
-
-      const completion = await llm.chat.completions.create({
-        model: LLM_MODEL,
-        messages: [{ role: "user", content: sequencePrompt }],
-        max_tokens: 2048,
-        temperature: 0.7,
-      });
-
-      const rawResponse = completion.choices[0]?.message?.content ?? "[]";
+      const rawResponse = await ask(sequencePrompt, undefined, { temperature: 0.8, max_tokens: 2048 });
       let sequence: EmailSequenceItem[];
 
       try {
         const cleaned = rawResponse.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-        sequence = JSON.parse(cleaned);
+        const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+        sequence = JSON.parse(jsonMatch?.[0] ?? cleaned);
       } catch {
-        const jsonMatch = rawResponse.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          sequence = JSON.parse(jsonMatch[0]);
-        } else {
-          return NextResponse.json({ error: "Failed to parse sequence", raw: rawResponse }, { status: 500 });
-        }
+        return NextResponse.json({ error: "Failed to parse sequence", raw: rawResponse }, { status: 500 });
       }
 
-      // Persist sequence to outreach_log
       const approvalId = `outreach_${Date.now()}`;
       const recipientCount = Array.isArray(recipients) ? recipients.length : 0;
 
@@ -108,27 +143,111 @@ Return ONLY a JSON array (no markdown):
         recipients: recipients ?? [],
       });
 
-      // Log to hive
       await db.from("hive_log").insert({
-        bee: "closer",
-        action: `Generated 3-email sequence for: ${opportunity?.niche ?? campaign?.name}`,
-        details: { sequence, recipient_count: recipientCount, approval_id: approvalId },
+        bee: "closer_v2",
+        action: `Generated signal-aware sequence for: ${recipient.company ?? opportunity?.niche ?? campaign?.name}`,
+        details: { sequence, recipient_count: recipientCount, approval_id: approvalId, source: recipient.source, signal_type: recipient.signal_type },
         status: "pending_approval",
       });
 
-      // HITL gate — send to Telegram for approval
+      const sourceEmoji: Record<string, string> = { upwork: "💼", churn: "🔄", reddit: "🔴" };
+      const emoji = sourceEmoji[recipient.source ?? ""] ?? "📡";
+
       await sendHITLApproval({
         approvalId,
         actionType: "send_outreach_sequence",
-        summary: `3-email sequence for ${opportunity?.niche ?? campaign?.name}`,
-        details: `📧 Recipients: ${recipientCount > 0 ? recipientCount : "TBD"}\n📬 Email 1: "${sequence[0]?.subject}"\n📬 Email 2: "${sequence[1]?.subject}" (+3d)\n📬 Email 3: "${sequence[2]?.subject}" (+7d)\n\n⚠️ Approve to send Email 1 immediately.`,
+        summary: `${emoji} Signal-aware sequence for ${recipient.company ?? opportunity?.niche ?? campaign?.name}`,
+        details: `👤 ${recipient.name} @ ${recipient.company ?? "Unknown"}\n📡 Source: ${(recipient.source ?? "unknown").toUpperCase()} — ${recipient.signal_type ?? ""}\n🎯 Service: ${recipient.recommended_service ?? opportunity?.niche ?? "AI Automation"}\n🔥 Hook: ${(recipient.personalization_hook ?? "").slice(0, 80)}\n\n📬 Email 1: "${sequence[0]?.subject}"\n📬 Email 2: "${sequence[1]?.subject}" (+3d)\n📬 Email 3: "${sequence[2]?.subject}" (+7d)\n\n⚠️ Approve to send Email 1 immediately.`,
       });
 
       return NextResponse.json({
         sequence,
         hitl_required: true,
         approval_id: approvalId,
-        message: "Sequence generated. HITL approval sent to Telegram — tap Approve to send.",
+        message: "Signal-aware sequence generated. HITL approval sent to Telegram — tap Approve to send.",
+      });
+    }
+
+    // ──────────────────────────────────────────────
+    // ACTION: from_lead (NEW in v2)
+    // Full pipeline: fetch analyst lead → generate → HITL
+    // ──────────────────────────────────────────────
+    if (action === "from_lead") {
+      const { lead_id } = body;
+      if (!lead_id) {
+        return NextResponse.json({ error: "lead_id required" }, { status: 400 });
+      }
+
+      const { data: lead, error: leadError } = await db
+        .from("analyst_leads")
+        .select("*")
+        .eq("id", lead_id)
+        .single();
+
+      if (leadError || !lead) {
+        return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+      }
+
+      if (!lead.contact_email) {
+        return NextResponse.json(
+          { error: "Lead not enriched yet. Run /api/enrich first.", lead_id },
+          { status: 400 }
+        );
+      }
+
+      const leadRecipient: Recipient = {
+        email: lead.contact_email,
+        name: lead.contact_name ?? "Decision Maker",
+        company: lead.company,
+        title: "CEO/Founder",
+        linkedin: lead.contact_linkedin,
+        pain_point: lead.pain_point,
+        signal_type: lead.signal_type,
+        source: lead.source,
+        budget: lead.budget,
+        personalization_hook: lead.personalization_hook,
+        recommended_service: lead.recommended_service,
+        lead_id: lead.id,
+      };
+
+      const prompt = buildSignalAwarePrompt(leadRecipient, undefined, undefined);
+      const rawLead = await ask(prompt, undefined, { temperature: 0.8, max_tokens: 2048 });
+
+      let leadSequence: EmailSequenceItem[];
+      try {
+        const jsonMatch = rawLead.match(/\[[\s\S]*\]/);
+        leadSequence = JSON.parse(jsonMatch?.[0] ?? rawLead);
+      } catch {
+        return NextResponse.json({ error: "LLM returned invalid JSON", raw: rawLead }, { status: 500 });
+      }
+
+      const leadApprovalId = `lead_${lead_id}_${Date.now()}`;
+
+      await db.from("hive_log").insert({
+        bee: "closer_v2",
+        action: "from_lead_sequence_generated",
+        details: { approval_id: leadApprovalId, lead_id, recipient: leadRecipient, sequence: leadSequence },
+        status: "pending",
+      });
+
+      await db.from("analyst_leads").update({ status: "queued" }).eq("id", lead_id);
+
+      const srcEmoji: Record<string, string> = { upwork: "💼", churn: "🔄", reddit: "🔴" };
+      const leadEmoji = srcEmoji[lead.source ?? ""] ?? "📡";
+
+      await sendHITLApproval({
+        approvalId: leadApprovalId,
+        actionType: "send_outreach_sequence",
+        summary: `${leadEmoji} Lead sequence: ${leadRecipient.name} @ ${leadRecipient.company ?? "Unknown"}`,
+        details: `📡 Source: ${(lead.source ?? "").toUpperCase()} — ${lead.signal_type ?? ""}\n🎯 Pain: ${(lead.pain_point ?? "").slice(0, 80)}\n🔥 Hook: ${(lead.personalization_hook ?? "").slice(0, 80)}\n\n📬 Email 1: "${leadSequence[0]?.subject}"\n📬 Email 2: "${leadSequence[1]?.subject}" (+3d)\n📬 Email 3: "${leadSequence[2]?.subject}" (+7d)\n\n⚠️ Approve to send Email 1 immediately.`,
+      });
+
+      return NextResponse.json({
+        sequence: leadSequence,
+        hitl_required: true,
+        approval_id: leadApprovalId,
+        lead_id,
+        message: "Sequence generated from analyst lead. Awaiting HITL approval.",
       });
     }
 
@@ -187,6 +306,35 @@ Return ONLY a JSON array (no markdown):
               status: "sent",
               resend_id: data?.id ?? null,
             });
+
+            // Update analyst_leads status if lead_id provided
+            if ((recipient as Recipient).lead_id) {
+              await db
+                .from("analyst_leads")
+                .update({ status: "sent" })
+                .eq("id", (recipient as Recipient).lead_id);
+            }
+
+            // Create follow_up_sequences entry for Email 2 and 3
+            if (sequence.length > 1) {
+              const nextEmail = sequence[1];
+              const nextSendAt = new Date();
+              nextSendAt.setDate(nextSendAt.getDate() + (nextEmail.send_delay_days ?? 3));
+              await db.from("follow_up_sequences").insert({
+                lead_id: (recipient as Recipient).lead_id ?? null,
+                campaign_id: campaign?.id ?? null,
+                recipient_email: recipient.email,
+                recipient_name: recipient.name,
+                company: recipient.company ?? null,
+                total_emails: sequence.length,
+                sent_count: 1,
+                current_step: 2,
+                next_send_at: nextSendAt.toISOString(),
+                last_sent_at: new Date().toISOString(),
+                status: "active",
+                sequence: sequence as unknown as never,
+              });
+            }
           }
         } catch (sendErr) {
           console.error("[Closer send error]", sendErr);
@@ -198,21 +346,23 @@ Return ONLY a JSON array (no markdown):
 
       // Log to hive
       await db.from("hive_log").insert({
-        bee: "closer",
+        bee: "closer_v2",
         action: `Sent Email 1 to ${sentCount}/${recipientList.length} recipients`,
+        // follow-ups scheduled:
         details: { results, campaign_id: campaign?.id },
         status: sentCount > 0 ? "success" : "failed",
       });
 
       // Notify via Telegram
       await sendHiveUpdate(
-        `📧 *Closer Bee Report*\n\nEmail 1 sent!\n✅ Delivered: ${sentCount}/${recipientList.length}\n📬 Subject: "${email1.subject}"\n\nEmail 2 scheduled for +3 days.`
+        `📧 *Closer Bee v2 — Email 1 Sent*\n\n✅ Delivered: ${sentCount}/${recipientList.length}\n📬 Subject: "${email1.subject}"\n🔄 Follow-ups: ${sequence.length - 1} scheduled\n\nEmail 2 fires in ${sequence[1]?.send_delay_days ?? 3} days.`
       );
 
       return NextResponse.json({
         sent: sentCount,
         total: recipientList.length,
         results,
+        follow_ups_scheduled: sequence.length - 1,
         next_email: sequence[1] ? `Email 2 scheduled: "${sequence[1].subject}" in ${sequence[1].send_delay_days} days` : null,
       });
     }
@@ -249,7 +399,7 @@ Return ONLY a JSON array (no markdown):
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (error) {
-    console.error("[Closer API]", error);
-    return NextResponse.json({ error: "Closer Bee encountered an error" }, { status: 500 });
+    console.error("[Closer v2 API]", error);
+    return NextResponse.json({ error: "Closer Bee v2 encountered an error", details: (error as Error).message }, { status: 500 });
   }
 }

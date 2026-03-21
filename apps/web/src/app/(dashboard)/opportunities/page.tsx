@@ -111,10 +111,11 @@ export default function OpportunitiesPage() {
       {/* ── Header ──────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
-            Opportunities
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
+          <div className="flex items-center gap-3 mb-1">
+            <span className="text-2xl">🔍</span>
+            <h1 className="text-2xl font-black text-gradient">Opportunities</h1>
+          </div>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
             Scout Bee market research — identify and approve high-MRR niches
           </p>
         </div>
@@ -134,10 +135,11 @@ export default function OpportunitiesPage() {
       </div>
 
       {/* ── Scout input ─────────────────────────────── */}
-      <div className="card p-5">
-        <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-          Deploy Scout Bee
-        </p>
+      <div className="card card-amber p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-lg">🐝</span>
+          <p className="text-sm font-bold" style={{ color: "var(--amber)" }}>Deploy Scout Bee</p>
+        </div>
         <div className="flex gap-3 flex-wrap">
           <input
             type="text"
@@ -157,7 +159,7 @@ export default function OpportunitiesPage() {
             onClick={handleScout}
             disabled={!niche.trim() || loading}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: "var(--text-primary)", color: "#ffffff" }}
+            style={{ background: "var(--amber)", color: "#000", fontWeight: 700 }}
           >
             {loading ? <Loader2 className="w-4 h-4 spin" /> : <Search className="w-4 h-4" />}
             {loading ? "Scouting..." : "Scout"}
@@ -283,7 +285,7 @@ function OpportunityCard({
           <button
             onClick={onApprove}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: "var(--text-primary)", color: "#ffffff" }}
+            style={{ background: "var(--amber)", color: "#000", fontWeight: 700 }}
           >
             <CheckCircle className="w-4 h-4" />
             Approve

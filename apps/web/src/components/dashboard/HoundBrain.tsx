@@ -22,87 +22,37 @@ interface Command {
   tag: string;
   prompt: string;
   color: string;
+  bg: string;
 }
 
 const COMMANDS: Command[] = [
-  {
-    label: "Hunt",
-    icon: "🎯",
-    tag: "/hunt",
-    prompt: "hunt",
-    color: "var(--status-amber)",
-  },
-  {
-    label: "Scout",
-    icon: "🔍",
-    tag: "/scout",
-    prompt: "Run Scout Bee on the top opportunity. Find real demand signals, competitors, and pricing data for the highest-MRR niche you can identify right now.",
-    color: "var(--status-blue)",
-  },
-  {
-    label: "Build",
-    icon: "🏗️",
-    tag: "/build",
-    prompt: "Activate Builder Bee. Generate a landing page concept and Stripe product for our top approved opportunity. Include headline, subheadline, 3 key features, pricing, and CTA.",
-    color: "var(--status-green)",
-  },
-  {
-    label: "Close",
-    icon: "📧",
-    tag: "/close",
-    prompt: "Activate Closer Bee. Write a 3-email cold outreach sequence for our top opportunity. Email 1: problem-aware cold open. Email 2: social proof + ROI. Email 3: urgency close.",
-    color: "var(--status-red)",
-  },
-  {
-    label: "Revenue",
-    icon: "💰",
-    tag: "/revenue",
-    prompt: "Give me a full revenue breakdown. What's our current MRR trajectory? What's the fastest path to $10K MRR from where we are now? Be specific with actions and timelines.",
-    color: "var(--status-green)",
-  },
-  {
-    label: "Status",
-    icon: "📊",
-    tag: "/status",
-    prompt: "Give me a full hive status report. Which bees are active, what opportunities are in the pipeline, what's pending my approval, and what's the next highest-leverage action I should take?",
-    color: "var(--status-blue)",
-  },
-  {
-    label: "Validate",
-    icon: "✅",
-    tag: "/validate",
-    prompt: "Validate our top opportunity. Score it 0–100 on: market size, competition, willingness to pay, speed to revenue, and Brandon's unfair advantage. Give a final go/no-go verdict.",
-    color: "var(--status-amber)",
-  },
-  {
-    label: "30-Day Plan",
-    icon: "📅",
-    tag: "/plan",
-    prompt: "Generate a 30-day execution plan to launch a SaaS and hit $5K MRR. Week-by-week breakdown: build, launch, outreach, and iterate. Be specific and actionable.",
-    color: "var(--status-blue)",
-  },
-  {
-    label: "Québec Mode",
-    icon: "🍁",
-    tag: "/qc",
-    prompt: "Switch to Québec Mode. Identify the top 3 high-MRR opportunities specifically for the Québec / French-Canadian market. Consider bilingual requirements, local regulations, and cultural fit.",
-    color: "var(--status-red)",
-  },
-  {
-    label: "Veto",
-    icon: "🚫",
-    tag: "/veto",
-    prompt: "C'est pas chill. Veto the current top opportunity and explain why it's not the right move. Then immediately pivot and identify the next best alternative.",
-    color: "var(--status-red)",
-  },
+  { label: "Hunt",       icon: "🎯", tag: "/hunt",     color: "var(--amber)",        bg: "var(--amber-dim)",
+    prompt: "hunt" },
+  { label: "Scout",      icon: "🔍", tag: "/scout",    color: "var(--blue)",         bg: "var(--blue-dim)",
+    prompt: "Run Scout Bee on the top opportunity. Find real demand signals, competitors, and pricing data for the highest-MRR niche you can identify right now." },
+  { label: "Build",      icon: "🏗️", tag: "/build",    color: "var(--green)",        bg: "var(--green-dim)",
+    prompt: "Activate Builder Bee. Generate a landing page concept and Stripe product for our top approved opportunity. Include headline, subheadline, 3 key features, pricing, and CTA." },
+  { label: "Close",      icon: "📧", tag: "/close",    color: "var(--red)",          bg: "var(--red-dim)",
+    prompt: "Activate Closer Bee. Write a 3-email cold outreach sequence for our top opportunity. Email 1: problem-aware cold open. Email 2: social proof + ROI. Email 3: urgency close." },
+  { label: "Revenue",    icon: "💰", tag: "/revenue",  color: "var(--green)",        bg: "var(--green-dim)",
+    prompt: "Give me a full revenue breakdown. What's our current MRR trajectory? What's the fastest path to $10K MRR from where we are now? Be specific with actions and timelines." },
+  { label: "Status",     icon: "📊", tag: "/status",   color: "var(--blue)",         bg: "var(--blue-dim)",
+    prompt: "Give me a full hive status report. Which bees are active, what opportunities are in the pipeline, what's pending my approval, and what's the next highest-leverage action I should take?" },
+  { label: "Validate",   icon: "✅", tag: "/validate", color: "var(--amber)",        bg: "var(--amber-dim)",
+    prompt: "Validate our top opportunity. Score it 0–100 on: market size, competition, willingness to pay, speed to revenue, and Brandon's unfair advantage. Give a final go/no-go verdict." },
+  { label: "30-Day Plan",icon: "📅", tag: "/plan",     color: "var(--blue)",         bg: "var(--blue-dim)",
+    prompt: "Generate a 30-day execution plan to launch a SaaS and hit $5K MRR. Week-by-week breakdown: build, launch, outreach, and iterate. Be specific and actionable." },
+  { label: "Québec",     icon: "🍁", tag: "/qc",       color: "var(--red)",          bg: "var(--red-dim)",
+    prompt: "Switch to Québec Mode. Identify the top 3 high-MRR opportunities specifically for the Québec / French-Canadian market. Consider bilingual requirements, local regulations, and cultural fit." },
+  { label: "Veto",       icon: "🚫", tag: "/veto",     color: "var(--red)",          bg: "var(--red-dim)",
+    prompt: "C'est pas chill. Veto the current top opportunity and explain why it's not the right move. Then immediately pivot and identify the next best alternative." },
 ];
 
 const INITIAL_MESSAGES: Message[] = [
   {
     id: "1",
     role: "queen",
-    content:
-      "Queen Bee online. CyberHound v1.0 initialized. Scanning North American markets for high-MRR opportunities.\n\nAwaiting your directive — use the commands below or type your own.",
+    content: "Queen Bee online. CyberHound v1.0 initialized.\n\nScanning North American markets for high-MRR opportunities. Awaiting your directive — use the commands below or type your own.",
     timestamp: new Date(),
   },
 ];
@@ -134,7 +84,10 @@ export function HoundBrain() {
     setInput("");
     setLoading(true);
 
-    const newHistory: HistoryMessage[] = [...history, { role: "user", content: text.trim() }];
+    const newHistory: HistoryMessage[] = [
+      ...history,
+      { role: "user", content: text.trim() },
+    ];
 
     try {
       const res = await fetch("/api/queen", {
@@ -171,7 +124,6 @@ export function HoundBrain() {
 
   function handleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") sendMessage(input);
-    // Slash-command autocomplete hint
     if (e.key === "Tab" && input.startsWith("/")) {
       e.preventDefault();
       const match = COMMANDS.find((c) => c.tag.startsWith(input));
@@ -200,21 +152,24 @@ export function HoundBrain() {
   }
 
   return (
-    <div className="card flex flex-col" style={{ height: "520px" }}>
+    <div
+      className="card flex flex-col"
+      style={{ height: "540px" }}
+    >
       {/* ── Header ──────────────────────────────────── */}
       <div
-        className="flex items-center justify-between px-5 py-4"
+        className="flex items-center justify-between px-5 py-3.5 shrink-0"
         style={{ borderBottom: "1px solid var(--border)" }}
       >
         <div className="flex items-center gap-3">
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
-            style={{ background: "var(--status-amber-bg)" }}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-lg"
+            style={{ background: "var(--amber-dim)", border: "1px solid rgba(245,158,11,0.25)" }}
           >
             🐝
           </div>
           <div>
-            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+            <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
               Queen Bee
             </p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
@@ -222,14 +177,15 @@ export function HoundBrain() {
             </p>
           </div>
         </div>
+
         <div className="flex items-center gap-3">
           <button
             onClick={toggleAutonomous}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
             style={
               autonomous
-                ? { background: "var(--status-red-bg)", color: "var(--status-red)" }
-                : { background: "var(--status-amber-bg)", color: "var(--status-amber)" }
+                ? { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(239,68,68,0.25)" }
+                : { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(245,158,11,0.25)" }
             }
           >
             {autonomous ? (
@@ -238,58 +194,68 @@ export function HoundBrain() {
               <><Play className="w-3 h-3" /> Auto</>
             )}
           </button>
+
           <div className="flex items-center gap-1.5">
             <span
-              className="w-2 h-2 rounded-full pulse"
-              style={{ background: autonomous ? "var(--status-amber)" : "var(--status-green)" }}
+              className="w-2 h-2 rounded-full"
+              style={{
+                background: autonomous ? "var(--amber)" : "var(--green)",
+                boxShadow: autonomous ? "0 0 6px var(--amber)" : "0 0 6px var(--green)",
+                animation: "pulse-dot 2s ease-in-out infinite",
+              }}
             />
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-              {autonomous ? "Hunting" : "Live"}
+            <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              {autonomous ? "Auto" : "Live"}
             </span>
           </div>
         </div>
       </div>
 
       {/* ── Command Palette ─────────────────────────── */}
-      <div style={{ borderBottom: "1px solid var(--border)" }}>
+      <div className="shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
         <button
           onClick={() => setCmdExpanded((v) => !v)}
-          className="w-full flex items-center justify-between px-5 py-2.5"
+          className="w-full flex items-center justify-between px-5 py-2"
           style={{ background: "var(--bg-muted)" }}
         >
-          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+          <span
+            className="text-[10px] font-semibold uppercase tracking-widest"
+            style={{ color: "var(--text-muted)" }}
+          >
             Commands
           </span>
           {cmdExpanded ? (
-            <ChevronUp className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
+            <ChevronUp className="w-3 h-3" style={{ color: "var(--text-muted)" }} />
           ) : (
-            <ChevronDown className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
+            <ChevronDown className="w-3 h-3" style={{ color: "var(--text-muted)" }} />
           )}
         </button>
+
         {cmdExpanded && (
-          <div className="px-4 py-3 flex flex-wrap gap-2">
+          <div className="px-4 pb-3 pt-2 flex flex-wrap gap-1.5">
             {COMMANDS.map((cmd) => (
               <button
                 key={cmd.tag}
                 onClick={() => sendMessage(cmd.prompt)}
                 disabled={loading}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-opacity"
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-medium"
                 style={{
-                  background: "var(--bg-card)",
-                  border: `1px solid var(--border)`,
-                  color: "var(--text-secondary)",
+                  background: cmd.bg,
+                  border: `1px solid ${cmd.color}22`,
+                  color: cmd.color,
                   opacity: loading ? 0.5 : 1,
+                  transition: "opacity 0.15s, border-color 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = cmd.color;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = `${cmd.color}22`;
                 }}
                 title={cmd.tag}
               >
                 <span>{cmd.icon}</span>
                 <span>{cmd.label}</span>
-                <span
-                  className="text-[10px] font-mono px-1 rounded"
-                  style={{ background: "var(--bg-muted)", color: "var(--text-muted)" }}
-                >
-                  {cmd.tag}
-                </span>
               </button>
             ))}
           </div>
@@ -303,8 +269,11 @@ export function HoundBrain() {
             key={msg.id}
             className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
           >
+            {msg.role === "queen" && (
+              <span className="text-base mr-2 mt-1 shrink-0">🐝</span>
+            )}
             <div
-              className="max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap"
+              className="max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap"
               style={
                 msg.role === "queen"
                   ? {
@@ -313,8 +282,9 @@ export function HoundBrain() {
                       border: "1px solid var(--border)",
                     }
                   : {
-                      background: "var(--text-primary)",
-                      color: "#ffffff",
+                      background: "var(--amber)",
+                      color: "#000",
+                      fontWeight: 500,
                     }
               }
             >
@@ -322,8 +292,10 @@ export function HoundBrain() {
             </div>
           </div>
         ))}
+
         {loading && (
-          <div className="flex justify-start">
+          <div className="flex justify-start items-center gap-2">
+            <span className="text-base">🐝</span>
             <div
               className="flex items-center gap-2 px-4 py-3 rounded-2xl text-sm"
               style={{
@@ -332,8 +304,8 @@ export function HoundBrain() {
                 color: "var(--text-muted)",
               }}
             >
-              <Loader2 className="w-4 h-4 spin" />
-              Queen Bee thinking...
+              <Loader2 className="w-3.5 h-3.5 spin" />
+              <span>Queen Bee thinking...</span>
             </div>
           </div>
         )}
@@ -341,10 +313,20 @@ export function HoundBrain() {
       </div>
 
       {/* ── Input ───────────────────────────────────── */}
-      <div className="px-5 py-4" style={{ borderTop: "1px solid var(--border)" }}>
+      <div className="px-5 py-4 shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
         <div
           className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
-          style={{ background: "var(--bg-muted)", border: "1px solid var(--border-strong)" }}
+          style={{
+            background: "var(--bg-muted)",
+            border: "1px solid var(--border-strong)",
+            transition: "border-color 0.15s",
+          }}
+          onFocusCapture={(e) => {
+            (e.currentTarget as HTMLElement).style.borderColor = "var(--amber)";
+          }}
+          onBlurCapture={(e) => {
+            (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)";
+          }}
         >
           <input
             type="text"
@@ -353,22 +335,23 @@ export function HoundBrain() {
             onKeyDown={handleInputKeyDown}
             placeholder="Type a command or directive... (/ for commands)"
             className="flex-1 bg-transparent text-sm outline-none border-none"
-            style={{ color: "var(--text-primary)", padding: 0 }}
+            style={{ color: "var(--text-primary)" }}
           />
           <button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || loading}
             className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
             style={{
-              background: input.trim() && !loading ? "var(--text-primary)" : "var(--border)",
-              color: input.trim() && !loading ? "#fff" : "var(--text-muted)",
+              background: input.trim() && !loading ? "var(--amber)" : "var(--border)",
+              color: input.trim() && !loading ? "#000" : "var(--text-muted)",
+              transition: "background 0.15s",
             }}
           >
             <Send className="w-3.5 h-3.5" />
           </button>
         </div>
         <p className="text-[10px] mt-1.5 text-center" style={{ color: "var(--text-muted)" }}>
-          Tab to autocomplete slash commands · Enter to send
+          Tab to autocomplete · Enter to send · OpenClaw → DeepSeek fallback
         </p>
       </div>
     </div>

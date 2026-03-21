@@ -92,10 +92,11 @@ export default function HivePage() {
       {/* ── Header ──────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
-            Hive Log
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
+          <div className="flex items-center gap-3 mb-1">
+            <span className="text-2xl">🐝</span>
+            <h1 className="text-2xl font-black text-gradient">Hive Log</h1>
+          </div>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
             Full audit trail of all bee actions — every decision, every execution
           </p>
         </div>
@@ -104,7 +105,7 @@ export default function HivePage() {
           disabled={loading}
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium"
           style={{
-            background: "var(--bg-surface)",
+            background: "var(--bg-card)",
             border: "1px solid var(--border-strong)",
             color: "var(--text-secondary)",
           }}
@@ -123,8 +124,8 @@ export default function HivePage() {
             className="text-xs px-3 py-1.5 rounded-lg capitalize font-medium"
             style={
               filter === activeFilter
-                ? { background: "var(--text-primary)", color: "#ffffff" }
-                : { background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-secondary)" }
+                ? { background: "var(--amber)", color: "#000", fontWeight: 700 }
+                : { background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-muted)" }
             }
           >
             {filter}
