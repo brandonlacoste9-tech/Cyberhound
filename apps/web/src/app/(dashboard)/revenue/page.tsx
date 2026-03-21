@@ -114,32 +114,32 @@ export default function RevenuePage() {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-7 space-y-7">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+          <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
             Revenue
           </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-sm mt-1.5 font-medium" style={{ color: "var(--text-secondary)" }}>
             Treasurer Bee — real-time MRR tracking across all campaigns
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+          <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
             Last sync: {lastRefresh.toLocaleTimeString()}
           </p>
           <button
             onClick={fetchRevenue}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
             style={{
               background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
+              border: "1px solid rgba(255,255,255,0.12)",
               color: "var(--text-secondary)",
             }}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
         </div>
@@ -148,22 +148,26 @@ export default function RevenuePage() {
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="glass rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          <div
+            key={stat.label}
+            className="rounded-xl p-5"
+            style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
                 {stat.label}
               </p>
               <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
                 style={{ background: `${stat.color}18`, border: `1px solid ${stat.color}30` }}
               >
-                <stat.icon className="w-3.5 h-3.5" style={{ color: stat.color }} />
+                <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
               </div>
             </div>
-            <p className="text-2xl font-black" style={{ color: "var(--text-primary)" }}>
+            <p className="text-3xl font-black" style={{ color: "var(--text-primary)" }}>
               {loading ? "—" : stat.value}
             </p>
-            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs mt-2 font-medium" style={{ color: "var(--text-muted)" }}>
               {stat.sub}
             </p>
           </div>
@@ -173,12 +177,12 @@ export default function RevenuePage() {
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* MRR Growth — 2/3 */}
-        <div className="lg:col-span-2 glass rounded-xl p-5">
+        <div className="lg:col-span-2 rounded-xl p-5" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+            <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
               MRR Growth vs Target
             </p>
-            <div className="flex items-center gap-3 text-[10px]" style={{ color: "var(--text-muted)" }}>
+            <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-muted)" }}>
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full" style={{ background: "#f59e0b" }} />
                 Actual
@@ -221,8 +225,8 @@ export default function RevenuePage() {
         </div>
 
         {/* Revenue by channel — 1/3 */}
-        <div className="glass rounded-xl p-5">
-          <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+        <div className="rounded-xl p-5" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <p className="text-sm font-bold mb-4" style={{ color: "var(--text-primary)" }}>
             Revenue by Channel
           </p>
           <ResponsiveContainer width="100%" height={220}>
@@ -288,20 +292,20 @@ function HealthCard({
   color: string; good: boolean;
 }) {
   return (
-    <div className="glass rounded-xl p-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>{label}</p>
+    <div className="rounded-xl p-5" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.08)" }}>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</p>
         <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center"
+          className="w-8 h-8 rounded-lg flex items-center justify-center"
           style={{ background: `${color}18`, border: `1px solid ${color}30` }}
         >
-          <Icon className="w-3.5 h-3.5" style={{ color }} />
+          <Icon className="w-4 h-4" style={{ color }} />
         </div>
       </div>
-      <p className="text-xl font-black" style={{ color: good ? "var(--status-closing)" : "var(--amber-400)" }}>
+      <p className="text-2xl font-black" style={{ color: good ? "var(--status-closing)" : "var(--amber-400)" }}>
         {value}
       </p>
-      <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{sub}</p>
+      <p className="text-sm mt-1.5" style={{ color: "var(--text-muted)" }}>{sub}</p>
     </div>
   );
 }

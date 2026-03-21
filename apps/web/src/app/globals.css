@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* CyberHound Design Tokens — Dark Amber Glassmorphism */
+  /* CyberHound Design Tokens — Dark Amber Glassmorphism v2 */
   --amber-50: #fffbeb;
   --amber-100: #fef3c7;
   --amber-400: #fbbf24;
@@ -10,23 +10,32 @@
   --amber-700: #b45309;
   --amber-900: #78350f;
 
-  --bg-base: #0a0a0a;
-  --bg-surface: #111111;
-  --bg-elevated: #1a1a1a;
+  /* Backgrounds — slightly lighter for better contrast */
+  --bg-base: #0d0d0d;
+  --bg-surface: #141414;
+  --bg-elevated: #1c1c1c;
+  --bg-card: #181818;
 
-  --glass-bg: rgba(251, 191, 36, 0.04);
-  --glass-border: rgba(251, 191, 36, 0.12);
-  --glass-hover: rgba(251, 191, 36, 0.08);
+  /* Glass */
+  --glass-bg: rgba(251, 191, 36, 0.05);
+  --glass-border: rgba(251, 191, 36, 0.14);
+  --glass-hover: rgba(251, 191, 36, 0.09);
 
-  --text-primary: #fafafa;
-  --text-secondary: #a1a1aa;
-  --text-muted: #52525b;
+  /* Text — boosted contrast across the board */
+  --text-primary: #f5f5f5;       /* near-white, high contrast */
+  --text-secondary: #c4c4c8;     /* was #a1a1aa — now clearly readable */
+  --text-muted: #8a8a96;         /* was #52525b — now legible on dark bg */
+  --text-faint: #5a5a66;         /* for truly decorative / disabled text */
 
+  /* Status colors */
   --status-hunting: #f59e0b;
-  --status-building: #3b82f6;
-  --status-closing: #10b981;
-  --status-paused: #6b7280;
-  --status-vetoed: #ef4444;
+  --status-building: #60a5fa;
+  --status-closing: #34d399;
+  --status-paused: #9ca3af;
+  --status-vetoed: #f87171;
+
+  /* Sidebar width */
+  --sidebar-width: 220px;
 }
 
 * {
@@ -37,6 +46,7 @@
 
 html {
   scroll-behavior: smooth;
+  font-size: 16px;
 }
 
 body {
@@ -45,42 +55,109 @@ body {
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
 }
 
-/* Glass card utility */
+/* ── Typography scale ─────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+p {
+  line-height: 1.65;
+}
+
+/* ── Glass card utility ───────────────────────────── */
 .glass {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .glass:hover {
   background: var(--glass-hover);
-  border-color: rgba(251, 191, 36, 0.2);
+  border-color: rgba(251, 191, 36, 0.22);
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-/* Amber glow utility */
+/* ── Stat card — solid dark bg for better readability */
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+}
+
+/* ── Amber glow ───────────────────────────────────── */
 .amber-glow {
-  box-shadow: 0 0 20px rgba(251, 191, 36, 0.15), 0 0 60px rgba(251, 191, 36, 0.05);
+  box-shadow: 0 0 24px rgba(251, 191, 36, 0.18), 0 0 64px rgba(251, 191, 36, 0.06);
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: var(--bg-base); }
-::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 2px; }
+/* ── Scrollbar ────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(251,191,36,0.18); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--amber-600); }
 
-/* Hound status pulse animation */
+/* ── Animations ───────────────────────────────────── */
 @keyframes hound-pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.35; }
 }
+.hound-pulse { animation: hound-pulse 2.2s ease-in-out infinite; }
 
-.hound-pulse { animation: hound-pulse 2s ease-in-out infinite; }
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fade-in 0.25s ease forwards; }
 
-/* Scan line animation for the Hound Brain */
 @keyframes scan {
   0% { transform: translateY(-100%); }
   100% { transform: translateY(100vh); }
+}
+
+/* ── Input / select base styles ──────────────────── */
+input, select, textarea {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: var(--text-primary);
+  padding: 0.5rem 0.875rem;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(251,191,36,0.45);
+  box-shadow: 0 0 0 3px rgba(251,191,36,0.08);
+}
+input::placeholder, textarea::placeholder {
+  color: var(--text-faint);
+}
+select option {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+/* ── Button base ──────────────────────────────────── */
+button {
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* ── Link reset ───────────────────────────────────── */
+a {
+  text-decoration: none;
+  color: inherit;
 }
