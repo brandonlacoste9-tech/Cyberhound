@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { llm, LLM_MODEL } from "@/lib/llm/client";
 import Stripe from "stripe";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHITLApproval } from "@/lib/telegram/notify";
-
-const client = new OpenAI();
 
 export async function POST(req: NextRequest) {
   try {
@@ -48,8 +46,8 @@ Return ONLY this JSON (no markdown):
   "seo_description": "<meta description under 160 chars>"
 }`;
 
-      const completion = await client.chat.completions.create({
-        model: "gemini-2.5-flash",
+      const completion = await llm.chat.completions.create({
+        model: LLM_MODEL,
         messages: [{ role: "user", content: copyPrompt }],
         max_tokens: 1500,
         temperature: 0.6,

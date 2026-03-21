@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { llm, LLM_MODEL } from "@/lib/llm/client";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHITLApproval } from "@/lib/telegram/notify";
 
-const client = new OpenAI();
+
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,8 +62,8 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
   "sources": ${searchContext ? '["web_search"]' : '[]'}
 }`;
 
-    const completion = await client.chat.completions.create({
-      model: "gemini-2.5-flash",
+    const completion = await llm.chat.completions.create({
+      model: LLM_MODEL,
       messages: [{ role: "user", content: prompt }],
       max_tokens: 1024,
       temperature: 0.2,

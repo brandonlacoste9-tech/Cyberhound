@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { llm, LLM_MODEL } from "@/lib/llm/client";
 import { Resend } from "resend";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHITLApproval, sendHiveUpdate } from "@/lib/telegram/notify";
-
-const client = new OpenAI();
 
 interface EmailSequenceItem {
   sequence_number: number;
@@ -75,8 +73,8 @@ Return ONLY a JSON array (no markdown):
   }
 ]`;
 
-      const completion = await client.chat.completions.create({
-        model: "gemini-2.5-flash",
+      const completion = await llm.chat.completions.create({
+        model: LLM_MODEL,
         messages: [{ role: "user", content: sequencePrompt }],
         max_tokens: 2048,
         temperature: 0.7,

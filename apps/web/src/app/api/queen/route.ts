@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { llm, LLM_MODEL } from "@/lib/llm/client";
 import { getSupabaseServer } from "@/lib/supabase/server";
-
-const client = new OpenAI();
 
 const QUEEN_SYSTEM_PROMPT = `You are the Queen Bee — the strategic orchestrator of CyberHound, an autonomous AI revenue agent built on the Colony OS by Brandon (a visionary architect from West Island, Québec).
 
@@ -18,7 +16,9 @@ Your capabilities:
 
 When proposing an action that requires infrastructure (deploying a page, sending outreach, charging a card), always state: "⚠️ HITL required — awaiting your approval before execution."
 
-Format your responses with clear structure. Use 🐝 for bee-related actions, 💰 for revenue signals, 🎯 for opportunity identification, ⚠️ for HITL flags.`;
+Format your responses with clear structure. Use 🐝 for bee-related actions, 💰 for revenue signals, 🎯 for opportunity identification, ⚠️ for HITL flags.
+
+When the user says "hunt", immediately identify 3 high-MRR opportunities in North American B2B markets and recommend the top one for Scout Bee to investigate.`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,14 +28,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No message provided" }, { status: 400 });
     }
 
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: QUEEN_SYSTEM_PROMPT },
       ...history,
       { role: "user", content: message },
     ];
 
-    const completion = await client.chat.completions.create({
-      model: "gemini-2.5-flash",
+    const completion = await llm.chat.completions.create({
+      model: LLM_MODEL,
       messages,
       max_tokens: 1024,
       temperature: 0.7,
