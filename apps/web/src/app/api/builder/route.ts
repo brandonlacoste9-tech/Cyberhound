@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import Stripe from "stripe";
+import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHITLApproval } from "@/lib/telegram/notify";
 
 const client = new OpenAI();
@@ -12,6 +13,8 @@ export async function POST(req: NextRequest) {
     if (!opportunity) {
       return NextResponse.json({ error: "Opportunity data required" }, { status: 400 });
     }
+
+    const db = getSupabaseServer();
 
     // ──────────────────────────────────────────────
     // ACTION: generate_copy
@@ -57,8 +60,13 @@ Return ONLY this JSON (no markdown):
         const cleaned = rawResponse.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
         const copy = JSON.parse(cleaned);
 
-        // Log to Supabase (non-blocking)
-        logToHive("builder", `Generated landing page copy for: ${opportunity.niche}`, { copy }).catch(console.error);
+        // Log to hive
+        await db.from("hive_log").insert({
+          bee: "builder",
+          action: `Generated landing page copy for: ${opportunity.niche}`,
+          details: { niche: opportunity.niche, copy },
+          status: "success",
+        });
 
         return NextResponse.json({ copy, status: "draft" });
       } catch {
@@ -67,12 +75,11 @@ Return ONLY this JSON (no markdown):
     }
 
     // ──────────────────────────────────────────────
-    // ACTION: create_stripe_product (requires HITL)
+    // ACTION: create_stripe_product (HITL gated)
     // ──────────────────────────────────────────────
     if (action === "create_stripe_product") {
       const stripeKey = process.env.STRIPE_SECRET_KEY;
       if (!stripeKey || stripeKey === "sk_test_placeholder") {
-        // Send HITL alert even without Stripe configured
         const approvalId = `stripe_${Date.now()}`;
         await sendHITLApproval({
           approvalId,
@@ -95,48 +102,85 @@ Return ONLY this JSON (no markdown):
       const priceMatch = priceStr.match(/\$?(\d+)/);
       const priceInCents = priceMatch ? parseInt(priceMatch[1]) * 100 : 9700;
 
+      // Create Stripe product
       const product = await stripe.products.create({
         name: String(opportunity.niche),
         description: String(opportunity.queen_reasoning ?? `CyberHound automated product for ${opportunity.niche}`),
         metadata: {
           cyberhound: "true",
-          market: String(opportunity.market),
+          market: String(opportunity.market ?? "North America"),
           score: String(opportunity.score ?? 0),
           generated_by: "builder_bee",
+          opportunity_id: String(opportunity.id ?? ""),
         },
       });
 
+      // Create price in CAD (account currency)
       const price = await stripe.prices.create({
         product: product.id,
         unit_amount: priceInCents,
-        currency: "usd",
+        currency: "cad",
         recurring: { interval: "month" },
       });
 
+      // Create payment link
       const paymentLink = await stripe.paymentLinks.create({
         line_items: [{ price: price.id, quantity: 1 }],
+        metadata: {
+          cyberhound: "true",
+          niche: String(opportunity.niche),
+          opportunity_id: String(opportunity.id ?? ""),
+        },
       });
 
-      // Log to hive
-      logToHive("builder", `Created Stripe product: ${opportunity.niche}`, {
-        product_id: product.id,
-        price_id: price.id,
+      // Persist campaign to Supabase
+      const { data: campaign } = await db.from("campaigns").insert({
+        opportunity_id: opportunity.id ?? null,
+        name: String(opportunity.niche),
+        niche: String(opportunity.niche),
+        status: "live",
+        mrr: 0,
+        customers: 0,
+        stripe_product_id: product.id,
+        stripe_price_id: price.id,
         payment_link: paymentLink.url,
-      }).catch(console.error);
+      }).select("id").single();
 
-      // Notify via Telegram
+      // Update opportunity status to approved
+      if (opportunity.id) {
+        await db.from("opportunities").update({ status: "approved" }).eq("id", opportunity.id);
+      }
+
+      // Log to hive
+      await db.from("hive_log").insert({
+        bee: "builder",
+        action: `Launched campaign: ${opportunity.niche}`,
+        details: {
+          product_id: product.id,
+          price_id: price.id,
+          payment_link: paymentLink.url,
+          campaign_id: campaign?.id,
+          price_cad: `$${priceInCents / 100} CAD/mo`,
+        },
+        status: "success",
+      });
+
+      // Telegram HITL — notify campaign is live, ask to start outreach
       sendHITLApproval({
-        approvalId: `live_${product.id}`,
-        actionType: "campaign_live",
-        summary: `${opportunity.niche} is LIVE`,
-        details: `🔗 Payment Link: ${paymentLink.url}\n💵 Price: $${priceInCents / 100}/mo\n\nApprove to start outreach, or veto to pause.`,
+        approvalId: campaign?.id ?? `live_${product.id}`,
+        actionType: "start_outreach",
+        summary: `🚀 ${opportunity.niche} is LIVE`,
+        details: `🔗 Payment Link: ${paymentLink.url}\n💵 Price: $${priceInCents / 100} CAD/mo\n📊 MRR Potential: ${opportunity.estimated_mrr_potential}\n\nApprove to deploy Closer Bee outreach, or veto to pause.`,
       }).catch(console.error);
 
       return NextResponse.json({
         stripe_product_id: product.id,
         stripe_price_id: price.id,
         payment_link_url: paymentLink.url,
+        campaign_id: campaign?.id,
         status: "live",
+        currency: "cad",
+        price_cents: priceInCents,
       });
     }
 
@@ -145,15 +189,4 @@ Return ONLY this JSON (no markdown):
     console.error("[Builder API]", error);
     return NextResponse.json({ error: "Builder Bee encountered an error" }, { status: 500 });
   }
-}
-
-async function logToHive(bee: string, action: string, details: Record<string, unknown>) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || supabaseUrl.includes("placeholder")) return;
-
-  const { createClient } = await import("@supabase/supabase-js");
-  const db = createClient(supabaseUrl, supabaseKey!);
-  await db.from("hive_log").insert({ bee, action, details, status: "success" });
 }

@@ -19,7 +19,7 @@ interface TelegramUpdate {
 }
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const ADMIN_CHAT_ID = parseInt(process.env.TELEGRAM_ADMIN_CHAT_ID ?? "0");
+const ADMIN_CHAT_ID = parseInt(process.env.TELEGRAM_CHAT_ID ?? "0");
 
 async function sendMessage(chatId: number, text: string, replyMarkup?: object) {
   if (!BOT_TOKEN || BOT_TOKEN === "placeholder") return;
