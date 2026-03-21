@@ -1,0 +1,26 @@
+
+============================================================
+ARTICLE 34 RISK ASSESSMENT
+============================================================
+
+Company: Toss Bank
+Date: 2026-02-27
+Risk Score: 8/10 (HIGH)
+MSIT Registration: REQUIRED
+
+IDENTIFIED VIOLATIONS:
+  • msit_approval
+  • risk_assessment
+  • explainability
+
+ESTIMATED PENALTIES:
+  • Administrative Fines: KRW 30,000,000 - 90,000,000
+  • Operational Risk: Suspension possible
+
+REMEDIATION:
+  • K-120 Audit: KRW 1,000,000 (one-time)
+  • Monthly Monitoring: KRW 5,000,000/mo
+  • Timeline: 90 days to full compliance
+
+ROI: Avoid 60x penalty costs
+============================================================
