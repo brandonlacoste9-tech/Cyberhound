@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Play, Square } from "lucide-react";
+import { Send, Loader2, Play, Square, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -16,21 +16,95 @@ interface HistoryMessage {
   content: string;
 }
 
+interface Command {
+  label: string;
+  icon: string;
+  tag: string;
+  prompt: string;
+  color: string;
+}
+
+const COMMANDS: Command[] = [
+  {
+    label: "Hunt",
+    icon: "🎯",
+    tag: "/hunt",
+    prompt: "hunt",
+    color: "var(--status-amber)",
+  },
+  {
+    label: "Scout",
+    icon: "🔍",
+    tag: "/scout",
+    prompt: "Run Scout Bee on the top opportunity. Find real demand signals, competitors, and pricing data for the highest-MRR niche you can identify right now.",
+    color: "var(--status-blue)",
+  },
+  {
+    label: "Build",
+    icon: "🏗️",
+    tag: "/build",
+    prompt: "Activate Builder Bee. Generate a landing page concept and Stripe product for our top approved opportunity. Include headline, subheadline, 3 key features, pricing, and CTA.",
+    color: "var(--status-green)",
+  },
+  {
+    label: "Close",
+    icon: "📧",
+    tag: "/close",
+    prompt: "Activate Closer Bee. Write a 3-email cold outreach sequence for our top opportunity. Email 1: problem-aware cold open. Email 2: social proof + ROI. Email 3: urgency close.",
+    color: "var(--status-red)",
+  },
+  {
+    label: "Revenue",
+    icon: "💰",
+    tag: "/revenue",
+    prompt: "Give me a full revenue breakdown. What's our current MRR trajectory? What's the fastest path to $10K MRR from where we are now? Be specific with actions and timelines.",
+    color: "var(--status-green)",
+  },
+  {
+    label: "Status",
+    icon: "📊",
+    tag: "/status",
+    prompt: "Give me a full hive status report. Which bees are active, what opportunities are in the pipeline, what's pending my approval, and what's the next highest-leverage action I should take?",
+    color: "var(--status-blue)",
+  },
+  {
+    label: "Validate",
+    icon: "✅",
+    tag: "/validate",
+    prompt: "Validate our top opportunity. Score it 0–100 on: market size, competition, willingness to pay, speed to revenue, and Brandon's unfair advantage. Give a final go/no-go verdict.",
+    color: "var(--status-amber)",
+  },
+  {
+    label: "30-Day Plan",
+    icon: "📅",
+    tag: "/plan",
+    prompt: "Generate a 30-day execution plan to launch a SaaS and hit $5K MRR. Week-by-week breakdown: build, launch, outreach, and iterate. Be specific and actionable.",
+    color: "var(--status-blue)",
+  },
+  {
+    label: "Québec Mode",
+    icon: "🍁",
+    tag: "/qc",
+    prompt: "Switch to Québec Mode. Identify the top 3 high-MRR opportunities specifically for the Québec / French-Canadian market. Consider bilingual requirements, local regulations, and cultural fit.",
+    color: "var(--status-red)",
+  },
+  {
+    label: "Veto",
+    icon: "🚫",
+    tag: "/veto",
+    prompt: "C'est pas chill. Veto the current top opportunity and explain why it's not the right move. Then immediately pivot and identify the next best alternative.",
+    color: "var(--status-red)",
+  },
+];
+
 const INITIAL_MESSAGES: Message[] = [
   {
     id: "1",
     role: "queen",
     content:
-      "Queen Bee online. CyberHound v1.0 initialized. Scanning North American markets for high-MRR opportunities.\n\nAwaiting your directive — or type \"hunt\" to begin autonomous scouting.",
+      "Queen Bee online. CyberHound v1.0 initialized. Scanning North American markets for high-MRR opportunities.\n\nAwaiting your directive — use the commands below or type your own.",
     timestamp: new Date(),
   },
-];
-
-const QUICK_COMMANDS = [
-  { label: "Hunt opportunities",  prompt: "Scout North American markets for 3 high-MRR SaaS opportunities. Rank by score and give me your top pick." },
-  { label: "Revenue strategy",    prompt: "What's the fastest path to $10K MRR? Be specific." },
-  { label: "Validate niche",      prompt: "Validate: AI-powered permit tracking for Canadian general contractors. Score it and give me a go/no-go." },
-  { label: "30-day build plan",   prompt: "Give me a 30-day execution plan to launch a SaaS in the trades space and hit $5K MRR." },
 ];
 
 export function HoundBrain() {
@@ -39,6 +113,7 @@ export function HoundBrain() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [autonomous, setAutonomous] = useState(false);
+  const [cmdExpanded, setCmdExpanded] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -85,12 +160,22 @@ export function HoundBrain() {
         {
           id: (Date.now() + 1).toString(),
           role: "queen",
-          content: "Connection error. Check API configuration in Settings.",
+          content: "⚠️ Connection error. Check API configuration in Settings.",
           timestamp: new Date(),
         },
       ]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  function handleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") sendMessage(input);
+    // Slash-command autocomplete hint
+    if (e.key === "Tab" && input.startsWith("/")) {
+      e.preventDefault();
+      const match = COMMANDS.find((c) => c.tag.startsWith(input));
+      if (match) setInput(match.tag);
     }
   }
 
@@ -115,10 +200,7 @@ export function HoundBrain() {
   }
 
   return (
-    <div
-      className="card flex flex-col"
-      style={{ height: "460px" }}
-    >
+    <div className="card flex flex-col" style={{ height: "520px" }}>
       {/* ── Header ──────────────────────────────────── */}
       <div
         className="flex items-center justify-between px-5 py-4"
@@ -150,7 +232,11 @@ export function HoundBrain() {
                 : { background: "var(--status-amber-bg)", color: "var(--status-amber)" }
             }
           >
-            {autonomous ? <><Square className="w-3 h-3" /> Stop</> : <><Play className="w-3 h-3" /> Auto</>}
+            {autonomous ? (
+              <><Square className="w-3 h-3" /> Stop</>
+            ) : (
+              <><Play className="w-3 h-3" /> Auto</>
+            )}
           </button>
           <div className="flex items-center gap-1.5">
             <span
@@ -162,6 +248,52 @@ export function HoundBrain() {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* ── Command Palette ─────────────────────────── */}
+      <div style={{ borderBottom: "1px solid var(--border)" }}>
+        <button
+          onClick={() => setCmdExpanded((v) => !v)}
+          className="w-full flex items-center justify-between px-5 py-2.5"
+          style={{ background: "var(--bg-muted)" }}
+        >
+          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+            Commands
+          </span>
+          {cmdExpanded ? (
+            <ChevronUp className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
+          )}
+        </button>
+        {cmdExpanded && (
+          <div className="px-4 py-3 flex flex-wrap gap-2">
+            {COMMANDS.map((cmd) => (
+              <button
+                key={cmd.tag}
+                onClick={() => sendMessage(cmd.prompt)}
+                disabled={loading}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-opacity"
+                style={{
+                  background: "var(--bg-card)",
+                  border: `1px solid var(--border)`,
+                  color: "var(--text-secondary)",
+                  opacity: loading ? 0.5 : 1,
+                }}
+                title={cmd.tag}
+              >
+                <span>{cmd.icon}</span>
+                <span>{cmd.label}</span>
+                <span
+                  className="text-[10px] font-mono px-1 rounded"
+                  style={{ background: "var(--bg-muted)", color: "var(--text-muted)" }}
+                >
+                  {cmd.tag}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Messages ────────────────────────────────── */}
@@ -201,38 +333,15 @@ export function HoundBrain() {
               }}
             >
               <Loader2 className="w-4 h-4 spin" />
-              Thinking...
+              Queen Bee thinking...
             </div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      {/* ── Quick commands ──────────────────────────── */}
-      {messages.length <= 2 && !loading && (
-        <div className="px-5 pb-3 flex flex-wrap gap-2">
-          {QUICK_COMMANDS.map((cmd) => (
-            <button
-              key={cmd.label}
-              onClick={() => sendMessage(cmd.prompt)}
-              className="text-xs px-3 py-1.5 rounded-lg font-medium"
-              style={{
-                background: "var(--bg-muted)",
-                border: "1px solid var(--border)",
-                color: "var(--text-secondary)",
-              }}
-            >
-              {cmd.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* ── Input ───────────────────────────────────── */}
-      <div
-        className="px-5 py-4"
-        style={{ borderTop: "1px solid var(--border)" }}
-      >
+      <div className="px-5 py-4" style={{ borderTop: "1px solid var(--border)" }}>
         <div
           className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
           style={{ background: "var(--bg-muted)", border: "1px solid var(--border-strong)" }}
@@ -241,8 +350,8 @@ export function HoundBrain() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
-            placeholder="Direct the Queen Bee..."
+            onKeyDown={handleInputKeyDown}
+            placeholder="Type a command or directive... (/ for commands)"
             className="flex-1 bg-transparent text-sm outline-none border-none"
             style={{ color: "var(--text-primary)", padding: 0 }}
           />
@@ -251,13 +360,16 @@ export function HoundBrain() {
             disabled={!input.trim() || loading}
             className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
             style={{
-              background: input.trim() ? "var(--text-primary)" : "var(--border)",
-              color: input.trim() ? "#fff" : "var(--text-muted)",
+              background: input.trim() && !loading ? "var(--text-primary)" : "var(--border)",
+              color: input.trim() && !loading ? "#fff" : "var(--text-muted)",
             }}
           >
             <Send className="w-3.5 h-3.5" />
           </button>
         </div>
+        <p className="text-[10px] mt-1.5 text-center" style={{ color: "var(--text-muted)" }}>
+          Tab to autocomplete slash commands · Enter to send
+        </p>
       </div>
     </div>
   );
