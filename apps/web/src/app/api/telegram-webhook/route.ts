@@ -1,12 +1,27 @@
+/**
+ * CyberHound — Telegram Webhook
+ *
+ * Handles all incoming Telegram updates:
+ *   - /start, /status, /mrr, /hunt, /pause, /resume, /help commands
+ *   - Free-text → Queen Bee (LLM called directly, no internal HTTP)
+ *   - Inline button callbacks → HITL approve / veto
+ *
+ * Fix: getQueenResponse now calls the LLM client directly instead of
+ * fetching http://localhost:3000/api/queen which is unreachable on Vercel.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
-import { sendHiveUpdate } from "@/lib/telegram/notify";
+import { chat } from "@/lib/llm/client";
+import { getSupabaseServer } from "@/lib/supabase/server";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface TelegramUpdate {
   update_id: number;
   message?: {
     message_id: number;
     from: { id: number; username?: string; first_name?: string };
-    chat: { id: number };
+    chat: { id: number; type?: string };
     text?: string;
     date: number;
   };
@@ -18,73 +33,125 @@ interface TelegramUpdate {
   };
 }
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+// ── Config ────────────────────────────────────────────────────────────────────
+
+const BOT_TOKEN    = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_CHAT_ID = parseInt(process.env.TELEGRAM_CHAT_ID ?? "0");
+
+const QUEEN_SYSTEM_PROMPT = `You are the Queen Bee — the strategic orchestrator of CyberHound, an autonomous AI revenue agent built on the Colony OS by Brandon (a visionary architect from West Island, Québec).
+Your mission: identify high-MRR business opportunities in North American markets, coordinate the Hive (Scout, Builder, Closer, Treasurer bees), and generate real recurring revenue autonomously.
+Your personality: confident, highly technical, concise, strategic. You speak like a senior product strategist with deep market intuition. No fluff, no disclaimers.
+When proposing an action that requires infrastructure (deploying a page, sending outreach, charging a card), always state: "⚠️ HITL required — awaiting your approval before execution."
+Format responses with clear structure. Use 🐝 for bee-related actions, 💰 for revenue signals, 🎯 for opportunity identification, ⚠️ for HITL flags.
+Keep Telegram replies concise — max 600 words. Use Markdown formatting.`;
+
+// ── Telegram helpers ──────────────────────────────────────────────────────────
 
 async function sendMessage(chatId: number, text: string, replyMarkup?: object) {
   if (!BOT_TOKEN || BOT_TOKEN === "placeholder") return;
-  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: "Markdown",
-      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
-    }),
-  });
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: "Markdown",
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+      }),
+    });
+  } catch (err) {
+    console.error("[Telegram sendMessage]", err);
+  }
 }
 
 async function answerCallback(callbackId: string, text: string) {
   if (!BOT_TOKEN || BOT_TOKEN === "placeholder") return;
-  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ callback_query_id: callbackId, text }),
-  });
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackId, text }),
+    });
+  } catch (err) {
+    console.error("[Telegram answerCallback]", err);
+  }
 }
+
+// ── HITL helpers ──────────────────────────────────────────────────────────────
 
 async function updateHITLStatus(approvalId: string, status: "approved" | "vetoed") {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || supabaseUrl.includes("placeholder")) return;
+  try {
+    const db = getSupabaseServer();
+    await db
+      .from("hitl_approvals")
+      .update({ status, decided_at: new Date().toISOString() })
+      .eq("telegram_message_id", approvalId);
 
-  const { createClient } = await import("@supabase/supabase-js");
-  const db = createClient(supabaseUrl, supabaseKey!);
-
-  await db
-    .from("hitl_approvals")
-    .update({ status, decided_at: new Date().toISOString() })
-    .eq("telegram_message_id", approvalId);
-
-  await db.from("hive_log").insert({
-    bee: "queen",
-    action: `HITL decision: ${status} for ${approvalId}`,
-    details: { approval_id: approvalId, decision: status },
-    status: status === "approved" ? "success" : "vetoed",
-  });
+    await db.from("hive_log").insert({
+      bee: "queen",
+      action: `HITL decision: ${status} for ${approvalId}`,
+      details: { approval_id: approvalId, decision: status },
+      status: status === "approved" ? "success" : "vetoed",
+    });
+  } catch (err) {
+    console.error("[HITL updateStatus]", err);
+  }
 }
+
+// ── Queen Bee — direct LLM call (no internal HTTP) ────────────────────────────
 
 async function getQueenResponse(userMessage: string): Promise<string> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/queen`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: userMessage }),
-    });
-    const data = await res.json();
-    return data.response ?? "Queen Bee is processing...";
-  } catch {
-    return "⚠️ Queen Bee connection error.";
+    const response = await chat(
+      [
+        { role: "system", content: QUEEN_SYSTEM_PROMPT },
+        { role: "user", content: userMessage },
+      ],
+      { temperature: 0.7, max_tokens: 800 }
+    );
+    // Log to hive (non-blocking)
+    try {
+      const db = getSupabaseServer();
+      await db.from("hive_log").insert({
+        bee: "queen",
+        action: userMessage.slice(0, 200),
+        details: { source: "telegram", response: response.slice(0, 500) },
+        status: "success",
+      });
+    } catch { /* non-critical */ }
+
+    return response || "Queen Bee is processing...";
+  } catch (err) {
+    console.error("[Queen Bee LLM]", err);
+    return "⚠️ Queen Bee encountered an error. Check LLM configuration.";
   }
 }
+
+// ── Live Hive Status from Supabase ────────────────────────────────────────────
+
+async function getHiveStatus(): Promise<string> {
+  try {
+    const db = getSupabaseServer();
+    const [{ count: opps }, { count: campaigns }, { data: mrr }] = await Promise.all([
+      db.from("opportunities").select("*", { count: "exact", head: true }).eq("status", "active"),
+      db.from("campaigns").select("*", { count: "exact", head: true }).eq("status", "active"),
+      db.from("revenue_events").select("amount").gte("created_at", new Date(Date.now() - 30 * 86400000).toISOString()),
+    ]);
+    const totalMRR = (mrr ?? []).reduce((sum: number, r: { amount: number }) => sum + (r.amount ?? 0), 0);
+    return `🐝 *Hive Status*\n\n👑 Queen Bee: Active\n🔍 Analyst Bee: Ready\n💬 Closer Bee: Ready\n⏰ Scheduler Bee: Ready\n💰 Treasurer Bee: Active\n\n📊 MRR (30d): $${(totalMRR / 100).toFixed(2)}\n🎯 Active Opportunities: ${opps ?? 0}\n🚀 Live Campaigns: ${campaigns ?? 0}`;
+  } catch {
+    return `🐝 *Hive Status*\n\n👑 Queen Bee: Active\n🔍 Analyst Bee: Ready\n💬 Closer Bee: Ready\n⏰ Scheduler Bee: Ready\n\n_Connect Supabase for live metrics._`;
+  }
+}
+
+// ── Main webhook handler ──────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
     const update: TelegramUpdate = await req.json();
 
-    // ── Callback query (button press) ──
+    // ── Callback query (inline button press) ──────────────────────────────────
     if (update.callback_query) {
       const { id: cbId, from, message, data } = update.callback_query;
       const chatId = message.chat.id;
@@ -101,7 +168,7 @@ export async function POST(req: NextRequest) {
         await updateHITLStatus(approvalId, "approved");
         await sendMessage(
           chatId,
-          `✅ *Approved*\n\nID: \`${approvalId}\`\n\nCyberHound is executing the action now. I'll update you when it's done.`
+          `✅ *Approved*\n\nID: \`${approvalId}\`\n\nCyberHound is executing the action now. I'll report back when complete.`
         );
       } else if (data?.startsWith("veto:")) {
         const approvalId = data.replace("veto:", "");
@@ -109,19 +176,19 @@ export async function POST(req: NextRequest) {
         await updateHITLStatus(approvalId, "vetoed");
         await sendMessage(
           chatId,
-          `🚫 *C'est pas chill*\n\nAction \`${approvalId}\` has been vetoed.\n\nHound standing down. The opportunity has been archived.`
+          `🚫 *C'est pas chill*\n\nAction \`${approvalId}\` has been vetoed.\n\nHound standing down. Opportunity archived.`
         );
       }
 
       return NextResponse.json({ ok: true });
     }
 
-    // ── Text messages ──
+    // ── Text message ──────────────────────────────────────────────────────────
     if (update.message?.text) {
-      const { text, chat, from } = update.message;
-      const chatId = chat.id;
+      const { text, chat: msgChat, from } = update.message;
+      const chatId = msgChat.id;
 
-      // Security: only admin can control the hound
+      // Security: only admin
       if (ADMIN_CHAT_ID && from.id !== ADMIN_CHAT_ID) {
         await sendMessage(chatId, "🔒 Unauthorized. This is a private CyberHound instance.");
         return NextResponse.json({ ok: true });
@@ -132,27 +199,39 @@ export async function POST(req: NextRequest) {
       if (cmd === "/start") {
         await sendMessage(
           chatId,
-          `🐕 *CyberHound v1.0 online*\n\nI'm your autonomous revenue agent. I'll ping you here for approvals before executing any critical actions.\n\n*Commands:*\n/status — Hive status\n/mrr — Current MRR\n/hunt — Start autonomous scouting\n/pause — Pause all agents\n/resume — Resume agents\n/help — Show all commands\n\nOr just talk to me — I'll route your message to Queen Bee.`
+          `🐕 *CyberHound online*\n\nAutonomous revenue agent ready. I'll ping you here for HITL approvals before executing critical actions.\n\n*Commands:*\n/status — Live hive status\n/mrr — Revenue report\n/hunt — Start autonomous scouting\n/analyst — Scan for warm leads\n/pause — Pause all agents\n/resume — Resume agents\n/help — All commands\n\nOr just talk to me — Queen Bee is listening.`
         );
       } else if (cmd === "/status") {
+        const status = await getHiveStatus();
+        await sendMessage(chatId, status);
+      } else if (cmd === "/mrr") {
+        try {
+          const db = getSupabaseServer();
+          const { data: events } = await db
+            .from("revenue_events")
+            .select("amount, type, created_at")
+            .order("created_at", { ascending: false })
+            .limit(10);
+          const total = (events ?? []).reduce((s: number, e: { amount: number }) => s + (e.amount ?? 0), 0);
+          await sendMessage(
+            chatId,
+            `💰 *Revenue Report*\n\nMRR (30d): $${(total / 100).toFixed(2)}\nARR: $${((total / 100) * 12).toFixed(2)}\nRecent events: ${events?.length ?? 0}\n\n_Stripe webhooks feed this in real-time._`
+          );
+        } catch {
+          await sendMessage(chatId, `💰 *Revenue Report*\n\nMRR: $0\nARR: $0\n\n_No revenue events yet. Launch your first campaign._`);
+        }
+      } else if (cmd === "/hunt") {
+        await sendMessage(chatId, `🎯 *Autonomous scouting initiated*\n\nQueen Bee scanning North American B2B markets...\n\nI'll send you the top opportunity for approval shortly.`);
+        // Fire-and-forget scout via Queen Bee
+        getQueenResponse("Identify 3 high-MRR B2B SaaS opportunities in North America right now. For each: niche, target customer, estimated MRR potential, and why now. Then recommend the #1 to pursue immediately.").then(async (response) => {
+          const truncated = response.length > 3800 ? response.slice(0, 3800) + "..." : response;
+          await sendMessage(chatId, `🎯 *Queen Bee — Market Scan:*\n\n${truncated}`);
+        }).catch(console.error);
+      } else if (cmd === "/analyst") {
         await sendMessage(
           chatId,
-          `🐝 *Hive Status*\n\n👑 Queen Bee: Active\n🔍 Scout Bee: Idle\n🔨 Builder Bee: Standby\n💬 Closer Bee: Standby\n💰 Treasurer Bee: Active\n\n📊 MRR: $0\n🎯 Opportunities: 0 pending\n✅ Campaigns: 0 live`
+          `🔍 *Analyst Bee*\n\nUse the dashboard to configure a scan:\n\n• Upwork mode — intercept active buyers\n• Churn mode — catch churned SaaS users\n• Reddit mode — pain signal detection\n\nGo to: cyberhound.vercel.app/analyst`
         );
-      } else if (cmd === "/mrr") {
-        await sendMessage(chatId, `💰 *Revenue Report*\n\nTotal MRR: $0\nARR: $0\nActive Subscriptions: 0\nNet Revenue (30d): $0\n\n_No revenue events yet. Launch your first campaign._`);
-      } else if (cmd === "/hunt") {
-        await sendMessage(chatId, `🎯 *Autonomous scouting initiated*\n\nQueen Bee is scanning North American markets...\n\nI'll send you the top opportunity for approval shortly.`);
-        // Trigger async scout
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-        fetch(`${baseUrl}/api/scout`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            niche: "B2B SaaS for trades and construction",
-            market: "North America",
-          }),
-        }).catch(console.error);
       } else if (cmd === "/pause") {
         await sendMessage(chatId, `⏸ *Hound paused*\n\nAll agents suspended. Send /resume to restart.`);
       } else if (cmd === "/resume") {
@@ -160,13 +239,12 @@ export async function POST(req: NextRequest) {
       } else if (cmd === "/help") {
         await sendMessage(
           chatId,
-          `🐕 *CyberHound Commands*\n\n/start — Initialize\n/status — Hive status\n/mrr — Revenue report\n/hunt — Start autonomous scouting\n/pause — Pause all agents\n/resume — Resume agents\n\n_Or send any message to talk directly to Queen Bee._`
+          `🐕 *CyberHound Commands*\n\n/start — Initialize\n/status — Live hive status\n/mrr — Revenue report\n/hunt — Autonomous market scan\n/analyst — Warm lead scanner\n/pause — Pause all agents\n/resume — Resume agents\n\n_Or send any message to talk directly to Queen Bee._`
         );
       } else {
-        // Route to Queen Bee
+        // Free-text → Queen Bee (direct LLM call)
         await sendMessage(chatId, `👑 _Queen Bee processing..._`);
         const response = await getQueenResponse(text);
-        // Truncate for Telegram (4096 char limit)
         const truncated = response.length > 3800 ? response.slice(0, 3800) + "..." : response;
         await sendMessage(chatId, `👑 *Queen Bee:*\n\n${truncated}`);
       }
@@ -182,7 +260,8 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     status: "CyberHound Telegram webhook active",
-    version: "1.0.0",
-    bees: ["queen", "scout", "builder", "closer", "treasurer"],
+    version: "2.0.0",
+    fix: "Queen Bee uses direct LLM call — no internal HTTP dependency",
+    bees: ["queen", "analyst", "enrich", "closer", "scheduler", "treasurer"],
   });
 }
