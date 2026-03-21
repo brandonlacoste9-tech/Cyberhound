@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+:root {
+  /* CyberHound Design Tokens — Dark Amber Glassmorphism */
+  --amber-50: #fffbeb;
+  --amber-100: #fef3c7;
+  --amber-400: #fbbf24;
+  --amber-500: #f59e0b;
+  --amber-600: #d97706;
+  --amber-700: #b45309;
+  --amber-900: #78350f;
+
+  --bg-base: #0a0a0a;
+  --bg-surface: #111111;
+  --bg-elevated: #1a1a1a;
+
+  --glass-bg: rgba(251, 191, 36, 0.04);
+  --glass-border: rgba(251, 191, 36, 0.12);
+  --glass-hover: rgba(251, 191, 36, 0.08);
+
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #52525b;
+
+  --status-hunting: #f59e0b;
+  --status-building: #3b82f6;
+  --status-closing: #10b981;
+  --status-paused: #6b7280;
+  --status-vetoed: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glass card utility */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass:hover {
+  background: var(--glass-hover);
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+/* Amber glow utility */
+.amber-glow {
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.15), 0 0 60px rgba(251, 191, 36, 0.05);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--amber-600); }
+
+/* Hound status pulse animation */
+@keyframes hound-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.hound-pulse { animation: hound-pulse 2s ease-in-out infinite; }
+
+/* Scan line animation for the Hound Brain */
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
