@@ -13,7 +13,11 @@ Boring but necessary steps before you rely on the hive in production.
 
 3. Copy **Project URL** and **anon** + **service_role** keys into your host’s environment (see below).
 
-## 2. Environment variables (Vercel or similar)
+## 2. Turborepo + Vercel env
+
+Vercel sets variables on the host, but **Turbo** only forwards into `turbo run build` the names listed in **`turbo.json` → `globalPassThroughEnv`**. If you add a new secret, add its name there too or the build log will warn and `next build` may not see it.
+
+## 3. Environment variables (Vercel or similar)
 
 Set these on the **web** app (`apps/web` / Next.js root):
 
@@ -44,7 +48,7 @@ pnpm run check:env
 pnpm run check:env -- --strict
 ```
 
-## 3. Build and smoke test
+## 4. Build and smoke test
 
 ```bash
 pnpm verify
@@ -59,7 +63,7 @@ pnpm smoke
 
 (On Windows PowerShell: `$env:SMOKE_BASE_URL="http://127.0.0.1:3000"; pnpm smoke`.)
 
-## 4. Telegram webhook (optional)
+## 5. Telegram webhook (optional)
 
 Point Telegram to:
 
@@ -67,7 +71,7 @@ Point Telegram to:
 
 Use the same bot token and admin chat ID you put in env.
 
-## 5. After deploy
+## 6. After deploy
 
 - Open `/dashboard`, run **Build demo campaign** on `/campaigns`, confirm a **public landing** URL opens.
 - Hit `/api/treasurer` and confirm JSON (Stripe optional).
