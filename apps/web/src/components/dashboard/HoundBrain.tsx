@@ -153,23 +153,26 @@ export function HoundBrain() {
 
   return (
     <div
-      className="card flex flex-col"
-      style={{ height: "540px" }}
+      className="card card-amber hound-brain-shell flex min-h-[min(560px,72vh)] flex-col"
     >
       {/* ── Header ──────────────────────────────────── */}
       <div
-        className="flex items-center justify-between px-5 py-3.5 shrink-0"
+        className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-5 py-4"
         style={{ borderBottom: "1px solid var(--border)" }}
       >
         <div className="flex items-center gap-3">
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-lg"
-            style={{ background: "var(--amber-dim)", border: "1px solid rgba(245,158,11,0.25)" }}
+            className="flex h-11 w-11 items-center justify-center rounded-xl text-xl shadow-sm"
+            style={{
+              background: "linear-gradient(145deg, rgba(245,158,11,0.2), rgba(245,158,11,0.06))",
+              border: "1px solid rgba(245,158,11,0.3)",
+              boxShadow: "0 0 24px rgba(245,158,11,0.12)",
+            }}
           >
             🐝
           </div>
           <div>
-            <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
+            <p className="text-sm font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
               Queen Bee
             </p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
@@ -178,34 +181,44 @@ export function HoundBrain() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
+            type="button"
             onClick={toggleAutonomous}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+            className={cn(
+              "flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-2 text-xs font-semibold transition-colors",
+            )}
             style={
               autonomous
-                ? { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(239,68,68,0.25)" }
-                : { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(245,158,11,0.25)" }
+                ? { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(239,68,68,0.28)" }
+                : { background: "var(--amber-dim)", color: "var(--amber-bright)", border: "1px solid rgba(245,158,11,0.28)" }
             }
           >
             {autonomous ? (
-              <><Square className="w-3 h-3" /> Stop</>
+              <>
+                <Square className="h-3.5 w-3.5" /> Stop auto
+              </>
             ) : (
-              <><Play className="w-3 h-3" /> Auto</>
+              <>
+                <Play className="h-3.5 w-3.5" /> Auto run
+              </>
             )}
           </button>
 
-          <div className="flex items-center gap-1.5">
+          <div
+            className="flex items-center gap-2 rounded-full px-2.5 py-1"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)" }}
+          >
             <span
-              className="w-2 h-2 rounded-full"
+              className="h-2 w-2 rounded-full"
               style={{
                 background: autonomous ? "var(--amber)" : "var(--green)",
-                boxShadow: autonomous ? "0 0 6px var(--amber)" : "0 0 6px var(--green)",
+                boxShadow: autonomous ? "0 0 8px var(--amber)" : "0 0 8px var(--green)",
                 animation: "pulse-dot 2s ease-in-out infinite",
               }}
             />
-            <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              {autonomous ? "Auto" : "Live"}
+            <span className="text-[11px] font-semibold" style={{ color: "var(--text-secondary)" }}>
+              {autonomous ? "Autonomous" : "Live"}
             </span>
           </div>
         </div>
@@ -214,15 +227,16 @@ export function HoundBrain() {
       {/* ── Command Palette ─────────────────────────── */}
       <div className="shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
         <button
+          type="button"
           onClick={() => setCmdExpanded((v) => !v)}
-          className="w-full flex items-center justify-between px-5 py-2"
-          style={{ background: "var(--bg-muted)" }}
+          className="flex w-full items-center justify-between px-5 py-2.5 transition-colors hover:bg-white/[0.03]"
+          style={{ background: "rgba(255,255,255,0.02)" }}
         >
           <span
-            className="text-[10px] font-semibold uppercase tracking-widest"
+            className="text-[10px] font-bold uppercase tracking-[0.16em]"
             style={{ color: "var(--text-muted)" }}
           >
-            Commands
+            Quick commands
           </span>
           {cmdExpanded ? (
             <ChevronUp className="w-3 h-3" style={{ color: "var(--text-muted)" }} />
@@ -232,13 +246,14 @@ export function HoundBrain() {
         </button>
 
         {cmdExpanded && (
-          <div className="px-4 pb-3 pt-2 flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2 px-4 pb-4 pt-2">
             {COMMANDS.map((cmd) => (
               <button
+                type="button"
                 key={cmd.tag}
                 onClick={() => sendMessage(cmd.prompt)}
                 disabled={loading}
-                className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-medium"
+                className="flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-2 text-xs font-medium"
                 style={{
                   background: cmd.bg,
                   border: `1px solid ${cmd.color}22`,
@@ -263,28 +278,33 @@ export function HoundBrain() {
       </div>
 
       {/* ── Messages ────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
         {messages.map((msg) => (
           <div
             key={msg.id}
             className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
           >
             {msg.role === "queen" && (
-              <span className="text-base mr-2 mt-1 shrink-0">🐝</span>
+              <span className="mr-2 mt-1.5 shrink-0 text-base" aria-hidden>
+                🐝
+              </span>
             )}
             <div
-              className="max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap"
+              className="max-w-[min(92%,520px)] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed"
               style={
                 msg.role === "queen"
                   ? {
-                      background: "var(--bg-muted)",
+                      background: "linear-gradient(165deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
                       color: "var(--text-primary)",
-                      border: "1px solid var(--border)",
+                      border: "1px solid var(--border-strong)",
+                      boxShadow: "0 4px 24px rgba(0,0,0,0.2)",
                     }
                   : {
-                      background: "var(--amber)",
-                      color: "#000",
-                      fontWeight: 500,
+                      background: "linear-gradient(135deg, var(--amber-bright) 0%, var(--amber) 100%)",
+                      color: "#0a0a0a",
+                      fontWeight: 600,
+                      border: "1px solid rgba(0,0,0,0.08)",
+                      boxShadow: "0 6px 20px rgba(245,158,11,0.25)",
                     }
               }
             >
@@ -313,19 +333,23 @@ export function HoundBrain() {
       </div>
 
       {/* ── Input ───────────────────────────────────── */}
-      <div className="px-5 py-4 shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
+      <div className="shrink-0 px-5 pb-5 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
         <div
-          className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
+          className="flex items-center gap-3 rounded-xl px-4 py-2.5"
           style={{
-            background: "var(--bg-muted)",
+            background: "rgba(255,255,255,0.04)",
             border: "1px solid var(--border-strong)",
-            transition: "border-color 0.15s",
+            transition: "border-color 0.15s, box-shadow 0.2s",
           }}
           onFocusCapture={(e) => {
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--amber)";
+            const el = e.currentTarget as HTMLElement;
+            el.style.borderColor = "rgba(245,158,11,0.45)";
+            el.style.boxShadow = "0 0 0 3px rgba(245,158,11,0.12)";
           }}
           onBlurCapture={(e) => {
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)";
+            const el = e.currentTarget as HTMLElement;
+            el.style.borderColor = "var(--border-strong)";
+            el.style.boxShadow = "none";
           }}
         >
           <input
@@ -333,25 +357,28 @@ export function HoundBrain() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleInputKeyDown}
-            placeholder="Type a command or directive... (/ for commands)"
-            className="flex-1 bg-transparent text-sm outline-none border-none"
+            placeholder="Directive for Queen Bee… (Tab completes /commands)"
+            className="flex-1 border-none bg-transparent text-sm outline-none placeholder:text-[var(--text-faint)]"
             style={{ color: "var(--text-primary)" }}
           />
           <button
+            type="button"
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || loading}
-            className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] transition-all"
             style={{
-              background: input.trim() && !loading ? "var(--amber)" : "var(--border)",
-              color: input.trim() && !loading ? "#000" : "var(--text-muted)",
-              transition: "background 0.15s",
+              background: input.trim() && !loading ? "linear-gradient(135deg, var(--amber-bright), var(--amber))" : "var(--bg-muted)",
+              color: input.trim() && !loading ? "#0a0a0a" : "var(--text-muted)",
+              border: input.trim() && !loading ? "none" : "1px solid var(--border)",
+              boxShadow: input.trim() && !loading ? "0 2px 12px rgba(245,158,11,0.35)" : "none",
             }}
+            aria-label="Send message"
           >
-            <Send className="w-3.5 h-3.5" />
+            <Send className="h-4 w-4" />
           </button>
         </div>
-        <p className="text-[10px] mt-1.5 text-center" style={{ color: "var(--text-muted)" }}>
-          Tab to autocomplete · Enter to send · OpenClaw → DeepSeek fallback
+        <p className="mt-2 text-center text-[10px]" style={{ color: "var(--text-faint)" }}>
+          Tab completes · Enter sends · Queen → API route
         </p>
       </div>
     </div>

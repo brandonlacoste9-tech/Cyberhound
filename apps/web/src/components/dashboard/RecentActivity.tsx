@@ -30,23 +30,25 @@ const STATUS_CONFIG = {
 
 export function RecentActivity() {
   return (
-    <div className="card flex flex-col" style={{ minHeight: "200px" }}>
-      {/* Header */}
+    <div className="card flex min-h-[240px] flex-col xl:sticky xl:top-6">
       <div
-        className="px-4 py-3.5 flex items-center justify-between shrink-0"
+        className="flex shrink-0 items-center justify-between px-4 py-4 sm:px-5"
         style={{ borderBottom: "1px solid var(--border)" }}
       >
-        <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
-          📋 Hive Log
-        </p>
+        <div>
+          <p className="text-sm font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+            Recent activity
+          </p>
+          <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+            Latest hive events
+          </p>
+        </div>
         <Link
           href="/hive"
-          className="text-xs font-medium"
-          style={{ color: "var(--amber)", transition: "opacity 0.15s" }}
-          onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0.7")}
-          onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "1")}
+          className="btn-ghost !py-1.5 text-xs font-semibold"
+          style={{ color: "var(--amber-bright)", borderColor: "rgba(245,158,11,0.25)" }}
         >
-          View all →
+          View log
         </Link>
       </div>
 
@@ -65,22 +67,15 @@ export function RecentActivity() {
             return (
               <div
                 key={entry.id}
-                className="flex items-start gap-3 px-4 py-3.5"
+                className="activity-feed__row flex items-start gap-3 px-4 py-3.5"
                 style={{
                   borderTop: i > 0 ? "1px solid var(--border)" : "none",
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = "var(--bg-muted)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = "transparent";
                 }}
               >
                 {/* Bee emoji */}
                 <div
-                  className="w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0 mt-0.5"
-                  style={{ background: sc.bg }}
+                  className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-sm"
+                  style={{ background: sc.bg, border: "1px solid var(--border-strong)" }}
                 >
                   {sc.emoji}
                 </div>

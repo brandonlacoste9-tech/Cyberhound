@@ -2,12 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Crown, Search, Hammer, MessageSquare, DollarSign, CheckCircle, XCircle, Clock, Activity, RefreshCw } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { useSupabaseBrowser } from "@/lib/supabase/use-supabase-browser";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 const BEE_ICONS = {
   queen:     Crown,
@@ -46,11 +42,13 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function HivePage() {
+  const { client: supabase, error: supabaseInitError, mounted: supabaseMounted } = useSupabaseBrowser();
   const [activeFilter, setActiveFilter] = useState<typeof FILTERS[number]>("all");
   const [log, setLog] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchLog = useCallback(async () => {
+    if (!supabase) return;
     setLoading(true);
     try {
       let query = supabase
@@ -71,12 +69,12 @@ export default function HivePage() {
     } finally {
       setLoading(false);
     }
-  }, [activeFilter]);
+  }, [supabase, activeFilter]);
 
   useEffect(() => {
+    if (!supabase) return;
     fetchLog();
 
-    // Real-time subscription
     const channel = supabase
       .channel("hive_log_changes")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "hive_log" }, () => {
@@ -84,48 +82,67 @@ export default function HivePage() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchLog]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, fetchLog]);
+
+  if (!supabaseMounted) {
+    return (
+      <div className="py-4">
+        <div className="card p-16 text-center">
+          <RefreshCw className="w-8 h-8 mx-auto mb-3 spin" style={{ color: "var(--text-faint)" }} />
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Connecting to colony database…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (supabaseInitError) {
+    return (
+      <div className="space-y-6 py-2">
+        <div className="card border border-red-500/25 p-8" style={{ background: "var(--status-red-bg)" }}>
+          <p className="text-sm font-bold mb-2" style={{ color: "var(--status-red)" }}>Supabase not configured</p>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>{supabaseInitError}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!supabase) {
+    return null;
+  }
 
   return (
-    <div className="p-8 space-y-6">
-      {/* ── Header ──────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <span className="text-2xl">🐝</span>
-            <h1 className="text-2xl font-black text-gradient">Hive Log</h1>
-          </div>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Full audit trail of all bee actions — every decision, every execution
-          </p>
-        </div>
-        <button
-          onClick={fetchLog}
-          disabled={loading}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium"
-          style={{
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-strong)",
-            color: "var(--text-secondary)",
-          }}
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? "spin" : ""}`} />
-          Refresh
-        </button>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        icon={<span aria-hidden>🐝</span>}
+        title={<span className="text-gradient">Hive Log</span>}
+        subtitle="Full audit trail of every bee — decisions, executions, and HITL outcomes."
+        actions={
+          <button
+            type="button"
+            onClick={fetchLog}
+            disabled={loading}
+            className="btn-ghost gap-2 text-sm font-semibold"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "spin" : ""}`} />
+            Refresh
+          </button>
+        }
+      />
 
-      {/* ── Filter bar ──────────────────────────────── */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-wrap items-center gap-2">
         {FILTERS.map((filter) => (
           <button
+            type="button"
             key={filter}
             onClick={() => setActiveFilter(filter)}
-            className="text-xs px-3 py-1.5 rounded-lg capitalize font-medium"
+            className="rounded-[var(--radius-md)] px-3 py-2 text-xs font-semibold capitalize transition-colors"
             style={
               filter === activeFilter
-                ? { background: "var(--amber)", color: "#000", fontWeight: 700 }
-                : { background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-muted)" }
+                ? { background: "linear-gradient(135deg, var(--amber-bright), var(--amber))", color: "#0a0a0a", fontWeight: 700 }
+                : { background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)", color: "var(--text-muted)" }
             }
           >
             {filter}
@@ -135,13 +152,13 @@ export default function HivePage() {
 
       {/* ── Log entries ─────────────────────────────── */}
       {loading ? (
-        <div className="card p-16 text-center">
-          <RefreshCw className="w-8 h-8 mx-auto mb-3 spin" style={{ color: "var(--text-faint)" }} />
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Loading hive log...</p>
+        <div className="card p-20 text-center">
+          <RefreshCw className="mx-auto mb-4 h-9 w-9 spin" style={{ color: "var(--text-faint)" }} />
+          <p className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Loading hive log…</p>
         </div>
       ) : log.length === 0 ? (
-        <div className="card p-16 text-center">
-          <Activity className="w-10 h-10 mx-auto mb-4" style={{ color: "var(--text-faint)" }} />
+        <div className="card p-20 text-center">
+          <Activity className="mx-auto mb-4 h-12 w-12" style={{ color: "var(--text-faint)" }} />
           <p className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
             No activity logged yet
           </p>
@@ -150,7 +167,7 @@ export default function HivePage() {
           </p>
         </div>
       ) : (
-        <div className="card divide-y" style={{ borderColor: "var(--border)" }}>
+        <div className="card divide-y overflow-hidden" style={{ borderColor: "var(--border)" }}>
           {log.map((entry) => {
             const BeeIcon = BEE_ICONS[entry.bee] ?? Crown;
             const sCfg = STATUS_CONFIG[entry.status] ?? STATUS_CONFIG.success;

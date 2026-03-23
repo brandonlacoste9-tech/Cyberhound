@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 interface OutreachEntry {
   id: string;
@@ -58,9 +59,8 @@ export default function OutreachPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [logRes, seqRes, statsRes] = await Promise.all([
+      const [logRes, seqRes] = await Promise.all([
         fetch("/api/outreach?limit=50"),
-        fetch("/api/scheduler", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "status" }) }),
         fetch("/api/scheduler", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "status" }) }),
       ]);
 
@@ -125,32 +125,26 @@ export default function OutreachPage() {
   };
 
   return (
-    <div className="p-6 space-y-6" style={{ position: "relative", zIndex: 1 }}>
-      {/* ── Header ──────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
-            Outreach{" "}
-            <span className="text-gradient">Center</span>
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
-            Follow-up sequences · Email log · Scheduler Bee
-          </p>
-        </div>
-        <button
-          onClick={runTick}
-          disabled={ticking}
-          className="px-4 py-2 rounded-xl text-sm font-bold"
-          style={{
-            background: ticking ? "var(--bg-muted)" : "var(--amber-dim)",
-            color: ticking ? "var(--text-muted)" : "var(--amber)",
-            border: "1px solid rgba(245,158,11,0.3)",
-            cursor: ticking ? "not-allowed" : "pointer",
-          }}
-        >
-          {ticking ? "⏰ Running..." : "⏰ Run Scheduler Tick"}
-        </button>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        icon={<span aria-hidden>📧</span>}
+        title={
+          <>
+            Outreach <span className="text-gradient">Center</span>
+          </>
+        }
+        subtitle="Follow-up sequences, email log, and Scheduler Bee."
+        actions={
+          <button
+            type="button"
+            onClick={runTick}
+            disabled={ticking}
+            className="btn-primary gap-2 text-sm disabled:opacity-50"
+          >
+            {ticking ? "Running tick…" : "Run scheduler tick"}
+          </button>
+        }
+      />
 
       {/* ── Scheduler Stats ──────────────────────────── */}
       {schedulerStats && (

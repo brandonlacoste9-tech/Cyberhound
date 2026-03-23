@@ -2,12 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Search, Target, AlertCircle, CheckCircle, XCircle, Loader2, RefreshCw } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { useSupabaseBrowser } from "@/lib/supabase/use-supabase-browser";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 interface Opportunity {
   id: string;
@@ -27,14 +23,17 @@ const COMPETITION_COLORS = { low: "var(--status-green)", medium: "var(--status-a
 const COMPETITION_BG     = { low: "var(--status-green-bg)", medium: "var(--status-amber-bg)", high: "var(--status-red-bg)" };
 
 export default function OpportunitiesPage() {
+  const { client: supabase, error: supabaseInitError, mounted: supabaseMounted } = useSupabaseBrowser();
   const [niche, setNiche]           = useState("");
   const [market, setMarket]         = useState("North America");
   const [loading, setLoading]       = useState(false);
   const [fetching, setFetching]     = useState(true);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [error, setError]           = useState<string | null>(null);
+  const [scoutNotice, setScoutNotice] = useState<string | null>(null);
 
   const fetchOpportunities = useCallback(async () => {
+    if (!supabase) return;
     setFetching(true);
     try {
       const { data, error: dbErr } = await supabase
@@ -49,21 +48,25 @@ export default function OpportunitiesPage() {
     } finally {
       setFetching(false);
     }
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
+    if (!supabase) return;
     fetchOpportunities();
     const channel = supabase
       .channel("opportunities_changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "opportunities" }, fetchOpportunities)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchOpportunities]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, fetchOpportunities]);
 
   async function handleScout() {
     if (!niche.trim() || loading) return;
     setLoading(true);
     setError(null);
+    setScoutNotice(null);
     try {
       const res = await fetch("/api/scout", {
         method: "POST",
@@ -73,6 +76,9 @@ export default function OpportunitiesPage() {
       const data = await res.json();
       if (data.opportunity) {
         setNiche("");
+        if (data.autoApproved) {
+          setScoutNotice("Strong signal — auto-approved (high score, not high competition). Ready for Builder.");
+        }
         await fetchOpportunities(); // refresh from DB
       } else {
         setError(data.error ?? "Scout failed");
@@ -85,6 +91,7 @@ export default function OpportunitiesPage() {
   }
 
   async function handleApprove(id: string) {
+    if (!supabase) return;
     await supabase.from("opportunities").update({ status: "approved" }).eq("id", id);
     await supabase.from("hive_log").insert({
       bee: "queen",
@@ -96,6 +103,7 @@ export default function OpportunitiesPage() {
   }
 
   async function handleReject(id: string) {
+    if (!supabase) return;
     await supabase.from("opportunities").update({ status: "rejected" }).eq("id", id);
     await supabase.from("hive_log").insert({
       bee: "queen",
@@ -106,39 +114,59 @@ export default function OpportunitiesPage() {
     fetchOpportunities();
   }
 
-  return (
-    <div className="p-8 space-y-6">
-      {/* ── Header ──────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <span className="text-2xl">🔍</span>
-            <h1 className="text-2xl font-black text-gradient">Opportunities</h1>
-          </div>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Scout Bee market research — identify and approve high-MRR niches
-          </p>
+  if (!supabaseMounted) {
+    return (
+      <div className="py-4">
+        <div className="card p-16 text-center">
+          <RefreshCw className="w-8 h-8 mx-auto mb-3 spin" style={{ color: "var(--text-faint)" }} />
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Connecting to colony database…</p>
         </div>
-        <button
-          onClick={fetchOpportunities}
-          disabled={fetching}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium"
-          style={{
-            background: "var(--bg-surface)",
-            border: "1px solid var(--border-strong)",
-            color: "var(--text-secondary)",
-          }}
-        >
-          <RefreshCw className={`w-4 h-4 ${fetching ? "spin" : ""}`} />
-          Refresh
-        </button>
       </div>
+    );
+  }
 
-      {/* ── Scout input ─────────────────────────────── */}
-      <div className="card card-amber p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-lg">🐝</span>
-          <p className="text-sm font-bold" style={{ color: "var(--amber)" }}>Deploy Scout Bee</p>
+  if (supabaseInitError) {
+    return (
+      <div className="space-y-6 py-2">
+        <div className="card border border-red-500/25 p-8" style={{ background: "var(--status-red-bg)" }}>
+          <p className="text-sm font-bold mb-2" style={{ color: "var(--status-red)" }}>Supabase not configured</p>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>{supabaseInitError}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!supabase) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-8">
+      <PageHeader
+        icon={<span aria-hidden>🔍</span>}
+        title={<span className="text-gradient">Opportunities</span>}
+        subtitle="Scout Bee market research — identify and approve high-MRR niches before Builder runs."
+        actions={
+          <button
+            type="button"
+            onClick={fetchOpportunities}
+            disabled={fetching}
+            className="btn-ghost gap-2 text-sm font-semibold"
+          >
+            <RefreshCw className={`h-4 w-4 ${fetching ? "spin" : ""}`} />
+            Refresh
+          </button>
+        }
+      />
+
+      <div className="card card-amber p-5 sm:p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <span className="text-lg" aria-hidden>
+            🐝
+          </span>
+          <p className="text-sm font-bold tracking-tight" style={{ color: "var(--amber-bright)" }}>
+            Deploy Scout Bee
+          </p>
         </div>
         <div className="flex gap-3 flex-wrap">
           <input
@@ -156,10 +184,10 @@ export default function OpportunitiesPage() {
             <option value="Québec">Québec</option>
           </select>
           <button
+            type="button"
             onClick={handleScout}
             disabled={!niche.trim() || loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: "var(--amber)", color: "#000", fontWeight: 700 }}
+            className="btn-primary gap-2 px-5 py-2.5 text-sm"
           >
             {loading ? <Loader2 className="w-4 h-4 spin" /> : <Search className="w-4 h-4" />}
             {loading ? "Scouting..." : "Scout"}
@@ -169,6 +197,12 @@ export default function OpportunitiesPage() {
           <p className="text-sm mt-3 flex items-center gap-2" style={{ color: "var(--status-red)" }}>
             <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
+          </p>
+        )}
+        {scoutNotice && (
+          <p className="mt-3 flex items-center gap-2 text-sm" style={{ color: "var(--status-green)" }}>
+            <CheckCircle className="h-4 w-4 shrink-0" />
+            {scoutNotice}
           </p>
         )}
       </div>
@@ -226,7 +260,7 @@ function OpportunityCard({
   const sCfg = statusConfig[opp.status] ?? statusConfig.discovered;
 
   return (
-    <div className="card p-6 space-y-5">
+    <div className="card space-y-5 p-6 sm:p-7">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -272,24 +306,25 @@ function OpportunityCard({
       </div>
 
       {opp.status === "pending_approval" && (
-        <div className="flex items-center gap-3 pt-1">
-          <p className="text-sm flex-1" style={{ color: "var(--text-muted)" }}>HITL required — approve to proceed with Builder Bee</p>
-          <button
-            onClick={onReject}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: "var(--status-red-bg)", color: "var(--status-red)", border: "1px solid rgba(220,38,38,0.2)" }}
-          >
-            <XCircle className="w-4 h-4" />
-            C&apos;est pas chill
-          </button>
-          <button
-            onClick={onApprove}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: "var(--amber)", color: "#000", fontWeight: 700 }}
-          >
-            <CheckCircle className="w-4 h-4" />
-            Approve
-          </button>
+        <div className="flex flex-col gap-3 border-t border-[var(--border)] pt-4 sm:flex-row sm:items-center">
+          <p className="flex-1 text-sm" style={{ color: "var(--text-muted)" }}>
+            HITL required — approve to proceed with Builder Bee
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onReject}
+              className="btn-ghost gap-2 border-[rgba(220,38,38,0.25)] text-sm font-semibold"
+              style={{ color: "var(--status-red)", background: "var(--status-red-bg)" }}
+            >
+              <XCircle className="h-4 w-4" />
+              C&apos;est pas chill
+            </button>
+            <button type="button" onClick={onApprove} className="btn-primary gap-2 text-sm">
+              <CheckCircle className="h-4 w-4" />
+              Approve
+            </button>
+          </div>
         </div>
       )}
     </div>

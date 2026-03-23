@@ -6,6 +6,7 @@ import {
   ResponsiveContainer, BarChart, Bar, Cell,
 } from "recharts";
 import { DollarSign, TrendingUp, Users, RefreshCw, TrendingDown, Zap } from "lucide-react";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 interface RevenueData {
   mrr: number;
@@ -78,36 +79,37 @@ export default function RevenuePage() {
   ];
 
   return (
-    <div className="p-8 space-y-6">
-      {/* ── Header ──────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
-            Revenue
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
-            Treasurer Bee — real-time MRR tracking across all campaigns
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Synced {lastRefresh.toLocaleTimeString()}
-          </span>
-          <button
-            onClick={fetchRevenue}
-            disabled={loading}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium"
-            style={{
+    <div className="space-y-8">
+      <PageHeader
+        icon={<span aria-hidden>💰</span>}
+        title={
+          <>
+            <span className="text-gradient">Revenue</span>
+          </>
+        }
+        subtitle="Treasurer Bee — MRR, subs, and net revenue from Stripe."
+        actions={
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              Synced {lastRefresh.toLocaleTimeString()}
+            </span>
+            <button
+              type="button"
+              onClick={fetchRevenue}
+              disabled={loading}
+              className="btn-ghost gap-2 text-sm font-semibold"
+              style={{
               background: "var(--bg-surface)",
               border: "1px solid var(--border-strong)",
               color: "var(--text-secondary)",
             }}
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 ${loading ? "spin" : ""}`} />
             Refresh
           </button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {/* ── Stats grid ──────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

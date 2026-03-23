@@ -85,69 +85,73 @@ export function BeeStatusGrid() {
   const activeCount = BEES.filter((b) => b.statusType === "active").length;
 
   return (
-    <div className="card" style={{ padding: "1.25rem" }}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
-          🐝 The Hive
-        </h3>
+    <div className="card p-5 sm:p-6">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-base font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+            The Hive
+          </h3>
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Agent roster &amp; status
+          </p>
+        </div>
         <span
-          className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
-          style={{ background: "var(--green-dim)", color: "var(--green)" }}
+          className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
+          style={{ background: "var(--green-dim)", color: "var(--green-bright)", border: "1px solid rgba(16,185,129,0.25)" }}
         >
-          {activeCount} Active
+          {activeCount} active
         </span>
       </div>
 
-      {/* Bee list */}
-      <div className="space-y-2">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         {BEES.map((bee) => {
           const s = STATUS_CONFIG[bee.statusType];
           return (
             <div
               key={bee.id}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+              className="group flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-3"
               style={{
-                background: "var(--bg-muted)",
+                background: "rgba(255,255,255,0.03)",
                 border: "1px solid var(--border)",
-                transition: "border-color 0.15s",
+                transition: "border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease",
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.borderColor = bee.color;
+                const el = e.currentTarget as HTMLElement;
+                el.style.borderColor = "rgba(245,158,11,0.25)";
+                el.style.boxShadow = "0 8px 28px rgba(0,0,0,0.25)";
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+                const el = e.currentTarget as HTMLElement;
+                el.style.borderColor = "var(--border)";
+                el.style.boxShadow = "none";
               }}
             >
-              {/* Emoji icon */}
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0"
-                style={{ background: bee.bg }}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-base transition-transform group-hover:scale-[1.03]"
+                style={{ background: bee.bg, border: "1px solid var(--border-strong)" }}
               >
                 {bee.emoji}
               </div>
 
-              {/* Name + role */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                   {bee.name}
                 </p>
-                <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
+                <p className="truncate text-[11px] leading-snug" style={{ color: "var(--text-muted)" }}>
                   {bee.role}
                 </p>
               </div>
 
-              {/* Status */}
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <span
-                  className="w-1.5 h-1.5 rounded-full"
+                  className="h-1.5 w-1.5 rounded-full"
                   style={{
                     background: s.dot,
                     boxShadow: s.glow,
                     animation: bee.statusType === "active" ? "pulse-dot 2s ease-in-out infinite" : "none",
                   }}
                 />
-                <span className="text-[10px] font-medium" style={{ color: s.dot }}>
+                <span className="text-[10px] font-semibold" style={{ color: s.dot }}>
                   {s.label}
                 </span>
               </div>

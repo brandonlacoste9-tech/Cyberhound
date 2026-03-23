@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -173,31 +174,30 @@ export default function AnalystPage() {
   }
 
   return (
-    <div className="p-6 space-y-6" style={{ position: "relative", zIndex: 1 }}>
-      {/* ── Header ──────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
-            Analyst{" "}
-            <span className="text-gradient">Bee</span>
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
-            Warm interception — Upwork · Churn · Reddit signal scanning
-          </p>
-        </div>
-        <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full"
-          style={{
-            background: "rgba(59,130,246,0.1)",
-            border: "1px solid rgba(59,130,246,0.25)",
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#3b82f6" }} />
-          <span className="text-xs font-semibold" style={{ color: "#3b82f6" }}>
-            Ready
-          </span>
-        </div>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        icon={<span aria-hidden>🔍</span>}
+        title={
+          <>
+            Analyst <span className="text-gradient">Bee</span>
+          </>
+        }
+        subtitle="Warm interception — Upwork, churn, and Reddit signal scanning."
+        actions={
+          <div
+            className="flex items-center gap-2 rounded-full px-3 py-1.5"
+            style={{
+              background: "rgba(59,130,246,0.12)",
+              border: "1px solid rgba(59,130,246,0.28)",
+            }}
+          >
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--blue)" }} />
+            <span className="text-xs font-semibold" style={{ color: "var(--blue)" }}>
+              Ready
+            </span>
+          </div>
+        }
+      />
 
       {/* ── Tabs ────────────────────────────────────── */}
       <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: "var(--bg-muted)", border: "1px solid var(--border)" }}>

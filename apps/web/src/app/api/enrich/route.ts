@@ -119,44 +119,10 @@ async function apolloSearchPeople(
   }
 }
 
-async function apolloEnrichOrganization(domain: string): Promise<{
-  name: string;
-  industry: string;
-  size: number;
-  location: string;
-} | null> {
-  const apiKey = process.env.APOLLO_API_KEY;
-  if (!apiKey) return null;
-
-  try {
-    const res = await fetch(`${APOLLO_BASE}/organizations/enrich?domain=${domain}`, {
-      headers: {
-        "Content-Type": "application/json",
-        "X-Api-Key": apiKey,
-      },
-    });
-
-    if (!res.ok) return null;
-    const data = await res.json();
-    const org = data.organization;
-    if (!org) return null;
-
-    return {
-      name: org.name,
-      industry: org.industry ?? "Unknown",
-      size: org.estimated_num_employees ?? 0,
-      location: [org.city, org.country].filter(Boolean).join(", "),
-    };
-  } catch {
-    return null;
-  }
-}
-
 // ── Email pattern fallback ────────────────────────────────────────────────────
 
 function guessEmail(firstName: string, lastName: string, domain: string): string {
   const f = firstName.toLowerCase().replace(/[^a-z]/g, "");
-  const l = lastName.toLowerCase().replace(/[^a-z]/g, "");
   // Most common pattern: firstname@domain
   return `${f}@${domain}`;
 }

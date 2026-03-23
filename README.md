@@ -1,147 +1,39 @@
-# ⚜️ IronClaw - 120 OS
+# CyberHound — Colony OS
 
-**Souverain Venture Intelligence System**
+Autonomous revenue agent monorepo: **Next.js 15** (`apps/web`), **Supabase**, bees (Queen, Scout, Builder, Closer, Treasurer), **Telegram HITL**, public landing pages at `/l/[campaignId]`.
 
-> *"The Bee Swarm Empire doesn't ask for market share—it takes it."*
+> **Production:** see [DEPLOY.md](./DEPLOY.md) for migrations, env vars, and smoke tests.
 
-## 🎯 Overview
+## Requirements
 
-IronClaw is an autonomous business intelligence and outreach system designed to identify, analyze, and engage high-value enterprise targets. Originally forged for the Quebec market (Bill 96 compliance), the architecture scales to any sector requiring precision branding and regulatory navigation.
+- Node 20+
+- [pnpm](https://pnpm.io) 9+
 
-## 🏛️ Empire Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    120 OS - SYSTEM MAP                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
-│  │   THE HUNT   │ →  │  THE FORGE   │ →  │  THE ENVOY   │  │
-│  │              │    │              │    │              │  │
-│  │ scout_na_    │    │ build_ledger │    │ email_envoy  │  │
-│  │ final.py     │    │ _premium.py  │    │ .py          │  │
-│  │              │    │              │    │              │  │
-│  │ 27 Leads     │    │ PDF Asset    │    │ SMTP Delivery│  │
-│  └──────────────┘    └──────────────┘    └──────┬───────┘  │
-│         ↑                                        │          │
-│         └────────────────────────────────────────┘          │
-│                     ┌──────────────┐                        │
-│                     │ THE WATCHDOG │                        │
-│                     │              │                        │
-│                     │ response_    │                        │
-│                     │ tracker.py   │                        │
-│                     │              │                        │
-│                     │ IMAP Monitor │                        │
-│                     └──────────────┘                        │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## 🚀 Quick Start
-
-### 1. Install Dependencies
+## Quick start
 
 ```bash
-pip install -r requirements.txt
+pnpm install
+cp apps/web/.env.local.example apps/web/.env.local
+# Edit apps/web/.env.local — Supabase + at least one LLM path (e.g. DEEPSEEK_API_KEY)
+pnpm dev
 ```
 
-### 2. Configure Credentials
+Open [http://localhost:3000/dashboard](http://localhost:3000/dashboard) (or the port Next prints).
 
-```bash
-cp .env.example .env
-nano .env  # Edit with your Gmail credentials
-```
+## Scripts (repo root)
 
-### 3. Run the Ghost Hound
+| Command | Purpose |
+|---------|---------|
+| `pnpm dev` | Turbopack dev server |
+| `pnpm verify` | Typecheck + lint + production build |
+| `pnpm smoke` | HTTP smoke tests (needs running server + `SMOKE_BASE_URL`) |
+| `pnpm preflight` | `verify` + `check:env` (validates `.env.local`) |
 
-```bash
-python3 scout_na_final.py
-```
+## Structure
 
-### 4. Forge the Ledger
+- `apps/web` — CyberHound web app and API routes
+- `supabase/migrations` — SQL to run on your Supabase project
 
-```bash
-python3 build_ledger_premium.py
-```
+## License
 
-### 5. Deploy the Envoy
-
-```bash
-python3 email_envoy.py
-```
-
-### 6. Activate the Watchdog
-
-```bash
-python3 response_tracker.py
-```
-
-## 📁 Directory Structure
-
-```
-IronClaw/
-├── scout_na_final.py          # Primary reconnaissance script
-├── build_ledger_premium.py    # PDF report generator
-├── email_envoy.py             # SMTP outreach system
-├── response_tracker.py        # IMAP reply monitor
-├── config.py                  # Centralized configuration
-├── .env.example               # Credential template
-├── .gitignore                 # Security exclusions
-├── requirements.txt           # Python dependencies
-├── README.md                  # This file
-│
-├── BUTIN_CONTINENTAL_MASTER.json  # Primary intelligence database
-├── IMPERIAL_PREMIUM_LEDGER.pdf    # Executive deliverable
-└── Empire_Comms.log               # Communication history
-```
-
-## 🔒 Security
-
-**CRITICAL:** Never commit credentials or proprietary data.
-
-The `.gitignore` file excludes:
-- All credential files (`*.json` secrets, `.env`)
-- Generated intelligence (`BUTIN_*.json`)
-- Executive documents (`*.pdf`)
-- Communication logs (`Empire_Comms.log`)
-
-## 🎨 The Imperial Aesthetic
-
-All deliverables follow the **Souverain** design language:
-- **Primary:** Dark leather (#1A1A1A)
-- **Accent:** Imperial gold (#D4AF37)
-- **Typography:** Helvetica (clean, authoritative)
-- **Tone:** Bilingual (French/English), regulatory-focused
-
-## 📊 Performance
-
-| Metric | Value |
-|--------|-------|
-| **Cities Analyzed** | 4 (Montreal, Toronto, Vancouver, Calgary) |
-| **Leads Captured** | 27 |
-| **Empire Targets** | 2 (High-priority) |
-| **Memory Usage** | <1.5GB (heuristic mode) |
-| **Cost** | $0.00 (fully sovereign) |
-
-## 🛡️ Operational Notes
-
-### What Works
-- ✅ Canadian Yellow Pages scraping
-- ✅ Heuristic risk analysis (no LLM required)
-- ✅ PDF generation with Imperial styling
-- ✅ SMTP email deployment
-- ✅ IMAP reply monitoring
-
-### Known Limitations
-- ⚠️ USA Yellow Pages blocks all requests (403)
-- ⚠️ Local LLM requires 4GB+ RAM (cloud alternative available)
-
-## 📜 License
-
-**Proprietary - Northern Ventures**
-
-Unauthorized distribution of generated intelligence or targeting algorithms is strictly prohibited.
-
----
-
-*Forge the Empire. Secure the Sovereign.* ⚜️
+See repository license file if present; otherwise treat as private project.

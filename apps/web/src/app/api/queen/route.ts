@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { llm, LLM_MODEL } from "@/lib/llm/client";
+import { chat } from "@/lib/llm/client";
 import { getSupabaseServer } from "@/lib/supabase/server";
 
 const QUEEN_SYSTEM_PROMPT = `You are the Queen Bee — the strategic orchestrator of CyberHound, an autonomous AI revenue agent built on the Colony OS by Brandon (a visionary architect from West Island, Québec).
@@ -12,6 +12,7 @@ Your capabilities:
 - Market opportunity identification (niches, demand signals, competition gaps)
 - Task delegation to Scout Bee (Firecrawl web research), Builder Bee (landing pages + Stripe), Closer Bee (outreach), Treasurer Bee (MRR tracking)
 - Human-in-the-loop: flag critical actions for Brandon's approval via Telegram before execution
+- Scout Bee auto-approves opportunities when score is very high and competition is not "high" (no HITL for those); everything that spends money, sends email, or goes live still needs approval
 - Bilingual awareness (EN/FR for Québec markets)
 
 When proposing an action that requires infrastructure (deploying a page, sending outreach, charging a card), always state: "⚠️ HITL required — awaiting your approval before execution."
@@ -34,14 +35,8 @@ export async function POST(req: NextRequest) {
       { role: "user", content: message },
     ];
 
-    const completion = await llm.chat.completions.create({
-      model: LLM_MODEL,
-      messages,
-      max_tokens: 1024,
-      temperature: 0.7,
-    });
-
-    const response = completion.choices[0]?.message?.content ?? "Queen Bee is processing...";
+    const text = await chat(messages, { max_tokens: 1024, temperature: 0.7 });
+    const response = text.trim() ? text : "Queen Bee is processing...";
 
     // Log to Supabase hive_log (non-blocking)
     try {

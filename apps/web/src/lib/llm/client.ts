@@ -1,12 +1,13 @@
 /**
  * CyberHound LLM Client
  *
- * Priority:
- *   1. OpenClaw Gateway  — local, port 18790 (OpenAI-compatible)
- *   2. DeepSeek API      — cloud fallback for Vercel production
+ * Use `chat()` or `ask()` for all bees — same routing everywhere.
  *
- * Set OPENCLAW_BASE_URL env var to enable OpenClaw in any environment.
- * In development mode, OpenClaw is always attempted first.
+ * Priority:
+ *   1. OpenClaw Gateway  — OpenAI-compatible (dev always tries; prod if OPENCLAW_BASE_URL set)
+ *   2. DeepSeek API      — cloud fallback
+ *
+ * Legacy `llm` export hits DeepSeek only; prefer `chat()` for OpenClaw support.
  */
 import OpenAI from "openai";
 
@@ -41,6 +42,8 @@ export interface ChatOptions {
   temperature?: number;
   max_tokens?: number;
   response_format?: { type: "json_object" | "text" };
+  /** HTTP timeout per provider (ms). Default 90s. */
+  timeoutMs?: number;
 }
 
 /**
@@ -53,6 +56,7 @@ export async function chat(
   options: ChatOptions = {}
 ): Promise<string> {
   const { temperature = 0.7, max_tokens = 2048, response_format } = options;
+  const timeout = options.timeoutMs ?? 90_000;
 
   const tryOpenClaw =
     process.env.NODE_ENV === "development" ||
@@ -63,7 +67,7 @@ export async function chat(
       const client = new OpenAI({
         baseURL: OPENCLAW_BASE,
         apiKey: OPENCLAW_TOKEN,
-        timeout: 8000,
+        timeout,
       });
       const res = await client.chat.completions.create({
         model: OPENCLAW_MODEL,
@@ -89,7 +93,11 @@ export async function chat(
   if (!DEEPSEEK_KEY) {
     throw new Error("No LLM: OpenClaw unreachable and DEEPSEEK_API_KEY missing.");
   }
-  const client = new OpenAI({ baseURL: DEEPSEEK_BASE, apiKey: DEEPSEEK_KEY });
+  const client = new OpenAI({
+    baseURL: DEEPSEEK_BASE,
+    apiKey: DEEPSEEK_KEY,
+    timeout,
+  });
   const res = await client.chat.completions.create({
     model: "deepseek-chat",
     messages,

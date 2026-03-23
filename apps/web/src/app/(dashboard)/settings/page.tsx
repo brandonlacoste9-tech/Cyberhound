@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle, Copy, Eye, EyeOff } from "lucide-react";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 interface SettingField {
   key: string;
@@ -115,34 +116,26 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-8 space-y-6 max-w-3xl">
-      {/* ── Header ──────────────────────────────────── */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
-            Settings
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
-            Configure CyberHound — API keys, Telegram HITL, and integrations
-          </p>
-        </div>
-        <button
-          onClick={copyEnvTemplate}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium"
-          style={{
-            background: "var(--bg-surface)",
-            border: "1px solid var(--border-strong)",
-            color: "var(--text-secondary)",
-          }}
-        >
-          {copied === "template" ? (
-            <CheckCircle className="w-4 h-4" style={{ color: "var(--status-green)" }} />
-          ) : (
-            <Copy className="w-4 h-4" />
-          )}
-          Copy .env template
-        </button>
-      </div>
+    <div className="mx-auto max-w-3xl space-y-8">
+      <PageHeader
+        icon={<span aria-hidden>⚙️</span>}
+        title="Settings"
+        subtitle="API keys, Telegram HITL, Supabase, and integrations — mirror what you set in .env.local."
+        actions={
+          <button
+            type="button"
+            onClick={copyEnvTemplate}
+            className="btn-ghost gap-2 text-sm font-semibold"
+          >
+            {copied === "template" ? (
+              <CheckCircle className="h-4 w-4" style={{ color: "var(--status-green)" }} />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+            Copy .env template
+          </button>
+        }
+      />
 
       {/* ── Env notice ──────────────────────────────── */}
       <div

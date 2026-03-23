@@ -1,22 +1,32 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? supabaseAnonKey;
+function requirePublicSupabaseEnv(): { url: string; anonKey: string } {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!url || !anonKey) {
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY for server Supabase client."
+    );
+  }
+  return { url, anonKey };
+}
 
 /**
  * Server-side Supabase client using the service role key.
  * Only use in API routes — never expose to the client.
  */
 export function getSupabaseServer() {
-  return createClient(supabaseUrl, supabaseServiceKey, {
+  const { url, anonKey } = requirePublicSupabaseEnv();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? anonKey;
+  return createClient(url, serviceKey, {
     auth: { persistSession: false },
   });
 }
 
 /** Anon client for non-privileged reads */
 export function getSupabaseAnon() {
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  const { url, anonKey } = requirePublicSupabaseEnv();
+  return createClient(url, anonKey, {
     auth: { persistSession: false },
   });
 }

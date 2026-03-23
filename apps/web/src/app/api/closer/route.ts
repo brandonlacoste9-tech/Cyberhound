@@ -9,11 +9,10 @@
  *  send_sequence     — Now creates follow_up_sequences entries + updates analyst_leads status
  */
 import { NextRequest, NextResponse } from "next/server";
-import { llm, LLM_MODEL, ask } from "@/lib/llm/client";
+import { ask } from "@/lib/llm/client";
 import { Resend } from "resend";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHITLApproval, sendHiveUpdate } from "@/lib/telegram/notify";
-import { randomUUID } from "crypto";
 
 interface EmailSequenceItem {
   sequence_number: number;

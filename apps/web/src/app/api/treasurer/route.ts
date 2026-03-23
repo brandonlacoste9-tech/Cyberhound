@@ -14,18 +14,26 @@ export async function GET() {
       mrr: number;
       customers: number;
       status: string;
-      payment_link: string | null;
+      payment_link: string | null; // mapped from stripe_payment_link
       stripe_product_id: string | null;
     }> = [];
 
     try {
       const { data: campRows } = await db
         .from("campaigns")
-        .select("id, name, mrr, customers, status, payment_link, stripe_product_id")
+        .select("id, name, mrr, customer_count, status, stripe_payment_link, stripe_product_id")
         .order("created_at", { ascending: false });
 
       if (campRows) {
-        campaigns = campRows;
+        campaigns = campRows.map((c) => ({
+          id: c.id,
+          name: c.name,
+          mrr: c.mrr,
+          customers: c.customer_count,
+          status: c.status,
+          payment_link: c.stripe_payment_link,
+          stripe_product_id: c.stripe_product_id,
+        }));
         campaignMrr = campRows
           .filter((c) => c.status === "live")
           .reduce((sum, c) => sum + (c.mrr ?? 0), 0);
@@ -145,7 +153,7 @@ export async function GET() {
           }, 0);
           await db
             .from("campaigns")
-            .update({ mrr: subMrr, customers: 1 })
+            .update({ mrr: subMrr, customer_count: 1 })
             .eq("id", campaign.id);
         }
       }

@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { llm, LLM_MODEL } from "@/lib/llm/client";
+import { chat } from "@/lib/llm/client";
 import { getSupabaseServer } from "@/lib/supabase/server";
-import { sendHITLApproval } from "@/lib/telegram/notify";
+import { sendHITLApproval, sendHiveUpdate } from "@/lib/telegram/notify";
 
+/** Score floor for auto-approve (no HITL / Telegram buttons). Override with SCOUT_AUTO_APPROVE_MIN_SCORE. */
+function autoApproveMinScore(): number {
+  const n = Number(process.env.SCOUT_AUTO_APPROVE_MIN_SCORE);
+  return Number.isFinite(n) && n > 0 ? n : 78;
+}
 
+function shouldAutoApproveScout(score: number, competitionLevel: string): boolean {
+  if (String(competitionLevel).toLowerCase() === "high") return false;
+  return score >= autoApproveMinScore();
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,14 +71,14 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
   "sources": ${searchContext ? '["web_search"]' : '[]'}
 }`;
 
-    const completion = await llm.chat.completions.create({
-      model: LLM_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 1024,
-      temperature: 0.2,
-    });
-
-    const rawResponse = completion.choices[0]?.message?.content ?? "{}";
+    const rawResponse =
+      (
+        await chat([{ role: "user", content: prompt }], {
+          max_tokens: 1024,
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+        })
+      ).trim() || "{}";
 
     let opportunity: Record<string, unknown>;
     try {
@@ -97,6 +106,10 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
       }
     }
 
+    const score = Number(opportunity.score ?? 0);
+    const competitionLevel = String(opportunity.competition_level ?? "medium");
+    const autoApproved = shouldAutoApproveScout(score, competitionLevel);
+
     // Step 3: Persist to Supabase
     let opportunityId: string | null = null;
     let hiveLogId: string | null = null;
@@ -104,19 +117,22 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
     try {
       const db = getSupabaseServer();
 
-      // Insert opportunity
+      const nowIso = new Date().toISOString();
+
+      // Insert opportunity — high-confidence + non-high competition skips HITL
       const { data: oppRow, error: oppErr } = await db
         .from("opportunities")
         .insert({
           niche: String(opportunity.niche ?? niche),
           market: String(opportunity.market ?? market),
-          score: Number(opportunity.score ?? 0),
+          score,
           demand_signals: (opportunity.demand_signals as string[]) ?? [],
-          competition_level: (opportunity.competition_level as string) ?? "medium",
+          competition_level: competitionLevel,
           estimated_mrr_potential: String(opportunity.estimated_mrr_potential ?? "$0"),
           recommended_price_point: String(opportunity.recommended_price_point ?? "$0"),
           queen_reasoning: String(opportunity.queen_reasoning ?? ""),
-          status: "pending_approval",
+          status: autoApproved ? "approved" : "pending_approval",
+          ...(autoApproved ? { approved_at: nowIso } : {}),
         })
         .select("id")
         .single();
@@ -129,9 +145,11 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
         .from("hive_log")
         .insert({
           bee: "scout",
-          action: `Scouted opportunity: ${niche} in ${market}`,
-          details: { ...opportunity, opportunity_id: opportunityId },
-          status: "pending_approval",
+          action: autoApproved
+            ? `Scouted & auto-approved: ${niche} in ${market} (score ${score})`
+            : `Scouted opportunity: ${niche} in ${market}`,
+          details: { ...opportunity, opportunity_id: opportunityId, auto_approved: autoApproved },
+          status: autoApproved ? "success" : "pending_approval",
         })
         .select("id")
         .single();
@@ -139,8 +157,8 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
       if (logErr) console.error("[Scout DB hive_log]", logErr);
       if (logRow?.id) hiveLogId = logRow.id;
 
-      // Create HITL approval record
-      if (hiveLogId) {
+      // HITL row only when you still need a human
+      if (!autoApproved && hiveLogId) {
         const { error: hitlErr } = await db.from("hitl_approvals").insert({
           hive_log_id: hiveLogId,
           action_type: "approve_opportunity",
@@ -153,9 +171,12 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
       console.error("[Scout DB]", dbErr);
     }
 
-    // Step 4: Send Telegram HITL alert (non-blocking)
-    const score = Number(opportunity.score ?? 0);
-    if (score >= 60) {
+    // Step 4: Telegram — HITL only when approval still required; FYI when auto-approved
+    if (autoApproved) {
+      sendHiveUpdate(
+        `✅ *Scout auto-approved*\n${niche} — ${market}\n📊 ${score}/100 · competition: ${competitionLevel}\n_Already **approved** in Colony OS — no button tap needed._`
+      ).catch(console.error);
+    } else if (score >= 60) {
       sendHITLApproval({
         approvalId: opportunityId ?? `opp_${Date.now()}`,
         actionType: "approve_opportunity",
@@ -164,7 +185,12 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
       }).catch(console.error);
     }
 
-    return NextResponse.json({ opportunity, opportunityId });
+    return NextResponse.json({
+      opportunity,
+      opportunityId,
+      autoApproved,
+      approvalRequired: !autoApproved,
+    });
   } catch (error) {
     console.error("[Scout API]", error);
     return NextResponse.json({ error: "Scout Bee encountered an error" }, { status: 500 });

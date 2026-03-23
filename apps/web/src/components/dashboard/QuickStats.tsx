@@ -1,5 +1,7 @@
 "use client";
 
+import type { CSSProperties } from "react";
+
 const STATS = [
   {
     label: "Total MRR",
@@ -45,49 +47,45 @@ const STATS = [
 
 export function QuickStats() {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
       {STATS.map((stat) => (
         <div
           key={stat.label}
-          className="card"
-          style={{ padding: "1.25rem" }}
-          onMouseEnter={(e) => {
-            const el = e.currentTarget as HTMLElement;
-            el.style.borderColor = stat.border;
-            el.style.boxShadow = `0 4px 32px rgba(0,0,0,0.5), 0 0 20px ${stat.glow}`;
-          }}
-          onMouseLeave={(e) => {
-            const el = e.currentTarget as HTMLElement;
-            el.style.borderColor = "var(--border)";
-            el.style.boxShadow = "var(--shadow-card)";
-          }}
+          className="card stat-tile relative overflow-hidden p-4 sm:p-5"
+          style={
+            {
+              "--stat-tile-border": stat.border,
+              "--stat-tile-glow": stat.glow,
+            } as CSSProperties
+          }
         >
-          {/* Icon badge */}
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-base mb-3"
-            style={{ background: stat.bg }}
+            aria-hidden
+            className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-40 blur-2xl"
+            style={{ background: stat.color }}
+          />
+          <div
+            className="relative mb-3 flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] text-lg"
+            style={{ background: stat.bg, border: `1px solid ${stat.border}` }}
           >
             {stat.emoji}
           </div>
 
-          {/* Value */}
           <p
-            className="text-2xl font-black tracking-tight leading-none"
+            className="relative text-2xl font-black leading-none tracking-tight sm:text-3xl"
             style={{ color: stat.color }}
           >
             {stat.value}
           </p>
 
-          {/* Label */}
           <p
-            className="text-xs font-semibold uppercase tracking-wider mt-1.5"
+            className="relative mt-2 text-[10px] font-bold uppercase tracking-[0.12em] sm:text-[11px]"
             style={{ color: "var(--text-secondary)" }}
           >
             {stat.label}
           </p>
 
-          {/* Delta */}
-          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+          <p className="relative mt-1 text-[11px] leading-snug sm:text-xs" style={{ color: "var(--text-muted)" }}>
             {stat.delta}
           </p>
         </div>

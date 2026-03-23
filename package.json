@@ -5,7 +5,12 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "lint": "turbo lint"
+    "lint": "turbo lint",
+    "typecheck": "turbo type-check",
+    "smoke": "pnpm -C apps/web run test:smoke",
+    "check:env": "pnpm -C apps/web run check:env",
+    "verify": "pnpm run typecheck && pnpm run lint && pnpm run build",
+    "preflight": "pnpm run verify && pnpm run check:env"
   },
   "devDependencies": {
     "turbo": "^2.5.4",

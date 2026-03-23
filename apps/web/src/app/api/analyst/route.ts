@@ -64,27 +64,6 @@ async function firecrawlSearch(query: string, limit = 10): Promise<Array<{ url: 
   }
 }
 
-async function firecrawlScrape(url: string): Promise<string> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
-  if (!apiKey || apiKey === "fc-") return "";
-
-  try {
-    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ url, formats: ["markdown"] }),
-    });
-    if (!res.ok) return "";
-    const data = await res.json();
-    return data.data?.markdown ?? data.markdown ?? "";
-  } catch {
-    return "";
-  }
-}
-
 async function fallbackSearch(query: string, limit: number): Promise<Array<{ url: string; title: string; description: string }>> {
   // Use SerpAPI-compatible DuckDuckGo via fetch
   try {
@@ -157,7 +136,7 @@ Return JSON array of leads:
     );
 
     // Handle both array and {leads: [...]} responses
-    let parsed = JSON.parse(response);
+    const parsed = JSON.parse(response);
     if (Array.isArray(parsed)) return parsed;
     if (parsed.leads) return parsed.leads;
     if (parsed.results) return parsed.results;
@@ -310,7 +289,7 @@ export async function POST(req: NextRequest) {
     }
 
     const db = getSupabaseServer();
-    let leads: AnalystLead[] = [];
+    const leads: AnalystLead[] = [];
 
     // ── Run selected mode(s) ──
     if (mode === "upwork" || mode === "all") {

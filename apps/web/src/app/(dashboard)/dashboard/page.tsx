@@ -2,51 +2,38 @@ import { HoundBrain } from "@/components/dashboard/HoundBrain";
 import { BeeStatusGrid } from "@/components/dashboard/BeeStatusGrid";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { QuickStats } from "@/components/dashboard/QuickStats";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata = { title: "Hound Brain | CyberHound" };
 
 export default function DashboardPage() {
   return (
-    <div className="p-6 space-y-6" style={{ position: "relative", zIndex: 1 }}>
-
-      {/* ── Header ──────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
-            Hound{" "}
-            <span className="text-gradient">Brain</span>
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
-            Queen Bee command center — autonomous revenue operations
-          </p>
-        </div>
-        <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full"
-          style={{
-            background: "var(--green-dim)",
-            border: "1px solid rgba(16,185,129,0.25)",
-          }}
-        >
-          <span
-            className="w-1.5 h-1.5 rounded-full pulse"
-            style={{ background: "var(--green)", boxShadow: "0 0 6px var(--green)" }}
-          />
-          <span className="text-xs font-semibold" style={{ color: "var(--green)" }}>
+    <div className="space-y-8">
+      <PageHeader
+        icon={<span aria-hidden>🧠</span>}
+        eyebrow="Colony OS · command uplink"
+        title={
+          <>
+            Hound <span className="text-gradient">Brain</span>
+          </>
+        }
+        subtitle="Queen Bee command center — orchestrate scouts, builders, and revenue from one place."
+        actions={
+          <div className="pill-live">
+            <span className="pill-live__dot" />
             Hunting
-          </span>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
-      {/* ── Quick stats ─────────────────────────────── */}
       <QuickStats />
 
-      {/* ── Main grid ───────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3 xl:gap-8">
+        <div className="space-y-6 xl:col-span-2 xl:space-y-8">
           <HoundBrain />
           <BeeStatusGrid />
         </div>
-        <div>
+        <div className="xl:pt-0">
           <RecentActivity />
         </div>
       </div>
