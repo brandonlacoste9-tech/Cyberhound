@@ -79,3 +79,34 @@ Use the same bot token and admin chat ID you put in env.
 ---
 
 **Preflight (local):** `pnpm preflight` runs `verify` + `check:env` (requires `.env.local`).
+
+## 7. New Migrations (April 2026)
+
+Run in order after existing migrations:
+
+- `supabase/migrations/004_outreach_log_closer_v2.sql` — Adds Closer v2 columns to outreach_log
+- `supabase/migrations/005_opportunities_scout_columns.sql` — Adds Scout intelligence columns
+
+## 8. Vercel Cron Setup
+
+The Scheduler Bee runs hourly via Vercel Cron (`apps/web/vercel.json`).
+
+Set this env var in Vercel:
+```
+CRON_SECRET=your-secret-here
+```
+
+The cron endpoint is `GET /api/cron/scheduler` and requires `Authorization: Bearer <CRON_SECRET>`.
+Vercel automatically injects this header for cron invocations.
+
+## 9. Python Scripts: API Key Setup
+
+Scripts in the repo root require these env vars (add to `.env`):
+
+```
+VERTEX_API_KEY=your_vertex_express_key
+VERTEX_PROJECT_ID=your_gcp_project_id
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+All hardcoded keys have been removed as of April 2026.

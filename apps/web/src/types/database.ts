@@ -2,8 +2,11 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 
 export type HoundStatus = "idle" | "hunting" | "building" | "closing" | "paused" | "live";
 export type OpportunityStatus = "discovered" | "pending_approval" | "approved" | "rejected" | "building" | "live" | "archived";
-export type OutreachStatus = "queued" | "sent" | "opened" | "replied" | "converted" | "bounced";
-export type BeeType = "queen" | "scout" | "builder" | "closer" | "treasurer";
+export type OutreachStatus = "queued" | "sent" | "opened" | "replied" | "converted" | "bounced" | "pending_approval" | "failed";
+export type BeeType = "queen" | "scout" | "builder" | "closer" | "closer_v2" | "treasurer" | "analyst" | "enrich" | "scheduler" | "wasp";
+export type AnalystSource = "upwork" | "churn" | "reddit";
+export type AnalystLeadStatus = "new" | "enriched" | "queued" | "sent" | "replied" | "converted" | "skipped";
+export type SequenceStatus = "active" | "replied" | "unsubscribed" | "completed" | "paused" | "cancelled" | "failed";
 
 /** Standalone row type so `Update` is not inferred as `never` (circular `Partial<Insert>`). */
 export interface OpportunityRow {
@@ -21,6 +24,54 @@ export interface OpportunityRow {
   rejected_at: string | null;
   rejection_reason: string | null;
   campaign_id: string | null;
+  // Added in migration 005
+  demand_signals: string[] | null;
+  competition_level: "low" | "medium" | "high" | null;
+  estimated_mrr_potential: string | null;
+  recommended_price_point: string | null;
+}
+
+export interface AnalystLeadRow {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  source: AnalystSource;
+  signal_type: string;
+  title: string;
+  url: string | null;
+  raw_text: string | null;
+  company: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_linkedin: string | null;
+  budget: string | null;
+  pain_point: string;
+  urgency: "high" | "medium" | "low";
+  recommended_service: string;
+  personalization_hook: string;
+  enrichment_source: "apollo" | "pattern" | "manual" | null;
+  enrichment_confidence: "high" | "medium" | "low" | null;
+  status: AnalystLeadStatus;
+  campaign_id: string | null;
+}
+
+export interface FollowUpSequenceRow {
+  id: string;
+  created_at: string;
+  lead_id: string | null;
+  campaign_id: string | null;
+  recipient_email: string;
+  recipient_name: string | null;
+  company: string | null;
+  total_emails: number;
+  sent_count: number;
+  current_step: number;
+  next_send_at: string | null;
+  last_sent_at: string | null;
+  status: SequenceStatus;
+  sequence: Json;
+  replied_at: string | null;
+  reply_content: string | null;
 }
 
 export interface Database {
@@ -70,11 +121,19 @@ export interface Database {
         Row: {
           id: string;
           created_at: string;
-          campaign_id: string;
-          channel: "email" | "telegram" | "linkedin";
-          recipient: string;
+          campaign_id: string | null;
+          channel: "email" | "telegram" | "linkedin" | null;
+          recipient: string | null;
+          recipient_email: string | null;
+          recipient_name: string | null;
           subject: string | null;
-          body: string;
+          body: string | null;
+          sequence_number: number | null;
+          resend_id: string | null;
+          approval_id: string | null;
+          recipient_count: number | null;
+          recipients: Json | null;
+          sequence: Json | null;
           status: OutreachStatus;
           sent_at: string | null;
           opened_at: string | null;
@@ -82,6 +141,18 @@ export interface Database {
         };
         Insert: Omit<Database["public"]["Tables"]["outreach_log"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["outreach_log"]["Insert"]>;
+        Relationships: [];
+      };
+      analyst_leads: {
+        Row: AnalystLeadRow;
+        Insert: Omit<AnalystLeadRow, "id" | "created_at" | "updated_at">;
+        Update: Partial<Omit<AnalystLeadRow, "id" | "created_at">>;
+        Relationships: [];
+      };
+      follow_up_sequences: {
+        Row: FollowUpSequenceRow;
+        Insert: Omit<FollowUpSequenceRow, "id" | "created_at">;
+        Update: Partial<Omit<FollowUpSequenceRow, "id" | "created_at">>;
         Relationships: [];
       };
       revenue_events: {
@@ -107,7 +178,7 @@ export interface Database {
           bee: BeeType;
           action: string;
           details: Json;
-          status: "success" | "error" | "pending_approval" | "vetoed";
+          status: "success" | "error" | "pending_approval" | "vetoed" | "idle" | "failed" | "pending";
           telegram_message_id: string | null;
         };
         Insert: Omit<Database["public"]["Tables"]["hive_log"]["Row"], "id" | "created_at">;
