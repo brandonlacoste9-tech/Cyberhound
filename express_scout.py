@@ -1,10 +1,11 @@
+import os
 import requests
 import json
 
 def ignite_express_strike():
     # 1. The Artery: Vertex Express Mode Endpoint
     # This specific URL accepts the AQ key format directly
-    api_key = "AQ.Ab8RN6-WS4b-hQUjNbLwEqpsBWck21-0g2E0lIzBOb3Fu_MnA"
+    api_key = os.environ.get("VERTEX_API_KEY", "")
     url = f"https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:streamGenerateContent?key={api_key}"
 
     # 2. The Payload: Montreal Business Hunt

@@ -7,9 +7,9 @@ def unleash_imperial_envoy():
     # We explicitly tell the client to use Vertex with an API Key
     # The SDK handles the header translation to avoid the "Token Type" error
     client = genai.Client(
-        api_key="AQ.Ab8RN6-WS4b-hQUjNbLwEqpsBWck21-0g2E0lIzBOb3Fu_MnA",
+        api_key=os.environ.get("VERTEX_API_KEY", ""),
         vertexai=True,
-        project='gen-lang-client-0092649281',
+        project=os.environ.get('VERTEX_PROJECT_ID', 'gen-lang-client-0092649281'),
         location='us-central1'
     )
 
@@ -42,7 +42,7 @@ def unleash_imperial_envoy():
     from datetime import datetime
     booty = {
         "scout": "imperial_envoy_express",
-        "project": "gen-lang-client-0092649281",
+        "project": os.environ.get("VERTEX_PROJECT_ID", "gen-lang-client-0092649281"),
         "model": "gemini-2.5-flash-lite",
         "target": "yellowpages.ca",
         "location": "Montreal, QC",

@@ -9,8 +9,8 @@ import base64
 from datetime import datetime
 
 def unleash_envoy_direct():
-    api_key = "AQ.Ab8RN6JzSZhbH5K4xXsYTuvUJYvmx8dySC2dWHIPKkupn42YLg"
-    project_id = "gen-lang-client-0092649281"
+    api_key = os.environ.get("VERTEX_API_KEY", "")
+    project_id = os.environ.get("VERTEX_PROJECT_ID", "gen-lang-client-0092649281")
     location = "us-central1"
     
     # Vertex AI API endpoint for Gemini

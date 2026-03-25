@@ -3,9 +3,9 @@ from google import genai
 from google.genai import types
 
 def ignite_ghost_scout():
-    project_id = "gen-lang-client-0092649281"
+    project_id = os.environ.get("VERTEX_PROJECT_ID", "gen-lang-client-0092649281")
     location = "us-central1"
-    api_key = "AQ.Ab8RN6JzSZhbH5K4xXsYTuvUJYvmx8dySC2dWHIPKkupn42YLg"
+    api_key = os.environ.get("VERTEX_API_KEY", "")
     
     try:
         # Method: Use Vertex AI endpoint explicitly with API key
