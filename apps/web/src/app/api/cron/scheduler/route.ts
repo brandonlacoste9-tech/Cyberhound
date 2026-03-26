@@ -128,7 +128,7 @@ export async function GET(req: NextRequest) {
 
       results.push({ id: seq.id, recipient: seq.recipient_email, success: true, step: seq.current_step });
       successCount++;
-    } catch (e) {
+    } catch (_e) {
       results.push({ id: seq.id, recipient: seq.recipient_email, success: false, step: seq.current_step });
     }
 

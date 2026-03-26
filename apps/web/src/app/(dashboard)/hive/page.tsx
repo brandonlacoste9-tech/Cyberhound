@@ -1,16 +1,21 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Crown, Search, Hammer, MessageSquare, DollarSign, CheckCircle, XCircle, Clock, Activity, RefreshCw } from "lucide-react";
+import { Crown, Search, Hammer, MessageSquare, DollarSign, CheckCircle, XCircle, Clock, Activity, RefreshCw, Zap } from "lucide-react";
 import { useSupabaseBrowser } from "@/lib/supabase/use-supabase-browser";
 import { PageHeader } from "@/components/ui/PageHeader";
 
-const BEE_ICONS = {
-  queen:     Crown,
-  scout:     Search,
-  builder:   Hammer,
-  closer:    MessageSquare,
-  treasurer: DollarSign,
+const BEE_ICONS: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
+  queen:      Crown,
+  scout:      Search,
+  builder:    Hammer,
+  closer:     MessageSquare,
+  closer_v2:  MessageSquare,
+  treasurer:  DollarSign,
+  analyst:    Search,
+  enrich:     Search,
+  scheduler:  Activity,
+  wasp:       Zap,
 };
 
 const STATUS_CONFIG = {
@@ -20,12 +25,12 @@ const STATUS_CONFIG = {
   error:            { icon: XCircle,     color: "var(--status-red)",   bg: "var(--status-red-bg)",   label: "Error"   },
 };
 
-const FILTERS = ["all", "queen", "scout", "builder", "closer", "treasurer"] as const;
+const FILTERS = ["all", "queen", "scout", "builder", "closer", "closer_v2", "analyst", "enrich", "scheduler", "treasurer", "wasp"] as const;
 
 interface LogEntry {
   id: string;
   created_at: string;
-  bee: keyof typeof BEE_ICONS;
+  bee: string;
   action: string;
   details: Record<string, unknown>;
   status: keyof typeof STATUS_CONFIG;

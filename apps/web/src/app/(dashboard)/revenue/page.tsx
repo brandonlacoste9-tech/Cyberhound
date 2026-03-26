@@ -15,15 +15,11 @@ interface RevenueData {
   new_this_month: number;
   churned_this_month: number;
   net_revenue_30d: number;
+  churn_rate?: number;
+  ltv?: number;
+  mrr_history?: Record<string, number>;
+  stripe_connected?: boolean;
 }
-
-const MRR_CHART_DATA = [
-  { date: "Mar 1",  mrr: 0, target: 1000  },
-  { date: "Mar 7",  mrr: 0, target: 2500  },
-  { date: "Mar 14", mrr: 0, target: 5000  },
-  { date: "Mar 21", mrr: 0, target: 8400  },
-  { date: "Mar 28", mrr: 0, target: 10000 },
-];
 
 const CHANNEL_DATA = [
   { channel: "Organic",  revenue: 0, color: "#10b981" },
@@ -70,6 +66,19 @@ export default function RevenuePage() {
   const subs  = data?.active_subscriptions ?? 0;
   const net30 = data?.net_revenue_30d ?? 0;
   const ltv   = subs > 0 ? Math.round((mrr / subs) * 12) : 0;
+
+  // Build MRR chart from real history or show placeholder
+  const mrrChartData = (() => {
+    const history = data?.mrr_history;
+    if (history && Object.keys(history).length > 0) {
+      return Object.entries(history)
+        .slice(-6)
+        .map(([date, amount]) => ({ date, mrr: Math.round(amount / 100), target: 8400 }));
+    }
+    // Placeholder while no Stripe data
+    const months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
+    return months.map((m) => ({ date: m, mrr: 0, target: 8400 }));
+  })();
 
   const stats = [
     { label: "MRR",             value: formatCents(mrr),    sub: `ARR: ${formatCents(arr)}`,                icon: DollarSign, accent: "var(--status-green)", accentBg: "var(--status-green-bg)" },
@@ -156,7 +165,7 @@ export default function RevenuePage() {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={MRR_CHART_DATA}>
+            <AreaChart data={mrrChartData}>
               <defs>
                 <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor="#2563eb" stopOpacity={0.15} />

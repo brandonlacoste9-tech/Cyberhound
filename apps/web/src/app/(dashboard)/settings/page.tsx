@@ -77,7 +77,7 @@ const SETTINGS: { section: string; fields: SettingField[] }[] = [
         label: "Admin Chat ID",
         placeholder: "123456789",
         description: "Your personal Telegram chat ID — only you can approve/veto actions",
-        envVar: "TELEGRAM_ADMIN_CHAT_ID",
+        envVar: "TELEGRAM_CHAT_ID",
         secret: false,
       },
     ],
@@ -195,7 +195,7 @@ export default function SettingsPage() {
           {[
             "Message @BotFather on Telegram → /newbot → copy the token",
             "Message @userinfobot to get your personal chat ID",
-            "Add both to .env.local as TELEGRAM_BOT_TOKEN and TELEGRAM_ADMIN_CHAT_ID",
+            "Add both to .env.local as TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID",
             "Set webhook: POST https://api.telegram.org/bot<TOKEN>/setWebhook with url: https://yourdomain.com/api/telegram-webhook",
             "Send /start to your bot — CyberHound will respond",
           ].map((step, i) => (
