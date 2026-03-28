@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
-import { sendHiveUpdate } from '@/lib/telegram/notify';
+import { sendTelegramAlert } from '@/lib/telegram/notify';
 
 export const runtime = 'nodejs';
 
@@ -23,13 +23,11 @@ export async function POST(req: NextRequest) {
       referral_code,
     } = body;
 
-    if (!email) {
-      return NextResponse.json({ error: 'Email required' }, { status: 400 });
-    }
+    if (!email) return NextResponse.json({ error: 'email required' }, { status: 400 });
 
     const supabase = getSupabaseServer();
 
-    // Check for duplicate
+    // Dedup check
     const { data: existing } = await supabase
       .from('leads')
       .select('id')
@@ -38,10 +36,10 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existing) {
-      return NextResponse.json({ message: 'Already registered', lead_id: existing.id });
+      return NextResponse.json({ success: true, lead_id: existing.id, duplicate: true });
     }
 
-    // Insert lead
+    // Insert new lead
     const { data: lead, error } = await supabase
       .from('leads')
       .insert({
@@ -54,81 +52,72 @@ export async function POST(req: NextRequest) {
         source,
         referral_code,
         status: 'new',
+        score: 0,
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    // Track funnel event
-    await supabase.from('funnel_events').insert({
-      campaign_id,
-      lead_id: lead.id,
-      event: 'form_submit',
-      properties: { email, name, company, source },
-    });
-
-    // Update campaign lead count
-    await supabase.rpc('increment_lead_count', { p_campaign_id: campaign_id }).maybeSingle();
-
-    // Notify via Telegram/Slack
-    try {
-      await sendHiveUpdate(
-        `New lead captured!\n` +
-        `Name: ${name || 'Unknown'}\n` +
-        `Email: ${email}\n` +
-        `Company: ${company || 'N/A'}\n` +
-        `Source: ${source}`
-      );
-    } catch { /* non-critical */ }
-
-    // Log notification for Slack
-    await supabase.from('notifications').insert({
-      channel: 'slack',
-      event_type: 'lead_captured',
-      payload: { lead_id: lead.id, email, name, company, campaign_id },
-      sent: false,
-    });
-
-    // Queue Apify enrichment job (async - fire and forget)
-    fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/enrich`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lead_id: lead.id, email, company, website }),
+    // Fire Telegram notification
+    await sendTelegramAlert({
+      text: `🎯 *New Lead Captured!*\n\n*Email:* ${email}\n*Name:* ${name || 'Unknown'}\n*Company:* ${company || 'Unknown'}\n*Source:* ${source}`,
+      parse_mode: 'Markdown',
     }).catch(() => {});
 
-    return NextResponse.json({ success: true, lead_id: lead.id }, { status: 201 });
+    // Notify via Slack
+    await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_type: 'lead_captured',
+        payload: { email, name, company, source, campaign_id },
+      }),
+    }).catch(() => {});
+
+    // Queue Apify enrichment if website provided
+    if (website) {
+      await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/enrich`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_id: lead.id, website }),
+      }).catch(() => {});
+    }
+
+    // Track referral conversion
+    if (referral_code) {
+      await supabase
+        .from('referrals')
+        .update({ total_referred: supabase.rpc('increment', { x: 1 }) })
+        .eq('referral_code', referral_code)
+        .catch(() => {});
+    }
+
+    return NextResponse.json({ success: true, lead_id: lead.id });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-/**
- * GET /api/leads?campaign_id=xxx
- * Fetch leads for a campaign (admin use).
- */
+/** GET /api/leads - fetch leads with optional filters */
 export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const campaign_id = searchParams.get('campaign_id');
-    const status = searchParams.get('status');
+  const { searchParams } = new URL(req.url);
+  const status = searchParams.get('status');
+  const campaign_id = searchParams.get('campaign_id');
+  const limit = parseInt(searchParams.get('limit') || '100');
 
-    const supabase = getSupabaseServer();
-    let query = supabase
-      .from('leads')
-      .select('*')
-      .order('created_at', { ascending: false });
+  const supabase = getSupabaseServer();
+  let query = supabase
+    .from('leads')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
 
-    if (campaign_id) query = query.eq('campaign_id', campaign_id);
-    if (status) query = query.eq('status', status);
+  if (status) query = query.eq('status', status);
+  if (campaign_id) query = query.eq('campaign_id', campaign_id);
 
-    const { data, error } = await query.limit(100);
-    if (error) throw error;
-
-    return NextResponse.json({ leads: data });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  const { data, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ leads: data });
 }
