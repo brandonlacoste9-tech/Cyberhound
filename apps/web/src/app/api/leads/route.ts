@@ -89,8 +89,8 @@ export async function POST(req: NextRequest) {
       await supabase
         .from('referrals')
         .update({ total_referred: supabase.rpc('increment', { x: 1 }) })
-        .eq('referral_code', referral_code)
-        .catch(() => {});
+        .eq('referral_code', referral_code);
+      
     }
 
     return NextResponse.json({ success: true, lead_id: lead.id });
