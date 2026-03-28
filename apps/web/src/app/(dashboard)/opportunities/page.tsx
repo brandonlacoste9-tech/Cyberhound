@@ -245,8 +245,8 @@ export default function OpportunitiesPage() {
             <OpportunityCard
               key={opp.id}
               opportunity={opp}
-              onApprove={() => handleApprove(opp.id)}
-              onReject={() => handleReject(opp.id)}
+              onApprove={() => handleApprove(opp)}
+              onReject={() => handleReject(opp)}
             />
           ))}
         </div>
