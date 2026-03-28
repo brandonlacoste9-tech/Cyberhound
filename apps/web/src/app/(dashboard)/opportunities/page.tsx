@@ -90,15 +90,31 @@ export default function OpportunitiesPage() {
     }
   }
 
-  async function handleApprove(id: string) {
+  async function handleApprove(opp: Opportunity) {
     if (!supabase) return;
-    await supabase.from("opportunities").update({ status: "approved" }).eq("id", id);
+    await supabase.from("opportunities").update({ status: "approved" }).eq("id", opp.id);
     await supabase.from("hive_log").insert({
       bee: "queen",
       action: `Opportunity approved by Brandon`,
-      details: { opportunity_id: id },
+      details: { opportunity_id: opp.id },
       status: "success",
     });
+        
+    // Trigger Builder Bee to generate landing page
+    try {
+      const res = await fetch("/api/builder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ opportunity: opp, action: "generate_copy" }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        console.error("[Builder trigger]", data.error);
+      }
+    } catch (err) {
+      console.error("[Builder trigger]", err);
+    }
+    
     fetchOpportunities();
   }
 
