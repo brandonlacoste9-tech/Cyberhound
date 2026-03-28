@@ -118,13 +118,13 @@ export default function OpportunitiesPage() {
     fetchOpportunities();
   }
 
-  async function handleReject(id: string) {
+  async function handleReject(opp: Opportunity) {
     if (!supabase) return;
-    await supabase.from("opportunities").update({ status: "rejected" }).eq("id", id);
+    await supabase.from("opportunities").update({ status: "rejected" }).eq("id", opp.id);
     await supabase.from("hive_log").insert({
       bee: "queen",
       action: `Opportunity vetoed — C'est pas chill`,
-      details: { opportunity_id: id },
+      details: { opportunity_id: opp.id },
       status: "vetoed",
     });
     fetchOpportunities();
