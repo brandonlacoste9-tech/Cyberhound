@@ -47,12 +47,11 @@ export default function RevenuePage() {
         setReplies(rep.replies || []);
         setFeedback(fb || null);
         setReferrals(ref.referrals || []);
-      } catch { /* ignore */ }
+      } catch (e: unknown) { /* ignore */ }
       setLoading(false);
     }
     load();
   }, []);
-
   const totalMrr = revenue.filter(r => r.status === 'paid' && r.type === 'subscription').reduce((s, r) => s + r.mrr_cents, 0);
   const totalRevenue = revenue.filter(r => r.status === 'paid').reduce((s, r) => s + r.amount_cents, 0);
   const pendingReplies = replies.filter(r => !r.approved && ['interested', 'objection', 'question'].includes(r.classification)).length;
