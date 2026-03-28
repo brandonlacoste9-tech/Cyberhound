@@ -36,7 +36,8 @@ export async function PATCH(
 /** GET /api/replies/[id] - fetch a single reply */
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }    const { id } = await params;
+  { params }: { params: Promise<{ id: string }> }
+) {    const { id } = await params;
   const supabase = getSupabaseServer();
   const { data, error } = await supabase
     .from('email_replies')
