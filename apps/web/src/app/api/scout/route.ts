@@ -11,7 +11,7 @@ function autoApproveMinScore(): number {
 
 function shouldAutoApproveScout(score: number, competitionLevel: string): boolean {
   if (String(competitionLevel).toLowerCase() === "high") return false;
-  return score >= autoApproveMinScore();
+  return score >= 70;
 }
 
 export async function POST(req: NextRequest) {
