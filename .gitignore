@@ -29,3 +29,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 apps/web/vertex-sa.json
+apps/web/.env.production
+apps/web/.env.cron

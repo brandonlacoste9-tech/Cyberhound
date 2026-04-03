@@ -25,6 +25,7 @@
     "RESEND_API_KEY",
     "APOLLO_API_KEY",
     "SCHEDULER_SECRET",
+    "CRON_SECRET",
     "SCOUT_AUTO_APPROVE_MIN_SCORE"
   ],
   "tasks": {
