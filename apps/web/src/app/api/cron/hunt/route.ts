@@ -15,7 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chat } from "@/lib/llm/client";
 import { getSupabaseServer } from "@/lib/supabase/server";
-import { sendHiveUpdate, sendHITLApproval } from "@/lib/telegram/notify";
+import { sendHiveUpdate } from "@/lib/telegram/notify";
 import { publicOriginFromHeaders } from "@/lib/site/public-origin";
 
 export const runtime = "nodejs";

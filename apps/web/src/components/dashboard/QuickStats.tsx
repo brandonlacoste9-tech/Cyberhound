@@ -40,14 +40,16 @@ export function QuickStats() {
 
     // Fetch opportunities + pending approvals from Supabase
     const oppsPromise = supabase
-      ? supabase
-          .from("opportunities")
-          .select("id, status", { count: "exact" })
+      ? Promise.resolve(
+          supabase
+            .from("opportunities")
+            .select("id, status", { count: "exact" })
+        )
           .then(({ data }) => {
             const all = data ?? [];
             return {
               total: all.length,
-              pending: all.filter((o) => o.status === "pending_approval").length,
+              pending: all.filter((o: { status: string }) => o.status === "pending_approval").length,
             };
           })
           .catch(() => ({ total: 0, pending: 0 }))
@@ -55,10 +57,12 @@ export function QuickStats() {
 
     // Fetch active campaigns from Supabase
     const campaignsPromise = supabase
-      ? supabase
-          .from("campaigns")
-          .select("id", { count: "exact" })
-          .in("status", ["live", "building", "hunting", "closing"])
+      ? Promise.resolve(
+          supabase
+            .from("campaigns")
+            .select("id", { count: "exact" })
+            .in("status", ["live", "building", "hunting", "closing"])
+        )
           .then(({ data }) => (data ?? []).length)
           .catch(() => 0)
       : Promise.resolve(0);

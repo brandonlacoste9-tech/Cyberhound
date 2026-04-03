@@ -3,15 +3,11 @@ import { chat } from "@/lib/llm/client";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHITLApproval, sendHiveUpdate } from "@/lib/telegram/notify";
 
-/** Score floor for auto-approve (no HITL / Telegram buttons). Override with SCOUT_AUTO_APPROVE_MIN_SCORE. */
-function autoApproveMinScore(): number {
-  const n = Number(process.env.SCOUT_AUTO_APPROVE_MIN_SCORE);
-  return Number.isFinite(n) && n > 0 ? n : 78;
-}
-
 function shouldAutoApproveScout(score: number, competitionLevel: string): boolean {
+  const minScore = Number(process.env.SCOUT_AUTO_APPROVE_MIN_SCORE);
+  const threshold = Number.isFinite(minScore) && minScore > 0 ? minScore : 70;
   if (String(competitionLevel).toLowerCase() === "high") return false;
-  return score >= 70;
+  return score >= threshold;
 }
 
 export async function POST(req: NextRequest) {
