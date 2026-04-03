@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ask } from "@/lib/llm/client";
 import { Resend } from "resend";
 import { getSupabaseServer } from "@/lib/supabase/server";
-import { sendHITLApproval, sendHiveUpdate } from "@/lib/telegram/notify";
+import { sendHiveUpdate } from "@/lib/telegram/notify";
 
 interface EmailSequenceItem {
   sequence_number: number;
@@ -109,16 +109,14 @@ export async function POST(req: NextRequest) {
 
     // ──────────────────────────────────────────────
     // ACTION: generate_sequence
-    // Generates 3-email sequence + sends HITL approval
+    // Generates 3-email sequence + auto-sends Email 1
     // ──────────────────────────────────────────────
     if (action === "generate_sequence") {
-      // v2: Use signal-aware prompt if recipient has source/signal data
       const recipient: Recipient = Array.isArray(recipients) && recipients.length > 0
         ? recipients[0]
         : { name: "Decision Maker", email: "" };
 
       const sequencePrompt = buildSignalAwarePrompt(recipient, opportunity, campaign);
-
       const rawResponse = await ask(sequencePrompt, undefined, { temperature: 0.8, max_tokens: 2048 });
       let sequence: EmailSequenceItem[];
 
@@ -130,40 +128,81 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Failed to parse sequence", raw: rawResponse }, { status: 500 });
       }
 
-      const approvalId = `outreach_${Date.now()}`;
       const recipientCount = Array.isArray(recipients) ? recipients.length : 0;
 
       await db.from("outreach_log").insert({
         campaign_id: campaign?.id ?? null,
-        sequence: sequence,
-        status: "pending_approval",
-        approval_id: approvalId,
+        sequence,
+        status: "approved",
         recipient_count: recipientCount,
         recipients: recipients ?? [],
       });
 
       await db.from("hive_log").insert({
         bee: "closer_v2",
-        action: `Generated signal-aware sequence for: ${recipient.company ?? opportunity?.niche ?? campaign?.name}`,
-        details: { sequence, recipient_count: recipientCount, approval_id: approvalId, source: recipient.source, signal_type: recipient.signal_type },
-        status: "pending_approval",
+        action: `Auto-approved sequence for: ${recipient.company ?? opportunity?.niche ?? campaign?.name}`,
+        details: { sequence, recipient_count: recipientCount, source: recipient.source, signal_type: recipient.signal_type, auto_approved: true },
+        status: "success",
       });
 
-      const sourceEmoji: Record<string, string> = { upwork: "💼", churn: "🔄", reddit: "🔴" };
-      const emoji = sourceEmoji[recipient.source ?? ""] ?? "📡";
+      // Auto-send Email 1 immediately if Resend is configured
+      const resendKey = process.env.RESEND_API_KEY;
+      let sentCount = 0;
+      if (resendKey && resendKey !== "placeholder" && recipient.email) {
+        const resend = new Resend(resendKey);
+        const firstName = recipient.name.split(" ")[0];
+        const company = recipient.company ?? "your company";
+        const subject = sequence[0].subject.replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
+        const body = sequence[0].body.replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
+        const { data, error: sendErr } = await resend.emails.send({
+          from: "Brandon | CyberHound <onboarding@resend.dev>",
+          to: [recipient.email],
+          subject,
+          text: body,
+        });
+        if (!sendErr) {
+          sentCount = 1;
+          await db.from("outreach_log").insert({
+            campaign_id: campaign?.id ?? null,
+            recipient_email: recipient.email,
+            recipient_name: recipient.name,
+            subject,
+            sequence_number: 1,
+            status: "sent",
+            resend_id: data?.id ?? null,
+          });
+          // Schedule follow-ups
+          if (sequence.length > 1) {
+            const nextEmail = sequence[1];
+            const nextSendAt = new Date();
+            nextSendAt.setDate(nextSendAt.getDate() + (nextEmail.send_delay_days ?? 3));
+            await db.from("follow_up_sequences").insert({
+              lead_id: recipient.lead_id ?? null,
+              campaign_id: campaign?.id ?? null,
+              recipient_email: recipient.email,
+              recipient_name: recipient.name,
+              company,
+              total_emails: sequence.length,
+              sent_count: 1,
+              current_step: 2,
+              next_send_at: nextSendAt.toISOString(),
+              last_sent_at: new Date().toISOString(),
+              status: "active",
+              sequence: sequence as unknown as never,
+            });
+          }
+        }
+      }
 
-      await sendHITLApproval({
-        approvalId,
-        actionType: "send_outreach_sequence",
-        summary: `${emoji} Signal-aware sequence for ${recipient.company ?? opportunity?.niche ?? campaign?.name}`,
-        details: `👤 ${recipient.name} @ ${recipient.company ?? "Unknown"}\n📡 Source: ${(recipient.source ?? "unknown").toUpperCase()} — ${recipient.signal_type ?? ""}\n🎯 Service: ${recipient.recommended_service ?? opportunity?.niche ?? "AI Automation"}\n🔥 Hook: ${(recipient.personalization_hook ?? "").slice(0, 80)}\n\n📬 Email 1: "${sequence[0]?.subject}"\n📬 Email 2: "${sequence[1]?.subject}" (+3d)\n📬 Email 3: "${sequence[2]?.subject}" (+7d)\n\n⚠️ Approve to send Email 1 immediately.`,
-      });
+      await sendHiveUpdate(
+        `📧 *Closer Auto-Fired*\n\n👤 ${recipient.name} @ ${recipient.company ?? "Unknown"}\n📧 ${sentCount > 0 ? "Email 1 sent" : "Sequence queued (no Resend key)"}\n📬 "${sequence[0]?.subject}"\n🔄 Follow-ups: ${sequence.length - 1} scheduled`
+      );
 
       return NextResponse.json({
         sequence,
-        hitl_required: true,
-        approval_id: approvalId,
-        message: "Signal-aware sequence generated. HITL approval sent to Telegram — tap Approve to send.",
+        auto_approved: true,
+        sent: sentCount,
+        message: sentCount > 0 ? "Auto-approved — Email 1 sent immediately." : "Auto-approved — Resend not configured, sequence saved.",
       });
     }
 
@@ -220,33 +259,77 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "LLM returned invalid JSON", raw: rawLead }, { status: 500 });
       }
 
-      const leadApprovalId = `lead_${lead_id}_${Date.now()}`;
-
       await db.from("hive_log").insert({
         bee: "closer_v2",
-        action: "from_lead_sequence_generated",
-        details: { approval_id: leadApprovalId, lead_id, recipient: leadRecipient, sequence: leadSequence },
-        status: "pending",
+        action: `Auto-approved sequence for lead: ${leadRecipient.name} @ ${leadRecipient.company ?? "Unknown"}`,
+        details: { lead_id, recipient: leadRecipient, sequence: leadSequence, auto_approved: true },
+        status: "success",
       });
 
       await db.from("analyst_leads").update({ status: "queued" }).eq("id", lead_id);
 
+      // Auto-send Email 1 immediately
+      const resendKeyLead = process.env.RESEND_API_KEY;
+      let leadSentId: string | null = null;
+      if (resendKeyLead && resendKeyLead !== "placeholder") {
+        const resend = new Resend(resendKeyLead);
+        const firstName = leadRecipient.name.split(" ")[0];
+        const company = leadRecipient.company ?? "your company";
+        const subject = leadSequence[0].subject.replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
+        const body = leadSequence[0].body.replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
+        const { data: sendData, error: sendErr } = await resend.emails.send({
+          from: "Brandon | CyberHound <onboarding@resend.dev>",
+          to: [leadRecipient.email],
+          subject,
+          text: body,
+        });
+        if (!sendErr) {
+          leadSentId = sendData?.id ?? null;
+          await db.from("outreach_log").insert({
+            campaign_id: null,
+            recipient_email: leadRecipient.email,
+            recipient_name: leadRecipient.name,
+            subject,
+            sequence_number: 1,
+            status: "sent",
+            resend_id: leadSentId,
+          });
+          // Schedule follow-ups
+          if (leadSequence.length > 1) {
+            const nextEmail = leadSequence[1];
+            const nextSendAt = new Date();
+            nextSendAt.setDate(nextSendAt.getDate() + (nextEmail.send_delay_days ?? 3));
+            await db.from("follow_up_sequences").insert({
+              lead_id,
+              campaign_id: null,
+              recipient_email: leadRecipient.email,
+              recipient_name: leadRecipient.name,
+              company,
+              total_emails: leadSequence.length,
+              sent_count: 1,
+              current_step: 2,
+              next_send_at: nextSendAt.toISOString(),
+              last_sent_at: new Date().toISOString(),
+              status: "active",
+              sequence: leadSequence as unknown as never,
+            });
+          }
+          await db.from("analyst_leads").update({ status: "sent" }).eq("id", lead_id);
+        }
+      }
+
       const srcEmoji: Record<string, string> = { upwork: "💼", churn: "🔄", reddit: "🔴" };
       const leadEmoji = srcEmoji[lead.source ?? ""] ?? "📡";
-
-      await sendHITLApproval({
-        approvalId: leadApprovalId,
-        actionType: "send_outreach_sequence",
-        summary: `${leadEmoji} Lead sequence: ${leadRecipient.name} @ ${leadRecipient.company ?? "Unknown"}`,
-        details: `📡 Source: ${(lead.source ?? "").toUpperCase()} — ${lead.signal_type ?? ""}\n🎯 Pain: ${(lead.pain_point ?? "").slice(0, 80)}\n🔥 Hook: ${(lead.personalization_hook ?? "").slice(0, 80)}\n\n📬 Email 1: "${leadSequence[0]?.subject}"\n📬 Email 2: "${leadSequence[1]?.subject}" (+3d)\n📬 Email 3: "${leadSequence[2]?.subject}" (+7d)\n\n⚠️ Approve to send Email 1 immediately.`,
-      });
+      await sendHiveUpdate(
+        `${leadEmoji} *Closer Auto-Fired (from_lead)*\n\n👤 ${leadRecipient.name} @ ${leadRecipient.company ?? "Unknown"}\n📧 ${leadSentId ? "Email 1 sent" : "Sequence saved (no Resend key)"}\n📬 "${leadSequence[0]?.subject}"\n🔄 Follow-ups: ${leadSequence.length - 1} scheduled`
+      );
 
       return NextResponse.json({
         sequence: leadSequence,
-        hitl_required: true,
-        approval_id: leadApprovalId,
+        auto_approved: true,
+        sent: leadSentId ? 1 : 0,
         lead_id,
-        message: "Sequence generated from analyst lead. Awaiting HITL approval.",
+        message: leadSentId ? "Auto-approved — Email 1 sent immediately." : "Auto-approved — Resend not configured, sequence saved.",
       });
     }
 

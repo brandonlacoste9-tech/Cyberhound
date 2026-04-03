@@ -297,30 +297,24 @@ Return ONLY a valid JSON array:
     const jsonMatch = raw.match(/\[[\s\S]*\]/);
     const sequence = JSON.parse(jsonMatch?.[0] ?? raw);
 
-    const approvalId = `hunt_outreach_${campaign.campaign_id}_${Date.now()}`;
-
     await db.from("outreach_log").insert({
       campaign_id: campaign.campaign_id,
       sequence,
-      status: "pending_approval",
-      approval_id: approvalId,
+      status: "approved",
       recipient_count: 0,
     });
 
+    // Auto-approved — log and notify (no button tap needed)
     await db.from("hive_log").insert({
       bee: "closer",
-      action: `Outreach sequence ready: ${opportunity.niche}`,
-      details: { approval_id: approvalId, campaign_id: campaign.campaign_id, sequence },
-      status: "pending_approval",
+      action: `Auto-approved outreach sequence: ${opportunity.niche}`,
+      details: { campaign_id: campaign.campaign_id, sequence, auto_approved: true },
+      status: "success",
     });
 
-    // HITL via Telegram — Brandon approves before any emails go out
-    await sendHITLApproval({
-      approvalId,
-      actionType: "send_outreach_sequence",
-      summary: `🚀 Campaign live: ${opportunity.niche}`,
-      details: `🌐 Landing: ${campaign.landing_page_url}\n💰 MRR Potential: ${opportunity.estimated_mrr_potential}\n\n📬 Email 1: "${sequence[0]?.subject}"\n📬 Email 2: "${sequence[1]?.subject}" (+3d)\n📬 Email 3: "${sequence[2]?.subject}" (+7d)\n\n⚠️ Approve to start sending outreach, or veto to skip.`,
-    });
+    await sendHiveUpdate(
+      `📧 *Closer Bee — Outreach Auto-Approved*\n\n🚀 Campaign: ${opportunity.niche}\n🌐 Landing: ${campaign.landing_page_url}\n\n📬 Email 1: "${sequence[0]?.subject}"\n📬 Email 2: "${sequence[1]?.subject}" (+3d)\n📬 Email 3: "${sequence[2]?.subject}" (+7d)\n\n_Auto-approved (score ≥ 70). Sequence will fire when leads are added._`
+    );
   } catch (e) {
     console.error("[Hunt Cron] Closer error:", e);
   }
@@ -416,15 +410,13 @@ export async function GET(req: NextRequest) {
         result.closer_queued = true;
       }
     } else {
-      // Send HITL approval for low-scoring opportunities
-      if (score >= 60) {
-        await sendHITLApproval({
-          approvalId: opportunityId,
-          actionType: "approve_opportunity",
-          summary: `${niche} — ${market}`,
-          details: `📊 Score: ${score}/100\n💰 MRR Potential: ${opportunity.estimated_mrr_potential}\n💵 Price: ${opportunity.recommended_price_point}\n🏆 Competition: ${competition}\n\n👑 ${opportunity.queen_reasoning}`,
-        });
-      }
+      // Score < 70 — log only, no action
+      await db.from("hive_log").insert({
+        bee: "scout",
+        action: `Skipped (score ${score}): ${niche}`,
+        details: { ...opportunity, opportunity_id: opportunityId, reason: "score_below_threshold" },
+        status: "vetoed",
+      });
     }
 
     results.push(result);
