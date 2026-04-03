@@ -221,17 +221,23 @@ export async function POST(req: NextRequest) {
           await sendMessage(chatId, `💰 *Revenue Report*\n\nMRR: $0\nARR: $0\n\n_No revenue events yet. Launch your first campaign._`);
         }
       } else if (cmd === "/hunt") {
-        await sendMessage(chatId, `🎯 *Autonomous scouting initiated*\n\nQueen Bee scanning North American B2B markets...\n\nI'll send you the top opportunity for approval shortly.`);
-        // Fire-and-forget scout via Queen Bee
-        getQueenResponse("Identify 3 high-MRR B2B SaaS opportunities in North America right now. For each: niche, target customer, estimated MRR potential, and why now. Then recommend the #1 to pursue immediately.").then(async (response) => {
-          const truncated = response.length > 3800 ? response.slice(0, 3800) + "..." : response;
-          await sendMessage(chatId, `🎯 *Queen Bee — Market Scan:*\n\n${truncated}`);
+        await sendMessage(chatId, `🎯 *Hunt initiated*\n\nScouting ${3} niches across North America...\n\nI'll send HITL approvals as opportunities are found.`);
+        // Fire-and-forget: call the hunt cron directly
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cyberhound.vercel.app";
+        const cronSecret = process.env.CRON_SECRET ?? process.env.SCHEDULER_SECRET ?? "cyberhound-scheduler";
+        fetch(`${siteUrl}/api/cron/hunt`, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${cronSecret}` },
         }).catch(console.error);
       } else if (cmd === "/analyst") {
-        await sendMessage(
-          chatId,
-          `🔍 *Analyst Bee*\n\nUse the dashboard to configure a scan:\n\n• Upwork mode — intercept active buyers\n• Churn mode — catch churned SaaS users\n• Reddit mode — pain signal detection\n\nGo to: cyberhound.vercel.app/analyst`
-        );
+        await sendMessage(chatId, `🔍 *Analyst Bee scanning...*\n\nRunning Upwork · Churn · Reddit signal scan.\n\nHigh-urgency leads will arrive here for approval shortly.`);
+        // Fire-and-forget: call the analyst cron directly
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cyberhound.vercel.app";
+        const cronSecret = process.env.CRON_SECRET ?? process.env.SCHEDULER_SECRET ?? "cyberhound-scheduler";
+        fetch(`${siteUrl}/api/cron/analyst`, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${cronSecret}` },
+        }).catch(console.error);
       } else if (cmd === "/pause") {
         await sendMessage(chatId, `⏸ *Hound paused*\n\nAll agents suspended. Send /resume to restart.`);
       } else if (cmd === "/resume") {
