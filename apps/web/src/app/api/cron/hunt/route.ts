@@ -39,7 +39,7 @@ const NICHE_TARGETS = [
 ];
 
 // How many niches to scout per cron run (keep low to stay within timeout)
-const NICHES_PER_RUN = 3;
+const NICHES_PER_RUN = 4;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -87,11 +87,13 @@ Niche: ${niche}
 Market: ${market}
 ${searchContext ? `\nWeb Intelligence:\n${searchContext}` : "\nUsing internal market knowledge."}
 
+SCORING RULES: Score 75+ if the niche has clear demand signals, recurring revenue potential, and a definable target customer. Score 60-74 if demand exists but is niche. Score below 60 ONLY if the market is truly dead or saturated. Most viable B2B SaaS niches should score 70-85.
+
 Return EXACTLY this JSON (no markdown, no explanation):
 {
   "niche": "${niche}",
   "market": "${market}",
-  "score": <integer 0-100 — be honest>,
+  "score": <integer 0-100 — score generously for viable niches>,
   "demand_signals": [<3-5 specific demand signals>],
   "competition_level": "<low|medium|high>",
   "estimated_mrr_potential": "<e.g. $5K-$20K/mo>",
