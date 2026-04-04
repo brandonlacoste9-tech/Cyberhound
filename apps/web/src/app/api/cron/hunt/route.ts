@@ -337,10 +337,9 @@ export async function GET(req: NextRequest) {
   const origin = publicOriginFromHeaders(req.headers) ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://cyberhound.vercel.app";
   const market = "North America";
 
-  // Pick NICHES_PER_RUN niches, rotating by time of day to cover all over time
-  const hour = new Date().getUTCHours();
-  const offset = (Math.floor(hour / (24 / (NICHE_TARGETS.length / NICHES_PER_RUN))) * NICHES_PER_RUN) % NICHE_TARGETS.length;
-  const niches = NICHE_TARGETS.slice(offset, offset + NICHES_PER_RUN);
+  // Pick NICHES_PER_RUN niches randomly each run to avoid stale rotation
+  const shuffled = [...NICHE_TARGETS].sort(() => Math.random() - 0.5);
+  const niches = shuffled.slice(0, NICHES_PER_RUN);
 
   const results: Array<{
     niche: string;
