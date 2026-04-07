@@ -77,7 +77,13 @@ export default function OpportunitiesPage() {
       if (data.opportunity) {
         setNiche("");
         if (data.autoApproved) {
-          setScoutNotice("Strong signal — auto-approved (high score, not high competition). Ready for Builder.");
+          setScoutNotice(
+            data.builder?.launch
+              ? "Strong signal — approved, built, and launched autonomously."
+              : "Strong signal — approved and sent to Builder automatically."
+          );
+        } else if (data.autoRejected) {
+          setScoutNotice("Weak signal — rejected autonomously. No manual queue created.");
         }
         await fetchOpportunities(); // refresh from DB
       } else {

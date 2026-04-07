@@ -4,7 +4,7 @@ import { publicOriginFromRequest } from "@/lib/site/public-origin";
 import Stripe from "stripe";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
-import { sendHITLApproval } from "@/lib/telegram/notify";
+import { sendHiveUpdate } from "@/lib/telegram/notify";
 
 export async function POST(req: NextRequest) {
   try {
@@ -137,24 +137,18 @@ Return ONLY this JSON (no markdown):
     }
 
     // ──────────────────────────────────────────────
-    // ACTION: create_stripe_product (HITL gated)
+    // ACTION: create_stripe_product (autonomous launch)
     // ──────────────────────────────────────────────
     if (action === "create_stripe_product") {
       const stripeKey = process.env.STRIPE_SECRET_KEY;
       if (!stripeKey || stripeKey === "sk_test_placeholder") {
-        const approvalId = `stripe_${Date.now()}`;
-        await sendHITLApproval({
-          approvalId,
-          actionType: "create_stripe_product",
-          summary: `Create Stripe product: ${opportunity.niche}`,
-          details: `💵 Price: ${opportunity.recommended_price_point}\n📊 MRR Potential: ${opportunity.estimated_mrr_potential}\n\n⚠️ Configure STRIPE_SECRET_KEY to execute.`,
-        });
-
-        return NextResponse.json({
-          error: "Stripe not configured",
-          hitl_required: true,
-          message: "HITL alert sent to Telegram. Configure STRIPE_SECRET_KEY to execute.",
-        }, { status: 400 });
+        return NextResponse.json(
+          {
+            error: "Stripe not configured",
+            message: "Autonomous launch requires STRIPE_SECRET_KEY.",
+          },
+          { status: 400 }
+        );
       }
 
       const stripe = new Stripe(stripeKey);
@@ -276,13 +270,15 @@ Return ONLY this JSON (no markdown):
         status: "success",
       });
 
-      // Telegram HITL — notify campaign is live, ask to start outreach
-      sendHITLApproval({
-        approvalId: campaign.id,
-        actionType: "start_outreach",
-        summary: `🚀 ${opportunity.niche} is LIVE`,
-        details: `🌐 Landing: ${origin}/l/${campaign.id}\n🔗 Payment Link: ${paymentLink.url}\n💵 Price: $${priceInCents / 100} CAD/mo\n📊 MRR Potential: ${opportunity.estimated_mrr_potential}\n\nApprove to deploy Closer Bee outreach, or veto to pause.`,
-      }).catch(console.error);
+      await sendHiveUpdate(
+        `🚀 *Builder Bee Launch Complete*\n\n` +
+        `Campaign: ${opportunity.niche}\n` +
+        `🌐 Landing: ${origin}/l/${campaign.id}\n` +
+        `🔗 Payment Link: ${paymentLink.url}\n` +
+        `💵 Price: $${priceInCents / 100} CAD/mo\n` +
+        `📊 MRR Potential: ${opportunity.estimated_mrr_potential}\n\n` +
+        `_Autonomous launch complete — outreach can begin immediately._`
+      ).catch(console.error);
 
       return NextResponse.json({
         stripe_product_id: product.id,

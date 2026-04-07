@@ -8,7 +8,7 @@
  *   - Company metadata (size, industry, location)
  *
  * Uses Apollo.io People Search + Organization Search APIs.
- * Falls back to email pattern guessing if Apollo credits exhausted.
+ * Real data only: no guessed emails, no synthetic contacts.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -49,7 +49,7 @@ interface EnrichmentResult {
   company_size?: number;
   company_industry?: string;
   company_location?: string;
-  enrichment_source: "apollo" | "pattern" | "manual";
+  enrichment_source: "apollo";
   confidence: "high" | "medium" | "low";
 }
 
@@ -119,13 +119,7 @@ async function apolloSearchPeople(
   }
 }
 
-// ── Email pattern fallback ────────────────────────────────────────────────────
-
-function guessEmail(firstName: string, lastName: string, domain: string): string {
-  const f = firstName.toLowerCase().replace(/[^a-z]/g, "");
-  // Most common pattern: firstname@domain
-  return `${f}@${domain}`;
-}
+// ── Domain helper ────────────────────────────────────────────────────────────
 
 function extractDomain(company: string): string | null {
   // Try to guess domain from company name
@@ -168,32 +162,31 @@ async function enrichLead(
     };
   }
 
-  // Apollo found contact but no verified email — use pattern
-  if (contact && !contact.email && resolvedDomain) {
-    const guessed = guessEmail(contact.first_name, contact.last_name, resolvedDomain);
+  // Apollo found contact but no verified email — preserve the real contact, but do not invent an email.
+  if (contact) {
     return {
       lead_id: leadId,
       company: contact.organization_name ?? company,
       domain: resolvedDomain,
       contact_name: contact.name,
       contact_title: contact.title,
-      contact_email: guessed,
+      contact_email: null,
       contact_linkedin: contact.linkedin_url,
-      enrichment_source: "pattern",
+      enrichment_source: "apollo",
       confidence: "medium",
     };
   }
 
-  // No Apollo result — minimal fallback
+  // No real match found.
   return {
     lead_id: leadId,
     company,
     domain: resolvedDomain,
-    contact_name: "Decision Maker",
-    contact_title: "CEO/Founder",
-    contact_email: resolvedDomain ? `hello@${resolvedDomain}` : null,
+    contact_name: "",
+    contact_title: "",
+    contact_email: null,
     contact_linkedin: null,
-    enrichment_source: "pattern",
+    enrichment_source: "apollo",
     confidence: "low",
   };
 }
@@ -210,6 +203,13 @@ export async function POST(req: NextRequest) {
       lead_id,         // Optional lead ID to update in DB
       update_db = true,
     } = body;
+
+    if (!process.env.APOLLO_API_KEY) {
+      return NextResponse.json(
+        { error: "Enrichment Bee requires APOLLO_API_KEY for real contact data." },
+        { status: 503 }
+      );
+    }
 
     const db = getSupabaseServer();
 
@@ -252,7 +252,7 @@ export async function POST(req: NextRequest) {
 
       // Telegram update
       await sendHiveUpdate(
-        `🔬 *Enrichment Bee Report*\n\n✅ Enriched: ${enriched}/${leads.length} leads\n📧 Emails found: ${results.filter((r) => r.contact_email && r.enrichment_source === "apollo").length} verified\n🔮 Pattern guessed: ${results.filter((r) => r.enrichment_source === "pattern").length}\n\nReady for Closer v2 →`
+        `🔬 *Enrichment Bee Report*\n\n✅ Enriched: ${enriched}/${leads.length} leads\n📧 Verified emails found: ${results.filter((r) => r.contact_email && r.enrichment_source === "apollo").length}\n🚫 Guessed emails: 0\n\nReady for Closer v2 →`
       );
 
       return NextResponse.json({ enriched, total: leads.length, results });

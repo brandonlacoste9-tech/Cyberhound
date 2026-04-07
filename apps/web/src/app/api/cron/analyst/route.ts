@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chat } from "@/lib/llm/client";
 import { hasLiveSearchProvider, searchWeb } from "@/lib/live-search";
+import { publicOriginFromHeaders } from "@/lib/site/public-origin";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHiveUpdate } from "@/lib/telegram/notify";
 import { Resend } from "resend";
@@ -167,6 +168,29 @@ Return ONLY JSON array:
   }
 }
 
+async function enrichLeadViaApi(origin: string, lead: Record<string, unknown>): Promise<Record<string, unknown> | null> {
+  const company = String(lead.company ?? "").trim();
+  if (!company) return null;
+
+  try {
+    const res = await fetch(`${origin}/api/enrich`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        company,
+        lead_id: lead.id ?? null,
+        update_db: true,
+      }),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (error) {
+    console.error("[Analyst Cron] Enrich API error:", error);
+    return null;
+  }
+}
+
 // ── Main handler ───────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -184,6 +208,7 @@ export async function GET(req: NextRequest) {
   }
 
   const db = getSupabaseServer();
+  const origin = publicOriginFromHeaders(req.headers) ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://cyberhound.vercel.app";
 
   await sendHiveUpdate("🔍 *Analyst Cron Started*\n\nScanning Upwork · Churn · Reddit for warm leads...");
 
@@ -238,12 +263,32 @@ export async function GET(req: NextRequest) {
   const resend = resendKey && resendKey !== "re_placeholder" ? new Resend(resendKey) : null;
   let sequencesQueued = 0;
 
-  for (const lead of highUrgency) {
+  for (const sourceLead of highUrgency) {
     try {
+      let lead = sourceLead;
+      const leadId = lead.id as string | undefined;
+
+      if (!lead.contact_email && lead.company) {
+        const enriched = await enrichLeadViaApi(origin, lead);
+        if (enriched) {
+          lead = { ...lead, ...enriched };
+        }
+      }
+
+      const recipientEmail = String(lead.contact_email ?? "");
+      if (!recipientEmail || !recipientEmail.includes("@")) {
+        await db.from("hive_log").insert({
+          bee: "enrich",
+          action: `Skipped outreach for ${lead.company ?? lead.title} — no verified email`,
+          details: { lead_id: leadId, company: lead.company, source: lead.source },
+          status: "vetoed",
+        });
+        continue;
+      }
+
       const sequence = await generateCloserSequence(lead);
       if (!sequence.length) continue;
 
-      const leadId = lead.id as string | undefined;
       const firstName = String(lead.contact_name ?? "there").split(" ")[0];
       const company = String(lead.company ?? "your company");
 
@@ -260,7 +305,6 @@ export async function GET(req: NextRequest) {
       }
 
       // Auto-send Email 1 immediately if Resend is configured and we have a real email
-      const recipientEmail = String(lead.contact_email ?? "");
       const email1 = sequence[0] as Record<string, unknown>;
       let sentId: string | null = null;
 

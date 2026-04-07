@@ -367,7 +367,7 @@ export async function GET(req: NextRequest) {
         estimated_mrr_potential: String(opportunity.estimated_mrr_potential ?? "$0"),
         recommended_price_point: String(opportunity.recommended_price_point ?? "$0"),
         queen_reasoning: String(opportunity.queen_reasoning ?? ""),
-        status: autoApproved ? "approved" : "pending_approval",
+        status: autoApproved ? "approved" : "rejected",
         ...(autoApproved ? { approved_at: nowIso } : {}),
       })
       .select("id")
@@ -383,10 +383,10 @@ export async function GET(req: NextRequest) {
     await db.from("hive_log").insert({
       bee: "scout",
       action: autoApproved
-        ? `Auto-approved: ${niche} (score ${score})`
-        : `Scouted: ${niche} (score ${score} — needs approval)`,
+        ? `Autonomous approval: ${niche} (score ${score})`
+        : `Autonomous rejection: ${niche} (score ${score})`,
       details: { ...opportunity, opportunity_id: opportunityId, auto_approved: autoApproved },
-      status: autoApproved ? "success" : "pending_approval",
+      status: autoApproved ? "success" : "vetoed",
     });
 
     const result: (typeof results)[number] = { niche, score, auto_approved: autoApproved };
@@ -398,12 +398,12 @@ export async function GET(req: NextRequest) {
         result.campaign_id = campaignResult.campaign_id;
         result.landing_page_url = campaignResult.landing_page_url;
 
-        // Trigger Closer Bee — generates sequence + sends HITL approval
+        // Trigger Closer Bee automatically
         await triggerCloser(opportunity, campaignResult);
         result.closer_queued = true;
       }
     } else {
-      // Score < 70 — log only, no action
+      // Score below threshold — rejected automatically, no further action
       await db.from("hive_log").insert({
         bee: "scout",
         action: `Skipped (score ${score}): ${niche}`,
@@ -422,7 +422,7 @@ export async function GET(req: NextRequest) {
   const campaignsBuilt = results.filter((r) => r.campaign_id).length;
 
   await sendHiveUpdate(
-    `✅ *Hunt Cron Complete*\n\n🔍 Niches scouted: ${results.length}\n✅ Auto-approved: ${autoApprovedCount}\n🚀 Campaigns built: ${campaignsBuilt}\n📧 Outreach queued: ${results.filter((r) => r.closer_queued).length}\n\n${results.map((r) => `• ${r.niche} — ${r.score}/100 ${r.auto_approved ? "✅" : "⏳"}`).join("\n")}`
+    `✅ *Hunt Cron Complete*\n\n🔍 Niches scouted: ${results.length}\n✅ Auto-approved: ${autoApprovedCount}\n🚀 Campaigns built: ${campaignsBuilt}\n📧 Outreach queued: ${results.filter((r) => r.closer_queued).length}\n\n${results.map((r) => `• ${r.niche} — ${r.score}/100 ${r.auto_approved ? "✅" : "🚫"}`).join("\n")}`
   );
 
   return NextResponse.json({

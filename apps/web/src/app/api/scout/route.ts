@@ -1,14 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chat } from "@/lib/llm/client";
 import { buildSearchContext, hasLiveSearchProvider, searchWeb } from "@/lib/live-search";
+import { publicOriginFromRequest } from "@/lib/site/public-origin";
 import { getSupabaseServer } from "@/lib/supabase/server";
-import { sendHITLApproval, sendHiveUpdate } from "@/lib/telegram/notify";
+import { sendHiveUpdate } from "@/lib/telegram/notify";
 
 function shouldAutoApproveScout(score: number, competitionLevel: string): boolean {
   const minScore = Number(process.env.SCOUT_AUTO_APPROVE_MIN_SCORE);
   const threshold = Number.isFinite(minScore) && minScore > 0 ? minScore : 70;
   if (String(competitionLevel).toLowerCase() === "high") return false;
   return score >= threshold;
+}
+
+async function triggerAutonomousBuilder(req: NextRequest, opportunity: Record<string, unknown>) {
+  const origin = publicOriginFromRequest(req);
+
+  const copyRes = await fetch(`${origin}/api/builder`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ opportunity, action: "generate_copy" }),
+    cache: "no-store",
+  });
+  const copyData = await copyRes.json();
+  if (!copyRes.ok || !copyData?.campaign_id) {
+    return { copy: copyData, launch: null };
+  }
+
+  let launchData: Record<string, unknown> | null = null;
+  if (process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== "sk_test_placeholder") {
+    const launchRes = await fetch(`${origin}/api/builder`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        opportunity: { ...opportunity, campaign_id: copyData.campaign_id },
+        action: "create_stripe_product",
+      }),
+      cache: "no-store",
+    });
+    launchData = await launchRes.json();
+  }
+
+  return { copy: copyData, launch: launchData };
 }
 
 export async function POST(req: NextRequest) {
@@ -100,17 +132,16 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
     const score = Number(opportunity.score ?? 0);
     const competitionLevel = String(opportunity.competition_level ?? "medium");
     const autoApproved = shouldAutoApproveScout(score, competitionLevel);
+    const autonomousStatus = autoApproved ? "approved" : "rejected";
 
     // Step 3: Persist to Supabase
     let opportunityId: string | null = null;
-    let hiveLogId: string | null = null;
 
     try {
       const db = getSupabaseServer();
 
       const nowIso = new Date().toISOString();
 
-      // Insert opportunity — high-confidence + non-high competition skips HITL
       const { data: oppRow, error: oppErr } = await db
         .from("opportunities")
         .insert({
@@ -122,7 +153,7 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
           estimated_mrr_potential: String(opportunity.estimated_mrr_potential ?? "$0"),
           recommended_price_point: String(opportunity.recommended_price_point ?? "$0"),
           queen_reasoning: String(opportunity.queen_reasoning ?? ""),
-          status: autoApproved ? "approved" : "pending_approval",
+          status: autonomousStatus,
           ...(autoApproved ? { approved_at: nowIso } : {}),
         })
         .select("id")
@@ -132,55 +163,50 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
       if (oppRow?.id) opportunityId = oppRow.id;
 
       // Log to hive
-      const { data: logRow, error: logErr } = await db
+      const { error: logErr } = await db
         .from("hive_log")
         .insert({
           bee: "scout",
           action: autoApproved
-            ? `Scouted & auto-approved: ${niche} in ${market} (score ${score})`
-            : `Scouted opportunity: ${niche} in ${market}`,
+            ? `Autonomous approval: ${niche} in ${market} (score ${score})`
+            : `Autonomous rejection: ${niche} in ${market} (score ${score})`,
           details: { ...opportunity, opportunity_id: opportunityId, auto_approved: autoApproved },
-          status: autoApproved ? "success" : "pending_approval",
+          status: autoApproved ? "success" : "vetoed",
         })
         .select("id")
         .single();
 
       if (logErr) console.error("[Scout DB hive_log]", logErr);
-      if (logRow?.id) hiveLogId = logRow.id;
 
-      // HITL row only when you still need a human
-      if (!autoApproved && hiveLogId) {
-        const { error: hitlErr } = await db.from("hitl_approvals").insert({
-          hive_log_id: hiveLogId,
-          action_type: "approve_opportunity",
-          payload: { opportunity_id: opportunityId, ...opportunity },
-          status: "pending",
-        });
-        if (hitlErr) console.error("[Scout DB hitl]", hitlErr);
-      }
     } catch (dbErr) {
       console.error("[Scout DB]", dbErr);
     }
 
-    // Step 4: Telegram — HITL only when approval still required; FYI when auto-approved
+    let builderResult: Record<string, unknown> | null = null;
     if (autoApproved) {
+      builderResult = await triggerAutonomousBuilder(req, {
+        ...opportunity,
+        id: opportunityId,
+      }).catch((error) => {
+        console.error("[Scout Builder Trigger]", error);
+        return null;
+      });
+
       sendHiveUpdate(
-        `✅ *Scout auto-approved*\n${niche} — ${market}\n📊 ${score}/100 · competition: ${competitionLevel}\n_Already **approved** in Colony OS — no button tap needed._`
+        `✅ *Scout autonomous decision*\n${niche} — ${market}\n📊 ${score}/100 · competition: ${competitionLevel}\n🚀 ${builderResult?.launch ? "Campaign launched automatically" : "Builder triggered automatically"}`
       ).catch(console.error);
-    } else if (score >= 60) {
-      sendHITLApproval({
-        approvalId: opportunityId ?? `opp_${Date.now()}`,
-        actionType: "approve_opportunity",
-        summary: `${niche} — ${market}`,
-        details: `📊 Score: ${score}/100\n💰 MRR Potential: ${opportunity.estimated_mrr_potential}\n💵 Price: ${opportunity.recommended_price_point}\n🏆 Competition: ${opportunity.competition_level}\n\n👑 ${opportunity.queen_reasoning}`,
-      }).catch(console.error);
+    } else {
+      sendHiveUpdate(
+        `🚫 *Scout autonomous reject*\n${niche} — ${market}\n📊 ${score}/100 · competition: ${competitionLevel}\n_No manual approval queue — this niche was rejected automatically._`
+      ).catch(console.error);
     }
 
     return NextResponse.json({
       opportunity,
       opportunityId,
       autoApproved,
-      approvalRequired: !autoApproved,
+      autoRejected: !autoApproved,
+      builder: builderResult,
     });
   } catch (error) {
     console.error("[Scout API]", error);
