@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit",
     "test:smoke": "node scripts/smoke.mjs",
     "check:env": "node scripts/check-env.mjs",
+    "check:env:autonomous": "node scripts/check-env.mjs --autonomous",
     "verify": "pnpm run type-check && pnpm run lint && pnpm run build"
   },
   "dependencies": {

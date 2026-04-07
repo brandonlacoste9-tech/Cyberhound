@@ -9,6 +9,7 @@
     "typecheck": "turbo type-check",
     "smoke": "pnpm -C apps/web run test:smoke",
     "check:env": "pnpm -C apps/web run check:env",
+    "check:env:autonomous": "pnpm -C apps/web run check:env:autonomous",
     "verify": "pnpm run typecheck && pnpm run lint && pnpm run build",
     "preflight": "pnpm run verify && pnpm run check:env"
   },
