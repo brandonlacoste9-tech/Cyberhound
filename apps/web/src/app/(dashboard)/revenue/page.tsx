@@ -19,14 +19,13 @@ interface RevenueData {
   ltv?: number;
   mrr_history?: Record<string, number>;
   stripe_connected?: boolean;
+  campaigns?: Array<{
+    id: string;
+    name: string;
+    mrr: number;
+    status: string;
+  }>;
 }
-
-const CHANNEL_DATA = [
-  { channel: "Organic",  revenue: 0, color: "#10b981" },
-  { channel: "Outreach", revenue: 0, color: "#f59e0b" },
-  { channel: "Referral", revenue: 0, color: "#3b82f6" },
-  { channel: "Ads",      revenue: 0, color: "#8b5cf6" },
-];
 
 function formatCents(cents: number): string {
   if (cents === 0) return "$0";
@@ -67,18 +66,24 @@ export default function RevenuePage() {
   const net30 = data?.net_revenue_30d ?? 0;
   const ltv   = subs > 0 ? Math.round((mrr / subs) * 12) : 0;
 
-  // Build MRR chart from real history or show placeholder
   const mrrChartData = (() => {
     const history = data?.mrr_history;
-    if (history && Object.keys(history).length > 0) {
-      return Object.entries(history)
-        .slice(-6)
-        .map(([date, amount]) => ({ date, mrr: Math.round(amount / 100), target: 8400 }));
+    if (!history || Object.keys(history).length === 0) {
+      return [] as Array<{ date: string; mrr: number; target: number }>;
     }
-    // Placeholder while no Stripe data
-    const months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
-    return months.map((m) => ({ date: m, mrr: 0, target: 8400 }));
+    return Object.entries(history)
+      .slice(-6)
+      .map(([date, amount]) => ({ date, mrr: Math.round(amount / 100), target: 8400 }));
   })();
+
+  const campaignRevenueData = (data?.campaigns ?? [])
+    .filter((campaign) => (campaign.mrr ?? 0) > 0)
+    .slice(0, 6)
+    .map((campaign, index) => ({
+      channel: campaign.name.length > 18 ? `${campaign.name.slice(0, 18)}…` : campaign.name,
+      revenue: Math.round((campaign.mrr ?? 0) / 100),
+      color: ["#10b981", "#f59e0b", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6"][index % 6],
+    }));
 
   const stats = [
     { label: "MRR",             value: formatCents(mrr),    sub: `ARR: ${formatCents(arr)}`,                icon: DollarSign, accent: "var(--status-green)", accentBg: "var(--status-green-bg)" },
@@ -164,65 +169,91 @@ export default function RevenuePage() {
               </span>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={mrrChartData}>
-              <defs>
-                <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#2563eb" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#2563eb" stopOpacity={0}    />
-                </linearGradient>
-                <linearGradient id="targetGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#d1d5db" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#d1d5db" stopOpacity={0}   />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="date" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
-              <Tooltip
-                contentStyle={{
-                  background: "#fff",
-                  border: "1px solid var(--border)",
-                  borderRadius: "10px",
-                  color: "var(--text-primary)",
-                  fontSize: "12px",
-                  boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
-                }}
-                formatter={(value: number, name: string) => [`$${value}`, name === "mrr" ? "MRR" : "Target"]}
-              />
-              <Area type="monotone" dataKey="target" stroke="#d1d5db" strokeWidth={1.5} strokeDasharray="4 4" fill="url(#targetGrad)" />
-              <Area type="monotone" dataKey="mrr"    stroke="#2563eb" strokeWidth={2}   fill="url(#mrrGrad)" />
-            </AreaChart>
-          </ResponsiveContainer>
+          {mrrChartData.length === 0 ? (
+            <div className="flex h-[220px] items-center justify-center text-center">
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
+                  No real MRR history yet
+                </p>
+                <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                  Treasurer Bee will chart this once Stripe or campaign revenue lands.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={mrrChartData}>
+                <defs>
+                  <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#2563eb" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0}    />
+                  </linearGradient>
+                  <linearGradient id="targetGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#d1d5db" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#d1d5db" stopOpacity={0}   />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="date" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                <Tooltip
+                  contentStyle={{
+                    background: "#fff",
+                    border: "1px solid var(--border)",
+                    borderRadius: "10px",
+                    color: "var(--text-primary)",
+                    fontSize: "12px",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+                  }}
+                  formatter={(value: number, name: string) => [`$${value}`, name === "mrr" ? "MRR" : "Target"]}
+                />
+                <Area type="monotone" dataKey="target" stroke="#d1d5db" strokeWidth={1.5} strokeDasharray="4 4" fill="url(#targetGrad)" />
+                <Area type="monotone" dataKey="mrr"    stroke="#2563eb" strokeWidth={2}   fill="url(#mrrGrad)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
-        {/* Revenue by channel — 1/3 */}
+        {/* Revenue by campaign — 1/3 */}
         <div className="card p-5">
           <p className="text-sm font-semibold mb-5" style={{ color: "var(--text-primary)" }}>
-            Revenue by Channel
+            Revenue by Campaign
           </p>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={CHANNEL_DATA} layout="vertical">
-              <XAxis type="number" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
-              <YAxis type="category" dataKey="channel" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} width={55} />
-              <Tooltip
-                contentStyle={{
-                  background: "#fff",
-                  border: "1px solid var(--border)",
-                  borderRadius: "10px",
-                  color: "var(--text-primary)",
-                  fontSize: "12px",
-                  boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
-                }}
-                formatter={(value: number) => [`$${value}`, "Revenue"]}
-              />
-              <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
-                {CHANNEL_DATA.map((entry, i) => (
-                  <Cell key={`cell-${i}`} fill={entry.color} fillOpacity={0.85} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {campaignRevenueData.length === 0 ? (
+            <div className="flex h-[220px] items-center justify-center text-center">
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
+                  No real campaign revenue yet
+                </p>
+                <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                  This chart only renders live campaign revenue from Supabase/Stripe.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={campaignRevenueData} layout="vertical">
+                <XAxis type="number" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                <YAxis type="category" dataKey="channel" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} width={95} />
+                <Tooltip
+                  contentStyle={{
+                    background: "#fff",
+                    border: "1px solid var(--border)",
+                    borderRadius: "10px",
+                    color: "var(--text-primary)",
+                    fontSize: "12px",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+                  }}
+                  formatter={(value: number) => [`$${value}`, "Revenue"]}
+                />
+                <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
+                  {campaignRevenueData.map((entry, i) => (
+                    <Cell key={`cell-${i}`} fill={entry.color} fillOpacity={0.85} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 

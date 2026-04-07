@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chat } from "@/lib/llm/client";
+import { buildSearchContext, hasLiveSearchProvider, searchWeb } from "@/lib/live-search";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHITLApproval, sendHiveUpdate } from "@/lib/telegram/notify";
 
@@ -18,41 +19,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Niche required" }, { status: 400 });
     }
 
-    const firecrawlKey = process.env.FIRECRAWL_API_KEY;
-    let searchContext = "";
-
-    // Step 1: Firecrawl web intelligence (if key is configured)
-    if (firecrawlKey && firecrawlKey !== "placeholder") {
-      try {
-        const fcRes = await fetch("https://api.firecrawl.dev/v1/search", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${firecrawlKey}`,
-          },
-          body: JSON.stringify({
-            query: `${niche} SaaS market demand ${market} pricing 2024 2025`,
-            limit: 5,
-          }),
-        });
-        const fcData = await fcRes.json();
-        const results = (fcData.data ?? []) as Array<{ url?: string; markdown?: string }>;
-        if (results.length > 0) {
-          searchContext = results
-            .map((r) => `URL: ${r.url ?? "unknown"}\n${(r.markdown ?? "").slice(0, 600)}`)
-            .join("\n\n---\n\n");
-        }
-      } catch (err) {
-        console.error("[Scout Firecrawl]", err);
-      }
+    if (!hasLiveSearchProvider()) {
+      return NextResponse.json(
+        { error: "Scout requires a live search provider (FIRECRAWL_API_KEY or APIFY_API_TOKEN)." },
+        { status: 503 }
+      );
     }
+
+    const searchResults = await searchWeb(
+      `${niche} SaaS market demand ${market} pricing 2025 2026`,
+      5
+    );
+
+    if (searchResults.length === 0) {
+      return NextResponse.json(
+        { error: "Scout found no live web results for that niche. No synthetic analysis was generated." },
+        { status: 422 }
+      );
+    }
+
+    const searchContext = buildSearchContext(searchResults, 600);
 
     // Step 2: Structured opportunity analysis
     const prompt = `You are the Scout Bee for CyberHound — an autonomous revenue agent. Analyze this market opportunity and return ONLY a valid JSON object.
 
 Niche: ${niche}
 Market: ${market}
-${searchContext ? `\nWeb Intelligence:\n${searchContext}` : "\nUsing internal market knowledge (no web data available)."}
+
+Web Intelligence:
+${searchContext}
 
 Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
 {
@@ -64,7 +59,7 @@ Return EXACTLY this JSON structure (no markdown, no explanation, just the JSON):
   "estimated_mrr_potential": "<e.g. $5K-$20K/mo>",
   "recommended_price_point": "<e.g. $97/mo or $297/mo>",
   "queen_reasoning": "<2-3 sentence strategic assessment of why this is or isn't a strong play>",
-  "sources": ${searchContext ? '["web_search"]' : '[]'}
+  "sources": [${searchResults.map((r) => JSON.stringify(r.url)).join(", ")}]
 }`;
 
     const rawResponse =

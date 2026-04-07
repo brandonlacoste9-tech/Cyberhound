@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { chat } from "@/lib/llm/client";
+import { hasLiveSearchProvider, searchWeb } from "@/lib/live-search";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHiveUpdate } from "@/lib/telegram/notify";
 
@@ -36,53 +37,7 @@ export interface AnalystLead {
   created_at?: string;
 }
 
-// ── Firecrawl helper via MCP ──────────────────────────────────────────────────
-
-async function firecrawlSearch(query: string, limit = 10): Promise<Array<{ url: string; title: string; description: string }>> {
-  // Use Firecrawl REST API directly (MCP not available in server-side Next.js)
-  const apiKey = process.env.FIRECRAWL_API_KEY;
-  if (!apiKey || apiKey === "fc-") {
-    // Fallback: use DuckDuckGo search via fetch
-    return fallbackSearch(query, limit);
-  }
-
-  try {
-    const res = await fetch("https://api.firecrawl.dev/v1/search", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ query, limit }),
-    });
-    if (!res.ok) throw new Error(`Firecrawl HTTP ${res.status}`);
-    const data = await res.json();
-    return data.data ?? data.web ?? [];
-  } catch (e) {
-    console.warn("[Analyst] Firecrawl error, using fallback:", (e as Error).message);
-    return fallbackSearch(query, limit);
-  }
-}
-
-async function fallbackSearch(query: string, limit: number): Promise<Array<{ url: string; title: string; description: string }>> {
-  // Use SerpAPI-compatible DuckDuckGo via fetch
-  try {
-    const encoded = encodeURIComponent(query);
-    const res = await fetch(
-      `https://api.duckduckgo.com/?q=${encoded}&format=json&no_redirect=1&no_html=1`,
-      { headers: { "User-Agent": "CyberHound/1.0" } }
-    );
-    const data = await res.json();
-    const results = (data.RelatedTopics ?? []).slice(0, limit).map((t: { FirstURL?: string; Text?: string }) => ({
-      url: t.FirstURL ?? "",
-      title: t.Text?.split(" - ")[0] ?? "",
-      description: t.Text ?? "",
-    }));
-    return results;
-  } catch {
-    return [];
-  }
-}
+// ── Live search helper ───────────────────────────────────────────────────────
 
 // ── LLM signal extraction ─────────────────────────────────────────────────────
 
@@ -161,7 +116,7 @@ async function runUpworkMode(niche: string, limit: number): Promise<AnalystLead[
 
   const allResults: Array<{ url: string; title: string; description: string }> = [];
   for (const q of queries) {
-    const results = await firecrawlSearch(q, Math.ceil(limit / queries.length));
+    const results = await searchWeb(q, Math.ceil(limit / queries.length));
     allResults.push(...results);
   }
 
@@ -188,7 +143,7 @@ async function runChurnMode(competitors: string[], limit: number): Promise<Analy
       `"${competitor}" review "looking for alternative" OR "switched from" OR "disappointed"`,
     ];
     for (const q of queries) {
-      const results = await firecrawlSearch(q, Math.ceil(limit / (competitors.length * queries.length)));
+      const results = await searchWeb(q, Math.ceil(limit / (competitors.length * queries.length)));
       allResults.push(...results);
     }
   }
@@ -211,7 +166,7 @@ async function runRedditMode(subreddits: string[], keywords: string[], limit: nu
   for (const sub of subreddits) {
     for (const kw of keywords) {
       const q = `site:reddit.com/r/${sub} "${kw}" "recommend" OR "looking for" OR "anyone use" OR "best tool"`;
-      const results = await firecrawlSearch(q, Math.ceil(limit / (subreddits.length * keywords.length)));
+      const results = await searchWeb(q, Math.ceil(limit / (subreddits.length * keywords.length)));
       allResults.push(...results);
     }
   }
@@ -266,6 +221,13 @@ async function persistLeads(leads: AnalystLead[]): Promise<AnalystLead[]> {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!hasLiveSearchProvider()) {
+      return NextResponse.json(
+        { error: "Analyst requires a live search provider (FIRECRAWL_API_KEY or APIFY_API_TOKEN)." },
+        { status: 503 }
+      );
+    }
+
     const body = await req.json();
     const {
       mode,

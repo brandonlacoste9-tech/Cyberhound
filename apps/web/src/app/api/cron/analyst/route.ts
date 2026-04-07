@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { chat } from "@/lib/llm/client";
+import { hasLiveSearchProvider, searchWeb } from "@/lib/live-search";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHiveUpdate } from "@/lib/telegram/notify";
 import { Resend } from "resend";
@@ -41,41 +42,7 @@ const ANALYST_CONFIG = {
   },
 };
 
-// ── Firecrawl / fallback search ────────────────────────────────────────────────
-
-async function search(query: string, limit = 8): Promise<Array<{ url: string; title: string; description: string }>> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
-
-  if (apiKey && apiKey !== "placeholder" && !apiKey.endsWith("-")) {
-    try {
-      const res = await fetch("https://api.firecrawl.dev/v1/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({ query, limit }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        return data.data ?? data.web ?? [];
-      }
-    } catch { /* fall through */ }
-  }
-
-  // DuckDuckGo fallback
-  try {
-    const encoded = encodeURIComponent(query);
-    const res = await fetch(`https://api.duckduckgo.com/?q=${encoded}&format=json&no_redirect=1&no_html=1`, {
-      headers: { "User-Agent": "CyberHound/1.0" },
-    });
-    const data = await res.json();
-    return (data.RelatedTopics ?? []).slice(0, limit).map((t: { FirstURL?: string; Text?: string }) => ({
-      url: t.FirstURL ?? "",
-      title: t.Text?.split(" - ")[0] ?? "",
-      description: t.Text ?? "",
-    }));
-  } catch {
-    return [];
-  }
-}
+// ── Live search helper ───────────────────────────────────────────────────────
 
 // ── LLM signal extraction ─────────────────────────────────────────────────────
 
@@ -134,7 +101,7 @@ async function runAllModes(): Promise<Array<Record<string, unknown>>> {
   // Upwork
   for (const niche of ANALYST_CONFIG.upwork.niches.slice(0, 2)) {
     const q = `site:upwork.com/jobs "${niche}" budget`;
-    const results = await search(q, 8);
+    const results = await searchWeb(q, 8);
     const leads = await extractLeads("upwork", results, niche);
     allLeads.push(...leads);
     await new Promise((r) => setTimeout(r, 500));
@@ -143,7 +110,7 @@ async function runAllModes(): Promise<Array<Record<string, unknown>>> {
   // Churn
   for (const competitor of ANALYST_CONFIG.churn.competitors.slice(0, 2)) {
     const q = `site:g2.com "${competitor}" review "switching" OR "disappointed"`;
-    const results = await search(q, 6);
+    const results = await searchWeb(q, 6);
     const leads = await extractLeads("churn", results, competitor);
     allLeads.push(...leads);
     await new Promise((r) => setTimeout(r, 500));
@@ -153,7 +120,7 @@ async function runAllModes(): Promise<Array<Record<string, unknown>>> {
   for (const kw of ANALYST_CONFIG.reddit.keywords.slice(0, 2)) {
     const sub = ANALYST_CONFIG.reddit.subreddits[Math.floor(Math.random() * ANALYST_CONFIG.reddit.subreddits.length)];
     const q = `site:reddit.com/r/${sub} "${kw}" "recommend" OR "looking for"`;
-    const results = await search(q, 6);
+    const results = await searchWeb(q, 6);
     const leads = await extractLeads("reddit", results, kw);
     allLeads.push(...leads);
     await new Promise((r) => setTimeout(r, 500));
@@ -207,6 +174,13 @@ export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET ?? process.env.SCHEDULER_SECRET ?? "cyberhound-scheduler";
   if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!hasLiveSearchProvider()) {
+    return NextResponse.json(
+      { error: "Analyst cron requires a live search provider (FIRECRAWL_API_KEY or APIFY_API_TOKEN)." },
+      { status: 503 }
+    );
   }
 
   const db = getSupabaseServer();

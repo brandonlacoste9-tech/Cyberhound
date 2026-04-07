@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { chat } from "@/lib/llm/client";
+import { buildSearchContext, hasLiveSearchProvider, searchWeb } from "@/lib/live-search";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHiveUpdate } from "@/lib/telegram/notify";
 import { publicOriginFromHeaders } from "@/lib/site/public-origin";
@@ -52,40 +53,25 @@ function shouldAutoApprove(score: number, competition: string): boolean {
 async function scoutNiche(
   niche: string,
   market: string,
-  firecrawlKey: string | undefined
 ): Promise<Record<string, unknown> | null> {
-  let searchContext = "";
-
-  if (firecrawlKey && firecrawlKey !== "placeholder" && !firecrawlKey.endsWith("-")) {
-    try {
-      const fcRes = await fetch("https://api.firecrawl.dev/v1/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${firecrawlKey}`,
-        },
-        body: JSON.stringify({
-          query: `${niche} SaaS market demand ${market} pricing 2025 2026`,
-          limit: 5,
-        }),
-      });
-      const fcData = await fcRes.json();
-      const results = (fcData.data ?? []) as Array<{ url?: string; markdown?: string }>;
-      if (results.length > 0) {
-        searchContext = results
-          .map((r) => `URL: ${r.url ?? "unknown"}\n${(r.markdown ?? "").slice(0, 600)}`)
-          .join("\n\n---\n\n");
-      }
-    } catch (e) {
-      console.warn("[Hunt Cron] Firecrawl error:", (e as Error).message);
-    }
+  const searchResults = await searchWeb(
+    `${niche} SaaS market demand ${market} pricing 2025 2026`,
+    5
+  );
+  if (searchResults.length === 0) {
+    console.warn(`[Hunt Cron] No live web results for niche: ${niche}`);
+    return null;
   }
+
+  const searchContext = buildSearchContext(searchResults, 600);
 
   const prompt = `You are the Scout Bee for CyberHound. Analyze this B2B SaaS market opportunity.
 
 Niche: ${niche}
 Market: ${market}
-${searchContext ? `\nWeb Intelligence:\n${searchContext}` : "\nUsing internal market knowledge."}
+
+Web Intelligence:
+${searchContext}
 
 SCORING RULES: Score 75+ if the niche has clear demand signals, recurring revenue potential, and a definable target customer. Score 60-74 if demand exists but is niche. Score below 60 ONLY if the market is truly dead or saturated. Most viable B2B SaaS niches should score 70-85.
 
@@ -99,7 +85,7 @@ Return EXACTLY this JSON (no markdown, no explanation):
   "estimated_mrr_potential": "<e.g. $5K-$20K/mo>",
   "recommended_price_point": "<e.g. $197/mo>",
   "queen_reasoning": "<2-3 sentence strategic rationale>",
-  "sources": ${searchContext ? '["web_search"]' : '[]'}
+  "sources": [${searchResults.map((r) => JSON.stringify(r.url)).join(", ")}]
 }`;
 
   try {
@@ -332,8 +318,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (!hasLiveSearchProvider()) {
+    return NextResponse.json(
+      { error: "Hunt cron requires a live search provider (FIRECRAWL_API_KEY or APIFY_API_TOKEN)." },
+      { status: 503 }
+    );
+  }
+
   const db = getSupabaseServer();
-  const firecrawlKey = process.env.FIRECRAWL_API_KEY;
   const origin = publicOriginFromHeaders(req.headers) ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://cyberhound.vercel.app";
   const market = "North America";
 
@@ -355,7 +347,7 @@ export async function GET(req: NextRequest) {
   );
 
   for (const niche of niches) {
-    const opportunity = await scoutNiche(niche, market, firecrawlKey);
+    const opportunity = await scoutNiche(niche, market);
     if (!opportunity) continue;
 
     const score = Number(opportunity.score ?? 0);
