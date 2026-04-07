@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chat } from "@/lib/llm/client";
+import { findRecentOpportunity } from "@/lib/autonomy";
 import { buildSearchContext, hasLiveSearchProvider, searchWeb } from "@/lib/live-search";
 import { publicOriginFromRequest } from "@/lib/site/public-origin";
 import { getSupabaseServer } from "@/lib/supabase/server";
@@ -56,6 +57,17 @@ export async function POST(req: NextRequest) {
         { error: "Scout requires a live search provider (FIRECRAWL_API_KEY or APIFY_API_TOKEN)." },
         { status: 503 }
       );
+    }
+
+    const recentOpportunity = await findRecentOpportunity({ niche, market, maxAgeDays: 7 });
+    if (recentOpportunity) {
+      return NextResponse.json({
+        opportunity: recentOpportunity,
+        opportunityId: recentOpportunity.id,
+        autoApproved: ["approved", "building", "live"].includes(recentOpportunity.status),
+        autoRejected: recentOpportunity.status === "rejected",
+        duplicate: true,
+      });
     }
 
     const searchResults = await searchWeb(

@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { chat } from "@/lib/llm/client";
+import { findExistingCampaign, findRecentOpportunity } from "@/lib/autonomy";
 import { buildSearchContext, hasLiveSearchProvider, searchWeb } from "@/lib/live-search";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHiveUpdate } from "@/lib/telegram/notify";
@@ -139,6 +140,17 @@ Return ONLY this JSON (no markdown):
 }`;
 
   try {
+    const existingCampaign = await findExistingCampaign({
+      opportunityId,
+      niche: String(opportunity.niche ?? ""),
+    });
+    if (existingCampaign) {
+      return {
+        campaign_id: existingCampaign.id,
+        landing_page_url: existingCampaign.landing_page_url ?? `${origin}/l/${existingCampaign.id}`,
+      };
+    }
+
     const raw = await chat([{ role: "user", content: copyPrompt }], {
       max_tokens: 1500,
       temperature: 0.6,
@@ -347,6 +359,23 @@ export async function GET(req: NextRequest) {
   );
 
   for (const niche of niches) {
+    const recentOpportunity = await findRecentOpportunity({ niche, market, maxAgeDays: 7 });
+    if (recentOpportunity) {
+      results.push({
+        niche,
+        score: 0,
+        auto_approved: recentOpportunity.status === "approved" || recentOpportunity.status === "building" || recentOpportunity.status === "live",
+        campaign_id: recentOpportunity.campaign_id ?? undefined,
+      });
+      await db.from("hive_log").insert({
+        bee: "scout",
+        action: `Skipped duplicate niche in cooldown window: ${niche}`,
+        details: { niche, duplicate_of: recentOpportunity.id, existing_status: recentOpportunity.status },
+        status: "idle",
+      });
+      continue;
+    }
+
     const opportunity = await scoutNiche(niche, market);
     if (!opportunity) continue;
 

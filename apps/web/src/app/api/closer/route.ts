@@ -10,6 +10,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ask } from "@/lib/llm/client";
+import { hasActiveOutreach } from "@/lib/autonomy";
 import { Resend } from "resend";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHiveUpdate } from "@/lib/telegram/notify";
@@ -115,6 +116,17 @@ export async function POST(req: NextRequest) {
       const recipient: Recipient = Array.isArray(recipients) && recipients.length > 0
         ? recipients[0]
         : { name: "Decision Maker", email: "" };
+
+      if (await hasActiveOutreach({
+        leadId: recipient.lead_id ?? null,
+        campaignId: campaign?.id ?? null,
+        recipientEmail: recipient.email ?? null,
+      })) {
+        return NextResponse.json({
+          skipped: true,
+          reason: "Outreach already active or previously sent for this recipient.",
+        });
+      }
 
       const sequencePrompt = buildSignalAwarePrompt(recipient, opportunity, campaign);
       const rawResponse = await ask(sequencePrompt, undefined, { temperature: 0.8, max_tokens: 2048 });
@@ -248,6 +260,17 @@ export async function POST(req: NextRequest) {
         lead_id: lead.id,
       };
 
+      if (await hasActiveOutreach({
+        leadId: lead_id,
+        recipientEmail: leadRecipient.email,
+      })) {
+        return NextResponse.json({
+          skipped: true,
+          reason: "Outreach already active or previously sent for this lead.",
+          lead_id,
+        });
+      }
+
       const prompt = buildSignalAwarePrompt(leadRecipient, undefined, undefined);
       const rawLead = await ask(prompt, undefined, { temperature: 0.8, max_tokens: 2048 });
 
@@ -356,6 +379,14 @@ export async function POST(req: NextRequest) {
       const results = [];
 
       for (const recipient of recipientList) {
+        if (await hasActiveOutreach({
+          leadId: (recipient as Recipient).lead_id ?? null,
+          campaignId: campaign?.id ?? null,
+          recipientEmail: recipient.email,
+        })) {
+          results.push({ email: recipient.email, status: "skipped", reason: "duplicate_outreach" });
+          continue;
+        }
         const personalizedBody = (email1.body ?? "")
           .replace(/\{\{FIRST_NAME\}\}/g, recipient.name.split(" ")[0])
           .replace(/\{\{COMPANY\}\}/g, recipient.company ?? "your company");

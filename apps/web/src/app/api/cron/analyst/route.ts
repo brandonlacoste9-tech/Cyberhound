@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { chat } from "@/lib/llm/client";
+import { hasActiveOutreach } from "@/lib/autonomy";
 import { hasLiveSearchProvider, searchWeb } from "@/lib/live-search";
 import { publicOriginFromHeaders } from "@/lib/site/public-origin";
 import { getSupabaseServer } from "@/lib/supabase/server";
@@ -220,36 +221,52 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ leads_found: 0, processed: 0 });
   }
 
-  // 2. Persist all leads (upsert by URL to avoid dupes)
-  const toInsert = rawLeads.map((l) => ({
-    source: l.source,
-    signal_type: l.signal_type,
-    title: l.title,
-    url: l.url,
-    raw_text: String(l.raw_text ?? "").slice(0, 2000),
-    company: l.company ?? null,
-    contact_name: l.contact_name ?? null,
-    contact_email: l.contact_email ?? null,
-    contact_linkedin: l.contact_linkedin ?? null,
-    budget: l.budget ?? null,
-    pain_point: l.pain_point,
-    urgency: l.urgency,
-    recommended_service: l.recommended_service,
-    personalization_hook: l.personalization_hook,
-    status: "new",
-  }));
+  // 2. Persist only new leads and preserve lifecycle state on existing ones
+  const urls = rawLeads.map((l) => String(l.url ?? "")).filter(Boolean);
+  const { data: existingLeadRows } = urls.length
+    ? await db
+        .from("analyst_leads")
+        .select("id, url, status, contact_email, contact_name, company, source, signal_type, pain_point, personalization_hook, recommended_service, budget, urgency")
+        .in("url", urls)
+    : { data: [] as Array<Record<string, unknown>> };
 
-  const { data: saved, error: saveErr } = await db
-    .from("analyst_leads")
-    .upsert(toInsert, { onConflict: "url", ignoreDuplicates: true })
-    .select();
+  const existingByUrl = new Map(
+    (existingLeadRows ?? []).map((row) => [String(row.url ?? ""), row])
+  );
+
+  const toInsert = rawLeads
+    .filter((l) => !existingByUrl.has(String(l.url ?? "")))
+    .map((l) => ({
+      source: l.source,
+      signal_type: l.signal_type,
+      title: l.title,
+      url: l.url,
+      raw_text: String(l.raw_text ?? "").slice(0, 2000),
+      company: l.company ?? null,
+      contact_name: l.contact_name ?? null,
+      contact_email: l.contact_email ?? null,
+      contact_linkedin: l.contact_linkedin ?? null,
+      budget: l.budget ?? null,
+      pain_point: l.pain_point,
+      urgency: l.urgency,
+      recommended_service: l.recommended_service,
+      personalization_hook: l.personalization_hook,
+      status: "new",
+    }));
+
+  const { data: insertedLeads, error: saveErr } = toInsert.length
+    ? await db.from("analyst_leads").insert(toInsert).select()
+    : { data: [] as Array<Record<string, unknown>>, error: null };
 
   if (saveErr) console.error("[Analyst Cron] Save error:", saveErr);
 
-  const savedLeads = (saved ?? rawLeads) as Array<Record<string, unknown>>;
+  const candidateLeads = [
+    ...(insertedLeads ?? []),
+    ...((existingLeadRows ?? []).filter((lead) => ["new", "enriched"].includes(String(lead.status ?? "")))),
+  ] as Array<Record<string, unknown>>;
 
-  // 3. Focus on high-urgency leads for immediate outreach
-  const highUrgency = savedLeads.filter((l) => l.urgency === "high").slice(0, 5);
+  // 3. Focus on high-urgency leads that are still actionable
+  const highUrgency = candidateLeads.filter((l) => l.urgency === "high").slice(0, 5);
 
   await db.from("hive_log").insert({
     bee: "analyst",
@@ -276,6 +293,16 @@ export async function GET(req: NextRequest) {
       }
 
       const recipientEmail = String(lead.contact_email ?? "");
+      if (await hasActiveOutreach({ leadId, recipientEmail })) {
+        await db.from("hive_log").insert({
+          bee: "closer",
+          action: `Skipped duplicate outreach for ${lead.company ?? lead.title}`,
+          details: { lead_id: leadId, recipient_email: recipientEmail || null },
+          status: "idle",
+        });
+        continue;
+      }
+
       if (!recipientEmail || !recipientEmail.includes("@")) {
         await db.from("hive_log").insert({
           bee: "enrich",
