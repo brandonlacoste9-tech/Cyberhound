@@ -1,5 +1,7 @@
 """
-Email Templates - HTML versions with CTA buttons
+Email Templates - HTML versions with direct reply/call CTAs
+No Calendly — just reply or call. Zero friction, zero dependencies.
+
 Touch 1: Initial Strike (compliance hook)
 Touch 2: Day 3 Follow-up (value add)
 Touch 3: Day 7 Final Push (urgency + foot-in-door)
@@ -17,7 +19,7 @@ BASE_STYLE = """
   .body { padding: 40px; }
   .body p { color: #333; font-size: 15px; line-height: 1.7; margin: 0 0 16px; }
   .risk-box { background: #fff5f5; border-left: 4px solid #e53e3e; padding: 20px 24px; margin: 24px 0; border-radius: 4px; }
-  .risk-box p { margin: 0; color: #c53030; font-weight: 600; font-size: 14px; }
+  .risk-box p { margin: 0 0 6px; color: #c53030; font-weight: 600; font-size: 14px; }
   .value-box { background: #f0fff4; border-left: 4px solid #38a169; padding: 20px 24px; margin: 24px 0; border-radius: 4px; }
   .value-box p { margin: 0 0 6px; color: #276749; font-size: 14px; }
   .cta-primary { display: inline-block; background: #e8b84b; color: #0a0a1a; padding: 16px 36px; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 15px; letter-spacing: 1px; margin: 24px 0 8px; }
@@ -29,7 +31,8 @@ BASE_STYLE = """
 </style>
 """
 
-def touch_1_strike(name: str, risk_score: int, calendly_url: str, bill96_issues: list = None) -> dict:
+def touch_1_strike(name: str, risk_score: int, reply_email: str, phone: str,
+                   bill96_issues: list = None) -> dict:
     """Initial cold outreach — compliance hook"""
     issues_html = ""
     if bill96_issues:
@@ -49,10 +52,10 @@ def touch_1_strike(name: str, risk_score: int, calendly_url: str, bill96_issues:
       {issues_html}
     </div>
     <p>The OQLF has increased enforcement activities in Q1 2026. A single violation carries fines up to <strong>$30,000 CAD</strong> — and that's before the reputational damage of being named publicly.</p>
-    <p>We've prepared a full 5-page compliance audit specific to your firm. I'd like to walk you through it on a 15-minute call — no obligation, just intelligence you should have.</p>
+    <p>We've prepared a full 5-page compliance audit specific to your firm. Reply to this email and I'll send it immediately — then we can schedule a 15-minute call to walk through it together.</p>
     <div style="text-align:center; padding: 8px 0;">
-      <a href="{calendly_url}" class="cta-primary">📅 BOOK YOUR 15-MIN STRATEGY CALL</a><br/>
-      <a href="mailto:reply" class="cta-secondary">Reply to Request the Full Audit PDF</a>
+      <a href="mailto:{reply_email}?subject=Re: Bill 96 Audit Request — {name}" class="cta-primary">✉️ REPLY TO GET YOUR FREE AUDIT</a><br/>
+      <a href="tel:{phone.replace(' ','').replace('-','')}" class="cta-secondary">📞 Call Us: {phone}</a>
     </div>
     <hr class="divider"/>
     <p style="font-size:13px; color:#666;">We also offer an autonomous AI solution that generates Bill 96-compliant Quebec French creative at 100x the speed of a traditional agency — at 90% lower cost. But compliance first.</p>
@@ -70,7 +73,7 @@ def touch_1_strike(name: str, risk_score: int, calendly_url: str, bill96_issues:
     }
 
 
-def touch_2_followup(name: str, calendly_url: str) -> dict:
+def touch_2_followup(name: str, reply_email: str, phone: str) -> dict:
     """Day 3 follow-up — value add, no pressure"""
     html = f"""<!DOCTYPE html><html><head><meta charset="UTF-8">{BASE_STYLE}</head><body>
 <div class="wrapper">
@@ -78,7 +81,7 @@ def touch_2_followup(name: str, calendly_url: str) -> dict:
   <div class="body">
     <span class="badge">FOLLOW-UP</span>
     <p>Bonjour {name},</p>
-    <p>I sent you our compliance audit earlier this week. Wanted to share something concrete before I follow up again.</p>
+    <p>I sent you our compliance alert earlier this week. Wanted to add some context before I follow up again.</p>
     <div class="value-box">
       <p>✅ 3 things your competitors are doing right now:</p>
       <p>1. Publishing a bilingual <em>Politique de confidentialité</em> (Law 25 requirement)</p>
@@ -86,14 +89,14 @@ def touch_2_followup(name: str, calendly_url: str) -> dict:
       <p>3. Displaying French as the default language on all Quebec-targeted landing pages</p>
     </div>
     <p>Quebec is 8.5 million French-speaking consumers. When they see an English-only brand, they scroll. That's the market you're currently leaving on the table.</p>
-    <p>15 minutes. I'll show you exactly where the gaps are and what it costs to fix them.</p>
+    <p>Just hit reply — I'll send the full audit PDF and we can find 15 minutes that work for you.</p>
     <div style="text-align:center; padding: 8px 0;">
-      <a href="{calendly_url}" class="cta-primary">📅 PICK A TIME THAT WORKS</a>
+      <a href="mailto:{reply_email}?subject=Re: Bill 96 Follow-Up — {name}" class="cta-primary">✉️ REPLY TO REQUEST THE FULL AUDIT</a><br/>
+      <a href="tel:{phone.replace(' ','').replace('-','')}" class="cta-secondary">📞 {phone}</a>
     </div>
   </div>
   <div class="footer">
     <p><strong>Bee — Northern Ventures Intelligence Division</strong></p>
-    <p>Reply anytime to request the full audit PDF at no charge.</p>
   </div>
 </div></body></html>"""
 
@@ -104,8 +107,10 @@ def touch_2_followup(name: str, calendly_url: str) -> dict:
     }
 
 
-def touch_3_final(name: str, calendly_url: str, audit_price: str = "$750 CAD") -> dict:
+def touch_3_final(name: str, reply_email: str, phone: str,
+                  audit_price: str = "$750 CAD") -> dict:
     """Day 7 final push — foot-in-door offer"""
+    retainer_price = audit_price.replace("750", "3,500")
     html = f"""<!DOCTYPE html><html><head><meta charset="UTF-8">{BASE_STYLE}</head><body>
 <div class="wrapper">
   <div class="header"><h1>NORTHERN <span>VENTURES</span></h1></div>
@@ -113,46 +118,49 @@ def touch_3_final(name: str, calendly_url: str, audit_price: str = "$750 CAD") -
     <span class="badge">FINAL NOTICE</span>
     <p>Bonjour {name},</p>
     <p>Last message from me on this — I don't want to be noise in your inbox.</p>
-    <p>I'll make it simple. Two options:</p>
+    <p>Two options. You pick:</p>
     <div class="value-box">
-      <p><strong>Option A — Full Retainer ({audit_price.replace('750', '3,500')}/mo)</strong></p>
+      <p><strong>Option A — Full Retainer ({retainer_price}/mo)</strong></p>
       <p>Weekly AI-generated Quebec French creatives, Bill 96 compliance on every asset, autonomous Meta optimization, monthly intelligence report.</p>
     </div>
     <div class="risk-box">
       <p><strong>Option B — Start with the Audit ({audit_price})</strong></p>
       <p>We identify every compliance gap. You see our quality. No commitment beyond the audit. If you don't love the work, it ends there.</p>
     </div>
-    <p>One compliance fine from OQLF covers 40 months of Option B. The math isn't complicated.</p>
+    <p>One OQLF fine covers 40 months of Option B. The math isn't complicated.</p>
+    <p>Just reply with "A" or "B" and I'll take it from there.</p>
     <div style="text-align:center; padding: 8px 0;">
-      <a href="{calendly_url}" class="cta-primary">📅 BOOK THE 15-MIN CALL — DECIDE LIVE</a>
+      <a href="mailto:{reply_email}?subject=Option A — {name}&body=I'm interested in Option A (Retainer)" class="cta-primary">✉️ OPTION A — FULL RETAINER</a><br/>
+      <a href="mailto:{reply_email}?subject=Option B — {name}&body=I'd like to start with the $750 audit" class="cta-secondary">✉️ Option B — Start with the Audit</a>
     </div>
     <p style="font-size:13px; color:#999; text-align:center;">After this I'll set a 6-month reminder and reach out again when the regulatory landscape shifts further.</p>
   </div>
   <div class="footer">
     <p><strong>Bee — Northern Ventures Intelligence Division</strong></p>
-    <p>Northern Ventures | Montreal, Quebec</p>
+    <p>Northern Ventures | Montreal, Quebec | {phone}</p>
   </div>
 </div></body></html>"""
 
     return {
-        "subject": f"Last message: Two options for {name} — your call",
+        "subject": f"Last message: Option A or B — your call, {name}",
         "html": html,
         "touch": 3
     }
 
 
-def touch_4_reply_autoresponse(name: str, calendly_url: str) -> dict:
+def touch_4_reply_autoresponse(name: str, reply_email: str, phone: str) -> dict:
     """Auto-response when watchdog detects a reply — fires within 5 minutes"""
     html = f"""<!DOCTYPE html><html><head><meta charset="UTF-8">{BASE_STYLE}</head><body>
 <div class="wrapper">
   <div class="header"><h1>NORTHERN <span>VENTURES</span></h1></div>
   <div class="body">
-    <span class="badge">YOU REPLIED — WE'RE ON IT</span>
+    <span class="badge">GOT YOUR MESSAGE</span>
     <p>Bonjour {name},</p>
-    <p>Got your message — thank you for responding. I'll be in touch personally within the hour.</p>
-    <p>In the meantime, if you'd like to lock in a time for our 15-minute strategy call right now, my calendar is open:</p>
+    <p>Got your reply — thank you. I'll be back in touch personally within the hour.</p>
+    <p>If you'd like to move faster, call me directly and we can sort everything in 15 minutes:</p>
     <div style="text-align:center; padding: 8px 0;">
-      <a href="{calendly_url}" class="cta-primary">📅 LOCK IN YOUR STRATEGY CALL</a>
+      <a href="tel:{phone.replace(' ','').replace('-','')}" class="cta-primary">📞 CALL NOW: {phone}</a><br/>
+      <a href="mailto:{reply_email}" class="cta-secondary">✉️ Or keep the conversation by email</a>
     </div>
     <p>The call covers:</p>
     <ul style="color:#333; font-size:15px; line-height:2;">
@@ -168,13 +176,13 @@ def touch_4_reply_autoresponse(name: str, calendly_url: str) -> dict:
 </div></body></html>"""
 
     return {
-        "subject": f"Re: Got your message — here's my calendar, {name}",
+        "subject": f"Re: Got your message — call me directly, {name}",
         "html": html,
         "touch": 4
     }
 
 
-def touch_5_post_call(name: str, offer: str, stripe_link: str, calendly_url: str) -> dict:
+def touch_5_post_call(name: str, offer: str, stripe_link: str, reply_email: str) -> dict:
     """Post-call follow-up — agreement + Stripe payment link"""
     html = f"""<!DOCTYPE html><html><head><meta charset="UTF-8">{BASE_STYLE}</head><body>
 <div class="wrapper">
@@ -182,7 +190,7 @@ def touch_5_post_call(name: str, offer: str, stripe_link: str, calendly_url: str
   <div class="body">
     <span class="badge">POST-CALL SUMMARY</span>
     <p>Bonjour {name},</p>
-    <p>Great speaking with you. As promised, here's everything to move forward:</p>
+    <p>Great speaking with you. As promised — everything to move forward is right here:</p>
     <div class="value-box">
       <p><strong>Selected Package: {offer}</strong></p>
       <p>✅ First deliverable within 72 hours of payment</p>
@@ -194,14 +202,11 @@ def touch_5_post_call(name: str, offer: str, stripe_link: str, calendly_url: str
     </div>
     <p style="font-size:13px; color:#666; text-align:center;">Secure payment via Stripe. Receipt sent immediately. Work begins within 72 hours.</p>
     <hr class="divider"/>
-    <p>Questions? Hit reply or book a quick follow-up:</p>
-    <div style="text-align:center;">
-      <a href="{calendly_url}" class="cta-secondary">📅 Schedule Follow-Up</a>
-    </div>
+    <p>Questions? Just reply to this email.</p>
   </div>
   <div class="footer">
     <p><strong>Bee — Northern Ventures Intelligence Division</strong></p>
-    <p>Northern Ventures | Montreal, Quebec | reply to this email anytime</p>
+    <p>Northern Ventures | Montreal, Quebec | <a href="mailto:{reply_email}" style="color:#999;">{reply_email}</a></p>
   </div>
 </div></body></html>"""
 

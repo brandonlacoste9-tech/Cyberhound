@@ -32,7 +32,6 @@ def _save(deals: list):
         json.dump(deals, f, indent=2)
 
 def upsert_deal(email: str, name: str, stage: Stage, notes: str = "", 
-                stripe_link: str = "", calendly_link: str = "") -> dict:
     """Create or update a deal record"""
     deals = _load()
     now = str(datetime.now())
@@ -48,8 +47,6 @@ def upsert_deal(email: str, name: str, stage: Stage, notes: str = "",
             existing["notes"] = notes
         if stripe_link:
             existing["stripe_link"] = stripe_link
-        if calendly_link:
-            existing["calendly_link"] = calendly_link
         existing.setdefault("history", []).append({
             "from": prev_stage,
             "to": stage,
@@ -68,7 +65,6 @@ def upsert_deal(email: str, name: str, stage: Stage, notes: str = "",
             "updated_at": now,
             "notes": notes,
             "stripe_link": stripe_link,
-            "calendly_link": calendly_link,
             "history": [{"from": None, "to": stage, "at": now, "notes": notes}]
         }
         deals.append(deal)
