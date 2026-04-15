@@ -17,29 +17,36 @@ export function hasLiveSearchProvider() {
 export async function searchWeb(query: string, limit = 8): Promise<LiveSearchResult[]> {
   const firecrawlKey = process.env.FIRECRAWL_API_KEY;
   if (hasValue(firecrawlKey)) {
-    const res = await fetch("https://api.firecrawl.dev/v1/search", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${firecrawlKey}`,
-      },
-      body: JSON.stringify({ query, limit }),
-      cache: "no-store",
-    });
+    try {
+      const res = await fetch("https://api.firecrawl.dev/v1/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${firecrawlKey}`,
+        },
+        body: JSON.stringify({ query, limit }),
+        cache: "no-store",
+      });
 
-    if (res.ok) {
-      const payload = await res.json();
-      const items = Array.isArray(payload?.data) ? payload.data : [];
-      const normalized = items
-        .map((item: Record<string, unknown>) => ({
-          url: String(item.url ?? ""),
-          title: String(item.title ?? ""),
-          description: String(item.description ?? ""),
-          provider: "firecrawl" as const,
-          query,
-        }))
-        .filter((item: LiveSearchResult) => item.url && item.title);
-      if (normalized.length > 0) return normalized.slice(0, limit);
+      // 402 = credits exhausted — fall through to Apify silently
+      if (res.status === 402 || res.status === 429) {
+        console.warn(`[live-search] Firecrawl ${res.status} — falling back to Apify`);
+      } else if (res.ok) {
+        const payload = await res.json();
+        const items = Array.isArray(payload?.data) ? payload.data : [];
+        const normalized = items
+          .map((item: Record<string, unknown>) => ({
+            url: String(item.url ?? ""),
+            title: String(item.title ?? ""),
+            description: String(item.description ?? ""),
+            provider: "firecrawl" as const,
+            query,
+          }))
+          .filter((item: LiveSearchResult) => item.url && item.title);
+        if (normalized.length > 0) return normalized.slice(0, limit);
+      }
+    } catch (e) {
+      console.warn("[live-search] Firecrawl error — falling back to Apify:", e);
     }
   }
 
