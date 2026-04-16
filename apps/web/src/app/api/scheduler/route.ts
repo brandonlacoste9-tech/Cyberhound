@@ -80,7 +80,7 @@ async function processSequence(
 
   try {
     const { data, error } = await resend.emails.send({
-      from: "Brandon | CyberHound <onboarding@resend.dev>",
+      from: "Brandon | CyberHound <cyberhound@adgenai.ca>",
       to: [seq.recipient_email],
       subject: personalizedSubject,
       text: personalizedBody,
