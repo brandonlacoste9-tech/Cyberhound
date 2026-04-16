@@ -68,7 +68,7 @@ async function hunterSearchEmail(domain: string): Promise<string | null> {
     const emails = data.data?.emails ?? [];
     
     // Prefer executive emails
-    const exec = emails.find((e: any) => 
+    const exec = emails.find((e: { type: string; position?: string; value: string }) => 
       e.type === "personal" && (e.position?.toLowerCase().includes("ceo") || e.position?.toLowerCase().includes("founder"))
     );
     

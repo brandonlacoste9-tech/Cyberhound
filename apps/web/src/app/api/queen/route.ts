@@ -49,7 +49,7 @@ HIVE REALITY CONTEXT (LIVE DATA):
 - Active Campaigns: ${campaigns.count ?? 0}
 - Total Leads Found: ${leads.count ?? 0}
 - Recent Activity:
-${(hiveLogs.data ?? []).map((l: any) => `  [${l.bee}] ${l.action} (${l.status})`).join("\n")}
+${(hiveLogs.data ?? []).map((l: { bee: string; action: string; status: string }) => `  [${l.bee}] ${l.action} (${l.status})`).join("\n")}
 `;
 
     const messages: { role: "system" | "user" | "assistant"; content: string }[] = [

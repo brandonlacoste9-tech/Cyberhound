@@ -23,20 +23,6 @@ import { publicOriginFromHeaders } from "@/lib/site/public-origin";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-// ── Niche rotation list ────────────────────────────────────────────────────────
-// Queen Bee picks from these every cycle; add or remove niches freely
-// High-intent targets: OSHA Compliance & Shopify Fraud Prevention
-const NICHE_TARGETS = [
-  "site:osha.gov violation manufacturing 2024 2025",
-  "small manufacturer OSHA 300A compliance software site:linkedin.com",
-  "upwork.com OSHA compliance reporting automation",
-  "site:upwork.com shopify chargeback fraud automation",
-  "shopify high risk merchant fraud prevention site:linkedin.com",
-  "OSHA safety training automation for construction companies",
-  "automated OSHA 300 log management for small factories",
-  "Shopify Plus fraud protection automation for high volume stores",
-];
-
 // How many niches to scout per cron run (keep low to stay within timeout)
 const NICHES_PER_RUN = 4;
 

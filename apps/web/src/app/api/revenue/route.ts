@@ -4,7 +4,7 @@ import { getSupabaseServer } from '@/lib/supabase/server';
 export const runtime = 'nodejs';
 
 /** GET /api/revenue - fetch real-time MRR and stats from Stripe */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeKey || stripeKey === "placeholder" || !stripeKey.startsWith("sk_")) {
@@ -51,8 +51,8 @@ export async function GET(req: NextRequest) {
       last_payment_date: lastPaymentDate,
       currency: "cad",
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
 

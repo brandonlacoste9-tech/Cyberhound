@@ -25,6 +25,8 @@ export const maxDuration = 300;
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 
+const NICHES_PER_RUN = 4;
+
 const ANALYST_CONFIG = {
   upwork: {
     niches: [
@@ -43,8 +45,6 @@ const ANALYST_CONFIG = {
     keywords: ["automation tool", "web app", "AI agent", "workflow automation", "need developer"],
   },
 };
-
-// ── Live search helper ───────────────────────────────────────────────────────
 
 // ── LLM signal extraction ─────────────────────────────────────────────────────
 
@@ -101,7 +101,7 @@ async function runAllModes(): Promise<Array<Record<string, unknown>>> {
   const allLeads: Array<Record<string, unknown>> = [];
 
   // Upwork
-  for (const niche of ANALYST_CONFIG.upwork.niches.slice(0, 2)) {
+  for (const niche of ANALYST_CONFIG.upwork.niches.slice(0, NICHES_PER_RUN)) {
     const q = `site:upwork.com/jobs "${niche}" budget`;
     const results = await searchWeb(q, 8);
     const leads = await extractLeads("upwork", results, niche);
@@ -110,7 +110,7 @@ async function runAllModes(): Promise<Array<Record<string, unknown>>> {
   }
 
   // Churn
-  for (const competitor of ANALYST_CONFIG.churn.competitors.slice(0, 2)) {
+  for (const competitor of ANALYST_CONFIG.churn.competitors.slice(0, NICHES_PER_RUN)) {
     const q = `site:g2.com "${competitor}" review "switching" OR "disappointed"`;
     const results = await searchWeb(q, 6);
     const leads = await extractLeads("churn", results, competitor);
@@ -119,7 +119,7 @@ async function runAllModes(): Promise<Array<Record<string, unknown>>> {
   }
 
   // Reddit
-  for (const kw of ANALYST_CONFIG.reddit.keywords.slice(0, 2)) {
+  for (const kw of ANALYST_CONFIG.reddit.keywords.slice(0, NICHES_PER_RUN)) {
     const sub = ANALYST_CONFIG.reddit.subreddits[Math.floor(Math.random() * ANALYST_CONFIG.reddit.subreddits.length)];
     const q = `site:reddit.com/r/${sub} "${kw}" "recommend" OR "looking for"`;
     const results = await searchWeb(q, 6);
@@ -241,8 +241,8 @@ export async function GET(req: NextRequest) {
     (existingLeadRows ?? []).map((row) => [String(row.url ?? ""), row])
   );
 
-  const toInsert: any[] = [];
-  const rejectedLeads: any[] = [];
+  const toInsert: Record<string, unknown>[] = [];
+  const rejectedLeads: Record<string, unknown>[] = [];
 
   for (const l of rawLeads) {
     if (existingByUrl.has(String(l.url ?? ""))) continue;
