@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
         const subject = sequence[0].subject.replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
         const body = sequence[0].body.replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
         const { data, error: sendErr } = await resend.emails.send({
-          from: "Brandon | CyberHound <onboarding@resend.dev>",
+          from: "Brandon | CyberHound <cyberhound@adgenai.ca>",
           to: [recipient.email],
           subject,
           text: body,
@@ -301,7 +301,7 @@ export async function POST(req: NextRequest) {
         const subject = leadSequence[0].subject.replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
         const body = leadSequence[0].body.replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
         const { data: sendData, error: sendErr } = await resend.emails.send({
-          from: "Brandon | CyberHound <onboarding@resend.dev>",
+          from: "Brandon | CyberHound <cyberhound@adgenai.ca>",
           to: [leadRecipient.email],
           subject,
           text: body,
@@ -397,7 +397,7 @@ export async function POST(req: NextRequest) {
 
         try {
           const { data, error } = await resend.emails.send({
-            from: "CyberHound <onboarding@resend.dev>",
+            from: "CyberHound <cyberhound@adgenai.ca>",
             to: [recipient.email],
             subject: personalizedSubject,
             text: personalizedBody,
@@ -497,7 +497,7 @@ export async function POST(req: NextRequest) {
 
       const resend = new Resend(resendKey);
       const { data, error } = await resend.emails.send({
-        from: "CyberHound <onboarding@resend.dev>",
+        from: "CyberHound <cyberhound@adgenai.ca>",
         to: [to],
         subject,
         text: body,
