@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chat } from "@/lib/llm/client";
 import { getSupabaseServer } from "@/lib/supabase/server";
+import { publicOriginFromHeaders } from "@/lib/site/public-origin";
 
 const QUEEN_SYSTEM_PROMPT = `You are the Queen Bee — the strategic orchestrator of CyberHound, an autonomous AI revenue agent built on the Colony OS by Brandon (a visionary architect from West Island, Québec).
 
