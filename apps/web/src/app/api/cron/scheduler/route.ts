@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
 
     try {
       const { data, error: sendErr } = await resend.emails.send({
-        from: "Brandon | CyberHound <onboarding@resend.dev>",
+        from: "Brandon | CyberHound <cyberhound@adgenai.ca>",
         to: [seq.recipient_email],
         subject: personalize(emailToSend.subject, seq),
         text: personalize(emailToSend.body, seq),
