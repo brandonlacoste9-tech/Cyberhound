@@ -340,7 +340,7 @@ export async function GET(req: NextRequest) {
         const body = String(email1.body ?? "").replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
 
         const { data, error: sendErr } = await resend.emails.send({
-          from: "Brandon | CyberHound <onboarding@resend.dev>",
+          from: "Brandon | CyberHound <cyberhound@adgenai.ca>",
           to: [recipientEmail],
           subject,
           text: body,
