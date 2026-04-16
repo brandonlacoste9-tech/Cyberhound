@@ -1,4 +1,7 @@
 {
+  "env": {
+    "HUNTER_API_KEY": "sk_placeholder"
+  },
   "crons": [
     {
       "path": "/api/cron/scheduler",

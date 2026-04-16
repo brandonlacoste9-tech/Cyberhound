@@ -49,8 +49,63 @@ interface EnrichmentResult {
   company_size?: number;
   company_industry?: string;
   company_location?: string;
-  enrichment_source: "apollo";
+  enrichment_source: "apollo" | "hunter" | "scraping";
   confidence: "high" | "medium" | "low";
+}
+
+async function hunterSearchEmail(domain: string): Promise<string | null> {
+  const apiKey = process.env.HUNTER_API_KEY;
+  if (!apiKey || apiKey === "placeholder") return null;
+
+  try {
+    const res = await fetch(`https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${apiKey}`, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const emails = data.data?.emails ?? [];
+    
+    // Prefer executive emails
+    const exec = emails.find((e: any) => 
+      e.type === "personal" && (e.position?.toLowerCase().includes("ceo") || e.position?.toLowerCase().includes("founder"))
+    );
+    
+    return exec?.value ?? emails[0]?.value ?? null;
+  } catch (e) {
+    console.error("[Enrich] Hunter.io fetch error:", e);
+    return null;
+  }
+}
+
+async function scrapeContactPage(domain: string): Promise<string | null> {
+  const firecrawlKey = process.env.FIRECRAWL_API_KEY;
+  if (!firecrawlKey || firecrawlKey === "placeholder") return null;
+
+  try {
+    const url = `https://${domain}/contact`;
+    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${firecrawlKey}`,
+      },
+      body: JSON.stringify({ url, formats: ["markdown"] }),
+      cache: "no-store",
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const content = String(data.data?.markdown ?? "");
+    
+    // Simple regex for emails
+    const emailMatch = content.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    return emailMatch ? emailMatch[0] : null;
+  } catch (e) {
+    console.error("[Enrich] Scraping error:", e);
+    return null;
+  }
 }
 
 async function apolloSearchPeople(
@@ -140,7 +195,7 @@ async function enrichLead(
 ): Promise<EnrichmentResult> {
   const resolvedDomain = domain ?? extractDomain(company) ?? undefined;
 
-  // Try Apollo first
+  // 1. Try Apollo first
   const contact = await apolloSearchPeople(company, resolvedDomain);
 
   if (contact && contact.email) {
@@ -162,30 +217,49 @@ async function enrichLead(
     };
   }
 
-  // Apollo found contact but no verified email — preserve the real contact, but do not invent an email.
-  if (contact) {
-    return {
-      lead_id: leadId,
-      company: contact.organization_name ?? company,
-      domain: resolvedDomain,
-      contact_name: contact.name,
-      contact_title: contact.title,
-      contact_email: null,
-      contact_linkedin: contact.linkedin_url,
-      enrichment_source: "apollo",
-      confidence: "medium",
-    };
+  // 2. If Apollo returns no verified email -> try Hunter.io
+  if (resolvedDomain) {
+    const hunterEmail = await hunterSearchEmail(resolvedDomain);
+    if (hunterEmail) {
+      return {
+        lead_id: leadId,
+        company,
+        domain: resolvedDomain,
+        contact_name: contact?.name ?? "Team",
+        contact_title: contact?.title ?? "Executive",
+        contact_email: hunterEmail,
+        contact_linkedin: contact?.linkedin_url ?? null,
+        enrichment_source: "hunter",
+        confidence: "medium",
+      };
+    }
+
+    // 3. If Hunter fails -> scrape company website /contact page
+    const scrapedEmail = await scrapeContactPage(resolvedDomain);
+    if (scrapedEmail) {
+      return {
+        lead_id: leadId,
+        company,
+        domain: resolvedDomain,
+        contact_name: contact?.name ?? "Contact",
+        contact_title: contact?.title ?? "Inquiry",
+        contact_email: scrapedEmail,
+        contact_linkedin: contact?.linkedin_url ?? null,
+        enrichment_source: "scraping",
+        confidence: "low",
+      };
+    }
   }
 
-  // No real match found.
+  // 4. If all 3 fail -> mark "unresolvable" (handled by caller checking contact_email)
   return {
     lead_id: leadId,
     company,
     domain: resolvedDomain,
-    contact_name: "",
-    contact_title: "",
+    contact_name: contact?.name ?? "",
+    contact_title: contact?.title ?? "",
     contact_email: null,
-    contact_linkedin: null,
+    contact_linkedin: contact?.linkedin_url ?? null,
     enrichment_source: "apollo",
     confidence: "low",
   };
@@ -231,7 +305,7 @@ export async function POST(req: NextRequest) {
               contact_email: result.contact_email,
               contact_linkedin: result.contact_linkedin,
               company: result.company,
-              status: result.contact_email ? "enriched" : "new",
+              status: result.contact_email ? "enriched" : "unresolvable",
             })
             .eq("id", lead.id);
         }

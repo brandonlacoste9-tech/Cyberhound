@@ -234,9 +234,29 @@ export async function GET(req: NextRequest) {
     (existingLeadRows ?? []).map((row) => [String(row.url ?? ""), row])
   );
 
-  const toInsert = rawLeads
-    .filter((l) => !existingByUrl.has(String(l.url ?? "")))
-    .map((l) => ({
+  const toInsert: any[] = [];
+  const rejectedLeads: any[] = [];
+
+  for (const l of rawLeads) {
+    if (existingByUrl.has(String(l.url ?? ""))) continue;
+
+    const companyName = String(l.company ?? "").trim();
+    const forbiddenKeywords = ["startup", "unknown", "pre-revenue", "early stage", "anonymous"];
+    const isInvalid = 
+      !companyName || 
+      companyName.length < 3 || 
+      forbiddenKeywords.some(kw => companyName.toLowerCase().includes(kw));
+
+    if (isInvalid) {
+      rejectedLeads.push({
+        ...l,
+        status: "unresolvable",
+        rejection_reason: `Invalid company name: "${companyName}"`
+      });
+      continue;
+    }
+
+    toInsert.push({
       source: l.source,
       signal_type: l.signal_type,
       title: l.title,
@@ -252,7 +272,31 @@ export async function GET(req: NextRequest) {
       recommended_service: l.recommended_service,
       personalization_hook: l.personalization_hook,
       status: "new",
+    });
+  }
+
+  // Persist rejected leads for audit
+  if (rejectedLeads.length > 0) {
+    const toInsertRejected = rejectedLeads.map(l => ({
+      source: l.source,
+      signal_type: l.signal_type,
+      title: l.title,
+      url: l.url,
+      raw_text: String(l.raw_text ?? "").slice(0, 2000),
+      company: l.company ?? null,
+      status: "unresolvable",
     }));
+    await db.from("analyst_leads").insert(toInsertRejected);
+    
+    for (const rl of rejectedLeads) {
+      await db.from("hive_log").insert({
+        bee: "analyst",
+        action: `Lead rejected: ${rl.rejection_reason}`,
+        details: { url: rl.url, company: rl.company },
+        status: "vetoed",
+      });
+    }
+  }
 
   const { data: insertedLeads, error: saveErr } = toInsert.length
     ? await db.from("analyst_leads").insert(toInsert).select()

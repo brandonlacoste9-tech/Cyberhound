@@ -26,18 +26,11 @@ export const maxDuration = 300;
 // ── Niche rotation list ────────────────────────────────────────────────────────
 // Queen Bee picks from these every cycle; add or remove niches freely
 const NICHE_TARGETS = [
-  "AI scheduling automation for dental clinics",
-  "AI invoice processing for small accounting firms",
-  "Automated job application tracking for recruiting agencies",
-  "AI-powered review management for local service businesses",
-  "Automated permit tracking SaaS for contractors",
-  "AI chatbot for HVAC and plumbing companies",
-  "Automated proposal generation for freelance agencies",
-  "AI-powered social media scheduling for e-commerce brands",
-  "Automated onboarding workflows for SaaS startups",
-  "AI lead qualification for real estate brokers",
-  "Automated payroll reminders for small construction firms",
-  "AI content repurposing tool for B2B marketers",
+  "site:osha.gov violation manufacturing 2024 2025",
+  "small manufacturer OSHA compliance software site:linkedin.com",
+  "site:upwork.com OSHA compliance reporting automation",
+  "site:upwork.com shopify chargeback fraud automation",
+  "shopify high risk merchant fraud prevention site:linkedin.com",
 ];
 
 // How many niches to scout per cron run (keep low to stay within timeout)
@@ -55,10 +48,9 @@ async function scoutNiche(
   niche: string,
   market: string,
 ): Promise<Record<string, unknown> | null> {
-  const searchResults = await searchWeb(
-    `${niche} SaaS market demand ${market} pricing 2025 2026`,
-    5
-  );
+  // Use the high-intent query directly if it looks like a site search or targeted query
+  const query = niche.includes("site:") ? niche : `${niche} SaaS market demand ${market} pricing 2025 2026`;
+  const searchResults = await searchWeb(query, 5);
   if (searchResults.length === 0) {
     console.warn(`[Hunt Cron] No live web results for niche: ${niche}`);
     return null;
