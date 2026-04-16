@@ -232,12 +232,12 @@ export async function POST(req: NextRequest) {
     const {
       mode,
       // upwork mode
-      niche = "web development automation",
+      niche = "OSHA compliance automation",
       // churn mode
-      competitors = ["Zapier", "Make.com", "Monday.com"],
+      competitors = ["EverSafe", "SafetySync", "Signifyd", "NoFraud"],
       // reddit mode
-      subreddits = ["entrepreneur", "smallbusiness", "startups", "webdev"],
-      keywords = ["automation tool", "web app", "AI agent", "workflow automation"],
+      subreddits = ["manufacturing", "Shopify", "ecommerce", "safety"],
+      keywords = ["OSHA compliance software", "shopify fraud prevention", "chargeback automation"],
       // shared
       limit = 15,
       persist = true,
@@ -269,10 +269,22 @@ export async function POST(req: NextRequest) {
       leads.push(...redditLeads);
     }
 
+    // ── Pre-persistence Filter: Reject ghosts ──
+    const qualifiedLeads = leads.filter((l) => {
+      const company = l.company?.toLowerCase() || "";
+      if (!company || 
+          company.includes("startup") || 
+          company.includes("unknown") || 
+          company.length < 3) {
+        return false;
+      }
+      return true;
+    });
+
     // ── Persist to DB ──
-    let savedLeads = leads;
-    if (persist && leads.length > 0) {
-      savedLeads = await persistLeads(leads);
+    let savedLeads = qualifiedLeads;
+    if (persist && qualifiedLeads.length > 0) {
+      savedLeads = await persistLeads(qualifiedLeads);
     }
 
     // ── Log to hive ──

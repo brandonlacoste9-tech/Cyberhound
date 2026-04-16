@@ -167,7 +167,7 @@ export default function CampaignsPage() {
             className="btn-primary gap-2 text-sm"
           >
             {building ? <Loader2 className="h-4 w-4 spin" /> : <Layers className="h-4 w-4" />}
-            {building ? "Building…" : "Build demo campaign"}
+            {building ? "Building…" : "Trigger manual hunt"}
           </button>
         }
       />

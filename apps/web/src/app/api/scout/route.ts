@@ -52,6 +52,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Niche required" }, { status: 400 });
     }
 
+    const db = getSupabaseServer();
+    await db.from("hive_log").insert({
+      bee: "scout",
+      action: `Investigating niche: ${niche}`,
+      details: { market, niche },
+      status: "success",
+    });
+
     if (!hasLiveSearchProvider()) {
       return NextResponse.json(
         { error: "Scout requires a live search provider (FIRECRAWL_API_KEY or APIFY_API_TOKEN)." },
@@ -76,11 +84,24 @@ export async function POST(req: NextRequest) {
     );
 
     if (searchResults.length === 0) {
+      await db.from("hive_log").insert({
+        bee: "scout",
+        action: `Investigation failed: No results for ${niche}`,
+        details: { market, niche, query: `${niche} SaaS market demand ${market} pricing 2025 2026` },
+        status: "failed",
+      });
       return NextResponse.json(
         { error: "Scout found no live web results for that niche. No synthetic analysis was generated." },
         { status: 422 }
       );
     }
+
+    await db.from("hive_log").insert({
+      bee: "scout",
+      action: `Intelligence gathered for: ${niche}`,
+      details: { results: searchResults.map(r => ({ url: r.url, title: r.title })), count: searchResults.length },
+      status: "success",
+    });
 
     const searchContext = buildSearchContext(searchResults, 600);
 

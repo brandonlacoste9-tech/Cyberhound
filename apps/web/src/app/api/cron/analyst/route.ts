@@ -211,6 +211,13 @@ export async function GET(req: NextRequest) {
   const db = getSupabaseServer();
   const origin = publicOriginFromHeaders(req.headers) ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://cyberhound.vercel.app";
 
+  await db.from("hive_log").insert({
+    bee: "analyst",
+    action: "ANALYST CRON START",
+    details: { config: ANALYST_CONFIG },
+    status: "success"
+  });
+
   await sendHiveUpdate("🔍 *Analyst Cron Started*\n\nScanning Upwork · Churn · Reddit for warm leads...");
 
   // 1. Run all three signal modes
@@ -454,13 +461,23 @@ export async function GET(req: NextRequest) {
   const highUrgencyCount = rawLeads.filter((l) => l.urgency === "high").length;
   const summary = rawLeads.slice(0, 3).map((l) => `• ${String(l.title ?? "").slice(0, 55)} [${l.urgency}]`).join("\n");
 
+  const resultBody = {
+    leads_found: rawLeads.length,
+    high_urgency: highUrgencyCount,
+    sequences_queued: sequencesQueued,
+    timestamp: new Date().toISOString()
+  };
+
+  await db.from("hive_log").insert({
+    bee: "analyst",
+    action: "ANALYST CRON END",
+    details: resultBody,
+    status: "success"
+  });
+
   await sendHiveUpdate(
     `✅ *Analyst Cron Complete*\n\n📊 Total leads: ${rawLeads.length}\n🔥 High urgency: ${highUrgencyCount}\n📧 Sequences queued: ${sequencesQueued}\n\nTop signals:\n${summary}\n\nReview in /analyst dashboard.`
   );
 
-  return NextResponse.json({
-    leads_found: rawLeads.length,
-    high_urgency: highUrgencyCount,
-    sequences_queued: sequencesQueued,
-  });
+  return NextResponse.json(resultBody);
 }

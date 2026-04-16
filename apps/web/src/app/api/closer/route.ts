@@ -39,6 +39,15 @@ interface Recipient {
   lead_id?: string;
 }
 
+function verifyRecipient(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const e = email.toLowerCase().trim();
+  if (e.includes("@example.com")) return false;
+  if (e.includes("test@")) return false;
+  if (!e.includes("@") || !e.includes(".")) return false;
+  return true;
+}
+
 // ── Signal-aware prompt builder ───────────────────────────────────────────────
 function buildSignalAwarePrompt(recipient: Recipient, opportunity?: Record<string, unknown>, campaign?: Record<string, unknown>): string {
   const source = recipient.source ?? "unknown";
@@ -160,7 +169,7 @@ export async function POST(req: NextRequest) {
       // Auto-send Email 1 immediately if Resend is configured
       const resendKey = process.env.RESEND_API_KEY;
       let sentCount = 0;
-      if (resendKey && resendKey !== "placeholder" && recipient.email) {
+      if (resendKey && resendKey !== "placeholder" && verifyRecipient(recipient.email)) {
         const resend = new Resend(resendKey);
         const firstName = recipient.name.split(" ")[0];
         const company = recipient.company ?? "your company";
@@ -294,7 +303,7 @@ export async function POST(req: NextRequest) {
       // Auto-send Email 1 immediately
       const resendKeyLead = process.env.RESEND_API_KEY;
       let leadSentId: string | null = null;
-      if (resendKeyLead && resendKeyLead !== "placeholder") {
+      if (resendKeyLead && resendKeyLead !== "placeholder" && verifyRecipient(leadRecipient.email)) {
         const resend = new Resend(resendKeyLead);
         const firstName = leadRecipient.name.split(" ")[0];
         const company = leadRecipient.company ?? "your company";
@@ -379,6 +388,10 @@ export async function POST(req: NextRequest) {
       const results = [];
 
       for (const recipient of recipientList) {
+        if (!verifyRecipient(recipient.email)) {
+          results.push({ email: recipient.email, status: "rejected", reason: "invalid_email" });
+          continue;
+        }
         if (await hasActiveOutreach({
           leadId: (recipient as Recipient).lead_id ?? null,
           campaignId: campaign?.id ?? null,

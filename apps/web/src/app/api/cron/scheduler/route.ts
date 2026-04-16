@@ -60,6 +60,13 @@ export async function GET(req: NextRequest) {
   const resend = new Resend(resendKey);
   const now = new Date().toISOString();
 
+  await db.from("hive_log").insert({
+    bee: "scheduler",
+    action: "SCHEDULER CRON START",
+    details: { timestamp: now },
+    status: "success"
+  });
+
   const { data: dueSequences, error } = await db
     .from("follow_up_sequences")
     .select("*")
@@ -148,5 +155,14 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ processed: dueSequences.length, sent: successCount, results });
+  const resultBody = { processed: dueSequences.length, sent: successCount, results, timestamp: new Date().toISOString() };
+
+  await db.from("hive_log").insert({
+    bee: "scheduler",
+    action: "SCHEDULER CRON END",
+    details: resultBody,
+    status: "success"
+  });
+
+  return NextResponse.json(resultBody);
 }

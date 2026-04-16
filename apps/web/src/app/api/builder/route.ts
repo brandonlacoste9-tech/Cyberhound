@@ -151,6 +151,16 @@ Return ONLY this JSON (no markdown):
         );
       }
 
+      const isLive = stripeKey.startsWith("sk_live_");
+      const mode = isLive ? "LIVE" : "TEST";
+
+      await db.from("hive_log").insert({
+        bee: "builder",
+        action: `Starting autonomous Stripe deployment [${mode}]`,
+        details: { mode, niche: opportunity.niche },
+        status: "success",
+      });
+
       const stripe = new Stripe(stripeKey);
 
       // Parse price from string like "$197/mo" → 19700 cents

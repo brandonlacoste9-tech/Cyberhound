@@ -3,20 +3,57 @@ import { getSupabaseServer } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
-/** GET /api/revenue - fetch revenue records for the dashboard */
+/** GET /api/revenue - fetch real-time MRR and stats from Stripe */
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const limit = parseInt(searchParams.get('limit') || '100');
+  try {
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey || stripeKey === "placeholder" || !stripeKey.startsWith("sk_")) {
+      return NextResponse.json({ 
+        mrr: 0, 
+        subscription_count: 0, 
+        last_payment_date: null,
+        error: "Stripe not configured" 
+      });
+    }
 
-  const supabase = getSupabaseServer();
-  const { data, error } = await supabase
-    .from('revenue')
-    .select('*')
-    .order('paid_at', { ascending: false })
-    .limit(limit);
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(stripeKey);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ revenue: data || [] });
+    // Fetch active subscriptions
+    const subs = await stripe.subscriptions.list({
+      status: "active",
+      limit: 100,
+      expand: ["data.latest_invoice"],
+    });
+
+    let mrr = 0;
+    for (const sub of subs.data) {
+      for (const item of sub.items.data) {
+        const price = item.price;
+        const amount = price.unit_amount ?? 0;
+        if (price.recurring?.interval === "year") {
+          mrr += Math.round(amount / 12);
+        } else {
+          mrr += amount;
+        }
+      }
+    }
+
+    // Last payment date
+    const charges = await stripe.charges.list({ limit: 1 });
+    const lastPaymentDate = charges.data[0] 
+      ? new Date(charges.data[0].created * 1000).toISOString() 
+      : null;
+
+    return NextResponse.json({
+      mrr,
+      subscription_count: subs.data.length,
+      last_payment_date: lastPaymentDate,
+      currency: "cad",
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }
 
 /** POST /api/revenue - record a revenue event (Stripe webhook or manual) */

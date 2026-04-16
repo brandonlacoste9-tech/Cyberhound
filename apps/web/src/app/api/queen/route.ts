@@ -29,8 +29,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No message provided" }, { status: 400 });
     }
 
+    const db = getSupabaseServer();
+
+    // ── Fetch Hive Reality Context ──
+    const [campaigns, leads, hiveLogs] = await Promise.all([
+      db.from("campaigns").select("id", { count: "exact" }),
+      db.from("analyst_leads").select("id", { count: "exact" }),
+      db.from("hive_log").select("bee, action, status, created_at").order("created_at", { ascending: false }).limit(5),
+    ]);
+
+    // Fetch real MRR from treasurer
+    const origin = publicOriginFromHeaders(req.headers) ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://cyberhound.vercel.app";
+    const treasurerRes = await fetch(`${origin}/api/treasurer`).catch(() => null);
+    const treasurerData = treasurerRes?.ok ? await treasurerRes.json() : { mrr: 0 };
+
+    const hiveContext = `
+HIVE REALITY CONTEXT (LIVE DATA):
+- Current MRR: $${((treasurerData?.mrr ?? 0) / 100).toFixed(2)} CAD
+- Active Campaigns: ${campaigns.count ?? 0}
+- Total Leads Found: ${leads.count ?? 0}
+- Recent Activity:
+${(hiveLogs.data ?? []).map((l: any) => `  [${l.bee}] ${l.action} (${l.status})`).join("\n")}
+`;
+
     const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
-      { role: "system", content: QUEEN_SYSTEM_PROMPT },
+      { role: "system", content: QUEEN_SYSTEM_PROMPT + "\n\n" + hiveContext },
       ...history,
       { role: "user", content: message },
     ];

@@ -25,12 +25,16 @@ export const maxDuration = 300;
 
 // ── Niche rotation list ────────────────────────────────────────────────────────
 // Queen Bee picks from these every cycle; add or remove niches freely
+// High-intent targets: OSHA Compliance & Shopify Fraud Prevention
 const NICHE_TARGETS = [
   "site:osha.gov violation manufacturing 2024 2025",
-  "small manufacturer OSHA compliance software site:linkedin.com",
-  "site:upwork.com OSHA compliance reporting automation",
+  "small manufacturer OSHA 300A compliance software site:linkedin.com",
+  "upwork.com OSHA compliance reporting automation",
   "site:upwork.com shopify chargeback fraud automation",
   "shopify high risk merchant fraud prevention site:linkedin.com",
+  "OSHA safety training automation for construction companies",
+  "automated OSHA 300 log management for small factories",
+  "Shopify Plus fraud protection automation for high volume stores",
 ];
 
 // How many niches to scout per cron run (keep low to stay within timeout)
@@ -48,8 +52,11 @@ async function scoutNiche(
   niche: string,
   market: string,
 ): Promise<Record<string, unknown> | null> {
-  // Use the high-intent query directly if it looks like a site search or targeted query
-  const query = niche.includes("site:") ? niche : `${niche} SaaS market demand ${market} pricing 2025 2026`;
+  // Use the niche directly if it looks like a targeted search query (site: etc), otherwise format it
+  const query = niche.includes("site:") || niche.includes(".com")
+    ? niche
+    : `${niche} SaaS market demand ${market} pricing 2025 2026`;
+
   const searchResults = await searchWeb(query, 5);
   if (searchResults.length === 0) {
     console.warn(`[Hunt Cron] No live web results for niche: ${niche}`);
@@ -334,7 +341,18 @@ export async function GET(req: NextRequest) {
   const market = "North America";
 
   // Pick NICHES_PER_RUN niches randomly each run to avoid stale rotation
-  const shuffled = [...NICHE_TARGETS].sort(() => Math.random() - 0.5);
+  const NICHE_TARGETS_FOR_RANDOM = [
+    "site:osha.gov violation manufacturing 2024 2025",
+    "small manufacturer OSHA 300A compliance software site:linkedin.com",
+    "upwork.com OSHA compliance reporting automation",
+    "site:upwork.com shopify chargeback fraud automation",
+    "shopify high risk merchant fraud prevention site:linkedin.com",
+    "OSHA safety training automation for construction companies",
+    "automated OSHA 300 log management for small factories",
+    "Shopify Plus fraud protection automation for high volume stores",
+  ];
+
+  const shuffled = [...NICHE_TARGETS_FOR_RANDOM].sort(() => Math.random() - 0.5);
   const niches = shuffled.slice(0, NICHES_PER_RUN);
 
   const results: Array<{
@@ -345,6 +363,13 @@ export async function GET(req: NextRequest) {
     landing_page_url?: string;
     closer_queued?: boolean;
   }> = [];
+
+  await db.from("hive_log").insert({
+    bee: "scout",
+    action: "HUNT CRON START",
+    details: { market, niches_per_run: NICHES_PER_RUN, niches },
+    status: "success"
+  });
 
   await sendHiveUpdate(
     `🤖 *Hunt Cron Started*\n\nScouting ${niches.length} niches:\n${niches.map((n) => `• ${n}`).join("\n")}`
@@ -441,15 +466,27 @@ export async function GET(req: NextRequest) {
 
   const autoApprovedCount = results.filter((r) => r.auto_approved).length;
   const campaignsBuilt = results.filter((r) => r.campaign_id).length;
+  const closerQueuedCount = results.filter((r) => r.closer_queued).length;
 
-  await sendHiveUpdate(
-    `✅ *Hunt Cron Complete*\n\n🔍 Niches scouted: ${results.length}\n✅ Auto-approved: ${autoApprovedCount}\n🚀 Campaigns built: ${campaignsBuilt}\n📧 Outreach queued: ${results.filter((r) => r.closer_queued).length}\n\n${results.map((r) => `• ${r.niche} — ${r.score}/100 ${r.auto_approved ? "✅" : "🚫"}`).join("\n")}`
-  );
-
-  return NextResponse.json({
+  const resultBody = {
     scouted: results.length,
     auto_approved: autoApprovedCount,
     campaigns_built: campaignsBuilt,
+    closer_queued: closerQueuedCount,
     results,
+    timestamp: new Date().toISOString()
+  };
+
+  await db.from("hive_log").insert({
+    bee: "scout",
+    action: "HUNT CRON END",
+    details: resultBody,
+    status: "success"
   });
+
+  await sendHiveUpdate(
+    `✅ *Hunt Cron Complete*\n\n🔍 Niches scouted: ${results.length}\n✅ Auto-approved: ${autoApprovedCount}\n🚀 Campaigns built: ${campaignsBuilt}\n📧 Outreach queued: ${closerQueuedCount}\n\n${results.map((r) => `• ${r.niche} — ${r.score}/100 ${r.auto_approved ? "✅" : "🚫"}`).join("\n")}`
+  );
+
+  return NextResponse.json(resultBody);
 }

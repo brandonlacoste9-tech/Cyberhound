@@ -15,7 +15,7 @@ function formatMrr(cents: number): string {
   if (cents === 0) return "$0";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: "CAD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(cents / 100);
