@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@supabase/ssr";
 import { 
   TrendingUp, 
   Activity, 
@@ -14,7 +14,10 @@ import {
 } from "lucide-react";
 
 export default function OverlordDashboard() {
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const [logs, setLogs] = useState<any[]>([]);
   const [stats, setStats] = useState({
     mrr: 0,
