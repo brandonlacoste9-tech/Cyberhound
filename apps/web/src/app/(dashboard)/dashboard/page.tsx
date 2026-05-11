@@ -245,6 +245,52 @@ export default function OverlordDashboard() {
                 ))}
               </div>
             </div>
+
+            {/* ── HERMES DEEP INTELLIGENCE ── */}
+            <div className="glass-card p-6 border-blue-500/10 bg-blue-950/10">
+               <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                     <Search className="w-5 h-5 text-blue-400" />
+                     <h2 className="text-lg font-bold uppercase tracking-tight">Hermes Neural Link</h2>
+                  </div>
+                  <div className="px-2 py-1 rounded bg-blue-500/20 text-[10px] font-bold text-blue-400 border border-blue-500/30">
+                     MULTI-MODEL_CONSENSUS: ON
+                  </div>
+               </div>
+               <div className="space-y-4">
+                  {consensus.map((con) => (
+                    <div key={con.id} className="p-4 rounded-xl bg-slate-900/60 border border-white/5 space-y-4">
+                       <div className="flex justify-between items-start">
+                          <div>
+                             <p className="text-xs font-black text-white">{con.niche.toUpperCase()}</p>
+                             <p className="text-[9px] text-slate-500 mt-1">RESEARCH_NODE_ID: {con.id.split('-')[0]}</p>
+                          </div>
+                          <div className="text-right">
+                             <p className="text-xl font-black text-blue-400 leading-none">{con.final_score}%</p>
+                             <p className="text-[8px] font-mono text-slate-500 mt-1 uppercase tracking-widest">Confidence Alpha</p>
+                          </div>
+                       </div>
+                       <div className="grid grid-cols-3 gap-2 py-2 border-y border-white/5">
+                          <ModelScore name="DEEPSEEK" score={con.final_score - 2} color="cyan" />
+                          <ModelScore name="MOONSHOT" score={con.final_score + 1} color="purple" />
+                          <ModelScore name="GEMINI" score={con.final_score - 1} color="blue" />
+                       </div>
+                       <div className="flex gap-3 items-start">
+                          <Terminal className="w-3 h-3 text-slate-600 mt-1" />
+                          <p className="text-[10px] text-slate-400 leading-relaxed font-mono">
+                             <span className="text-blue-500/50 mr-1">&gt;</span> 
+                             {con.rationale}
+                          </p>
+                       </div>
+                    </div>
+                  ))}
+                  {consensus.length === 0 && (
+                    <div className="text-center py-8 text-slate-700 font-mono text-[10px] animate-pulse">
+                       AWAITING NEURAL SIGNALS FROM HERMES_NODE_01...
+                    </div>
+                  )}
+               </div>
+            </div>
           </div>
 
           {/* ── COLUMN 2: Oracle & Workforce (4/12) ── */}
@@ -401,6 +447,27 @@ function CommandItem({ cmd, desc }: CommandItemProps) {
     <div className="group flex flex-col p-2 rounded-lg hover:bg-cyan-500/5 transition-all cursor-help border border-transparent hover:border-cyan-500/10">
        <span className="text-[11px] font-mono font-black text-cyan-400 tracking-wider group-hover:text-white transition-colors">{cmd}</span>
        <span className="text-[9px] text-slate-600 font-bold uppercase tracking-tighter">{desc}</span>
+    </div>
+  );
+}
+
+interface ModelScoreProps {
+  name: string;
+  score: number;
+  color: 'cyan' | 'purple' | 'blue';
+}
+
+function ModelScore({ name, score, color }: ModelScoreProps) {
+  const colors = {
+    cyan: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
+    purple: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
+    blue: 'text-blue-400 bg-blue-500/10 border-blue-500/20'
+  };
+
+  return (
+    <div className={`p-2 rounded-lg border ${colors[color]} flex flex-col items-center gap-1`}>
+       <span className="text-[7px] font-black tracking-widest uppercase opacity-60">{name}</span>
+       <span className="text-xs font-black">{score}%</span>
     </div>
   );
 }
