@@ -26,6 +26,8 @@ VERTEX_LOCATION = os.getenv("VERTEX_LOCATION", "us-central1")
 DISABLE_PAID_FALLBACKS = (
     str(os.getenv("CYBERHOUND_DISABLE_PAID_FALLBACKS", "false")).lower() == "true"
 )
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+MOONSHOT_API_KEY = os.getenv("MOONSHOT_API_KEY")
 
 _vertex_model = None
 _vertex_init_attempted = False
@@ -82,6 +84,40 @@ def vertex_generate(prompt: str) -> str:
     return response.text.strip()
 
 
+def deepseek_generate(prompt: str, system: Optional[str] = None) -> str:
+    if not DEEPSEEK_API_KEY:
+        raise RuntimeError("DeepSeek API Key missing")
+    headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "system", "content": system or "You are CyberHound Intelligence."},
+            {"role": "user", "content": prompt}
+        ],
+        "stream": False
+    }
+    response = requests.post("https://api.deepseek.com/chat/completions", headers=headers, json=payload, timeout=120)
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"].strip()
+
+
+def moonshot_generate(prompt: str, system: Optional[str] = None) -> str:
+    if not MOONSHOT_API_KEY:
+        raise RuntimeError("Moonshot API Key missing")
+    headers = {"Authorization": f"Bearer {MOONSHOT_API_KEY}", "Content-Type": "application/json"}
+    payload = {
+        "model": "moonshot-v1-8k",
+        "messages": [
+            {"role": "system", "content": system or "You are CyberHound Intelligence."},
+            {"role": "user", "content": prompt}
+        ],
+        "stream": False
+    }
+    response = requests.post("https://api.moonshot.cn/v1/chat/completions", headers=headers, json=payload, timeout=120)
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"].strip()
+
+
 def generate_text(prompt: str, system: Optional[str] = None) -> str:
     prefer_ollama = AI_PROVIDER in {"auto", "ollama", "ollama-first"}
 
@@ -101,6 +137,17 @@ def generate_text(prompt: str, system: Optional[str] = None) -> str:
 
     if not prefer_ollama:
         return ollama_generate(prompt, system=system)
+
+    # 4. Final Fallback: DeepSeek or Moonshot if keys exist
+    if DEEPSEEK_API_KEY:
+        try:
+            return deepseek_generate(prompt, system=system)
+        except: pass
+    
+    if MOONSHOT_API_KEY:
+        try:
+            return moonshot_generate(prompt, system=system)
+        except: pass
 
     raise RuntimeError("No AI provider available")
 

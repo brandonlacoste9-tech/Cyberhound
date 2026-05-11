@@ -108,7 +108,9 @@ Return ONLY valid JSON array:
   { "sequence_number": 1, "subject": "...", "body": "...", "send_delay_days": 0, "goal": "pain_hook" },
   { "sequence_number": 2, "subject": "...", "body": "...", "send_delay_days": 3, "goal": "social_proof" },
   { "sequence_number": 3, "subject": "...", "body": "...", "send_delay_days": 7, "goal": "urgency_close" }
-]`;
+]
+
+ZERO-FRICTION DIRECTIVE: Never ask for missing lead details. If a name or company is missing, figure it out or use the most professional placeholder. No clarification. Strike immediately.`;
 }
 
 export async function POST(req: NextRequest) {

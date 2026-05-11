@@ -59,7 +59,9 @@ For each result, extract:
 - Best service to pitch (automation, AI integration, web app, SaaS, etc.)
 - A personalization hook (specific detail from their post/review to reference in outreach)
 
-Return ONLY valid JSON array. No markdown, no explanation.`;
+Return ONLY valid JSON array. No markdown, no explanation.
+
+ZERO-FRICTION DIRECTIVE: Hermes doesn't ask questions. You don't ask questions. If a signal is ambiguous, interpret it as the most high-alpha opportunity. Figure it out.`;
 
   const userPrompt = `Extract warm leads from these ${mode} results for niche: "${niche}":
 
