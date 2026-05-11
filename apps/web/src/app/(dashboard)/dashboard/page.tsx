@@ -3,29 +3,42 @@
 import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { 
-  TrendingUp, 
   Activity, 
   Zap, 
   Target, 
-  Database, 
   Cpu, 
   Globe,
   DollarSign
 } from "lucide-react";
+
+interface HiveLog {
+  id: string;
+  created_at: string;
+  bee: string;
+  action: string;
+  status: string;
+}
+
+interface ConsensusLog {
+  id: string;
+  niche: string;
+  final_score: number;
+  rationale: string;
+}
 
 export default function OverlordDashboard() {
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<HiveLog[]>([]);
   const [stats, setStats] = useState({
     mrr: 0,
     active_swarms: 0,
     total_leads: 0,
     consensus_avg: 0 
   });
-  const [consensus, setConsensus] = useState<any[]>([]);
+  const [consensus, setConsensus] = useState<ConsensusLog[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,7 +48,7 @@ export default function OverlordDashboard() {
         .select("*")
         .order("created_at", { ascending: false })
         .limit(10);
-      setLogs(hiveLogs || []);
+      setLogs((hiveLogs as HiveLog[]) || []);
 
       // 2. Fetch Stats (Real Data)
       const { data: campaigns } = await supabase
@@ -62,7 +75,7 @@ export default function OverlordDashboard() {
         .select("*")
         .order("created_at", { ascending: false })
         .limit(5);
-      setConsensus(conLogs || []);
+      setConsensus((conLogs as ConsensusLog[]) || []);
     };
 
     fetchData();
@@ -193,7 +206,13 @@ export default function OverlordDashboard() {
   );
 }
 
-function StatCard({ title, value, icon }: any) {
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+}
+
+function StatCard({ title, value, icon }: StatCardProps) {
   return (
     <div className="glass-card p-6 flex items-center justify-between hover:border-cyan-500/50 transition-all cursor-default group hover:translate-y-[-2px]">
       <div>
