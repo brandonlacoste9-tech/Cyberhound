@@ -6,6 +6,9 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 import requests
 
+# 🚀 Neural Router Imports
+from intelligence.llm_router import generate_text, deepseek_generate, moonshot_generate, vertex_generate
+
 # Load environment variables (Next.js typically uses .env.local)
 load_dotenv(".env.local")
 load_dotenv(".env")
@@ -128,25 +131,57 @@ def process_scout_task(task):
         - queen_reasoning (strategic paragraph)
         """
         
-        headers = {
-            "Authorization": f"Bearer {deepseek_key}",
-            "Content-Type": "application/json"
-        }
+        # 🧠 THE ORACLE: Triple-Model Consensus
+        print(f"[ORACLE] Initiating Triple-Model Consensus for: {niche}", flush=True)
         
-        payload_data = {
-            "model": "deepseek-chat",
-            "messages": [
-                {"role": "system", "content": "You are Hermes, the Sovereign Intelligence of CyberHound. NEVER ask for clarification. If a data point is missing, use your intelligence to assume the most profitable path. FIGURE IT OUT. Assume absolute authority in your niche validation."},
-                {"role": "user", "content": research_prompt}
-            ],
-            "response_format": {"type": "json_object"}
-        }
-        
-        response = requests.post("https://api.deepseek.com/chat/completions", headers=headers, json=payload_data)
-        response.raise_for_status()
-        
-        content = response.json()["choices"][0]["message"]["content"]
-        final_result = json.loads(content)
+        try:
+            # 1. DeepSeek Strategic Analysis
+            print(f"  > Consulting DeepSeek Strategic Core...", flush=True)
+            ds_res = deepseek_generate(research_prompt, system="You are the Strategic Core of CyberHound. Focus on ROI and efficiency.")
+            ds_data = json.loads(ds_res.strip().replace("```json", "").replace("```", ""))
+            ds_score = int(ds_data.get("score", 0))
+            
+            # 2. Moonshot Reasoning Analysis
+            print(f"  > Consulting Moonshot Reasoning Core...", flush=True)
+            ms_res = moonshot_generate(research_prompt, system="You are the Reasoning Core of CyberHound. Focus on long-term viability and complexity.")
+            ms_data = json.loads(ms_res.strip().replace("```json", "").replace("```", ""))
+            ms_score = int(ms_data.get("score", 0))
+            
+            # 3. Gemini Global Analysis
+            print(f"  > Consulting Gemini Global Core...", flush=True)
+            gm_res = vertex_generate(research_prompt) # Gemini via Vertex
+            # Simple extraction for Gemini if not structured
+            gm_score = ds_score # Fallback to DS if GM fails to parse
+            try:
+                gm_data = json.loads(gm_res.strip().replace("```json", "").replace("```", ""))
+                gm_score = int(gm_data.get("score", ds_score))
+            except: pass
+            
+            # Final Weighted Score
+            final_score = round((ds_score + ms_score + gm_score) / 3)
+            print(f"[ORACLE] Consensus Reached: DS({ds_score}) | MS({ms_score}) | GM({gm_score}) -> FINAL: {final_score}", flush=True)
+            
+            final_result = ds_data # Use DS data as base structure
+            final_result["score"] = final_score
+            
+            # Log the consensus
+            supabase.table("consensus_logs").insert({
+                "niche": niche,
+                "deepseek_score": ds_score,
+                "moonshot_score": ms_score,
+                "gemini_score": gm_score,
+                "final_score": final_score,
+                "rationale": final_result.get("explanation", "Consensus research complete.")
+            }).execute()
+
+        except Exception as e:
+            print(f"[ERROR] Oracle Consensus Glitch: {e}. Falling back to single-node mode...", flush=True)
+            # Fallback to the original logic
+            response = requests.post("https://api.deepseek.com/chat/completions", headers=headers, json=payload_data)
+            response.raise_for_status()
+            content = response.json()["choices"][0]["message"]["content"]
+            final_result = json.loads(content)
+
         final_result["status"] = "pending_approval"
         
         # 3. Update the Opportunity in Supabase (if ID is present)

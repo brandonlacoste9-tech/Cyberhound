@@ -6,73 +6,30 @@
 ───────────────────────────────────────────────────────────── */
 
 :root {
-  /* ── Layout & radii ───────────────────────────────── */
-  --radius-sm:     8px;
-  --radius-md:     12px;
+  /* ── Sovereign Overlord Palette ────────────────────── */
+  --bg-base:       #1a1a2e;
+  --bg-surface:    #16213e;
+  --bg-card:       rgba(22, 33, 62, 0.7);
+  --bg-card-hover: rgba(22, 33, 62, 0.9);
+  
+  --primary:       #00ffff;
+  --primary-glow:  rgba(0, 255, 255, 0.4);
+  --secondary:     #0f3460;
+  --accent:        #e94560;
+  
+  --text-primary:   #ffffff;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
+  
+  --border:        rgba(0, 255, 255, 0.15);
+  --border-strong: rgba(0, 255, 255, 0.3);
+  
   --radius-lg:     16px;
-  --radius-xl:     20px;
+  --shadow-card:   0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  --glass-border:  rgba(0, 255, 255, 0.2);
+
+  /* ── Layout ── */
   --sidebar-width: 268px;
-
-  /* ── Backgrounds (cooler, layered depth) ───────────── */
-  --bg-base:       #050608;
-  --bg-surface:    #0a0c10;
-  --bg-card:       rgba(255, 255, 255, 0.04);
-  --bg-card-solid: rgba(255, 255, 255, 0.035);
-  --bg-card-hover: rgba(255, 255, 255, 0.08);
-  --bg-muted:      rgba(255, 255, 255, 0.045);
-  --bg-input:      rgba(255, 255, 255, 0.06);
-  --bg-elevated:   #0e1118;
-  --bg-sidebar:    rgba(6, 8, 12, 0.92);
-
-  /* ── Borders ──────────────────────────────────────── */
-  --border:        rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --border-amber:  rgba(245, 158, 11, 0.35);
-  --border-focus:  #f59e0b;
-
-  /* ── Typography ───────────────────────────────────── */
-  --text-primary:   #f4f4f7;
-  --text-secondary: #9ca3b8;
-  --text-muted:     #5c6478;
-  --text-faint:     #3d4456;
-
-  /* ── Amber — Queen Bee primary ────────────────────── */
-  --amber:          #f59e0b;
-  --amber-bright:   #fbbf24;
-  --amber-dim:      rgba(245, 158, 11, 0.14);
-  --amber-glow:     0 0 20px rgba(245, 158, 11, 0.45), 0 0 60px rgba(245, 158, 11, 0.15);
-
-  /* ── Green — live / active ────────────────────────── */
-  --green:          #10b981;
-  --green-bright:   #34d399;
-  --green-dim:      rgba(16, 185, 129, 0.14);
-  --green-glow:     0 0 16px rgba(16, 185, 129, 0.45);
-
-  /* ── Blue — info / scout ──────────────────────────── */
-  --blue:           #3b82f6;
-  --blue-dim:       rgba(59, 130, 246, 0.14);
-
-  /* ── Red — danger / veto ──────────────────────────── */
-  --red:            #ef4444;
-  --red-dim:        rgba(239, 68, 68, 0.14);
-
-  /* ── Status ───────────────────────────────────────── */
-  --status-green:    #10b981;
-  --status-green-bg: rgba(16, 185, 129, 0.12);
-  --status-amber:    #f59e0b;
-  --status-amber-bg: rgba(245, 158, 11, 0.12);
-  --status-blue:     #3b82f6;
-  --status-blue-bg:  rgba(59, 130, 246, 0.12);
-  --status-red:      #ef4444;
-  --status-red-bg:   rgba(239, 68, 68, 0.12);
-  --status-gray:     #6b7280;
-  --status-gray-bg:  rgba(107, 114, 128, 0.12);
-
-  /* ── Shadows ──────────────────────────────────────── */
-  --shadow-card:   0 8px 40px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
-  --shadow-float:  0 20px 50px rgba(0, 0, 0, 0.45);
-  --shadow-amber:  0 0 40px rgba(245, 158, 11, 0.12);
-  --shadow-glow-sm: 0 0 24px rgba(245, 158, 11, 0.15);
 }
 
 /* ── Reset ────────────────────────────────────────── */
