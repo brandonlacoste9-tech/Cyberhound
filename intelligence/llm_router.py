@@ -119,37 +119,33 @@ def moonshot_generate(prompt: str, system: Optional[str] = None) -> str:
 
 
 def generate_text(prompt: str, system: Optional[str] = None) -> str:
-    prefer_ollama = AI_PROVIDER in {"auto", "ollama", "ollama-first"}
-
-    if prefer_ollama:
-        try:
-            return ollama_generate(prompt, system=system)
-        except Exception as e:
-            print(f"Warning: Ollama generation failed: {e}")
-            if AI_PROVIDER == "ollama" and DISABLE_PAID_FALLBACKS:
-                raise
-
-    if not DISABLE_PAID_FALLBACKS:
-        try:
-            return vertex_generate(prompt)
-        except Exception as e:
-            print(f"Warning: Vertex generation failed: {e}")
-
-    if not prefer_ollama:
-        return ollama_generate(prompt, system=system)
-
-    # 4. Final Fallback: DeepSeek or Moonshot if keys exist
+    # 1. Primary Strike Core: DeepSeek (High Speed, High Alpha)
     if DEEPSEEK_API_KEY:
         try:
             return deepseek_generate(prompt, system=system)
-        except: pass
-    
+        except Exception as e:
+            print(f"Warning: DeepSeek strike failed: {e}")
+
+    # 2. Secondary Strike Core: Moonshot
     if MOONSHOT_API_KEY:
         try:
             return moonshot_generate(prompt, system=system)
-        except: pass
+        except Exception as e:
+            print(f"Warning: Moonshot strike failed: {e}")
 
-    raise RuntimeError("No AI provider available")
+    # 3. Fallback to Local/Vertex
+    if not DISABLE_PAID_FALLBACKS:
+        try:
+            return vertex_generate(prompt)
+        except Exception:
+            pass
+
+    try:
+        return ollama_generate(prompt, system=system)
+    except Exception:
+        pass
+
+    raise RuntimeError("No AI provider available for the Strike Core")
 
 
 def generate_json(prompt: str, system: Optional[str] = None) -> dict:
