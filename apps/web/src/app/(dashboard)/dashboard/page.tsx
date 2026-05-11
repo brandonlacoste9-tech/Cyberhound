@@ -6,7 +6,6 @@ import {
   Activity, 
   Zap, 
   Target, 
-  Cpu, 
   Globe,
   DollarSign,
   Send,
@@ -18,7 +17,8 @@ import {
   MessageSquare,
   Mic,
   Eye,
-  PenTool
+  PenTool,
+  Database
 } from "lucide-react";
 
 interface HiveLog {
@@ -132,7 +132,7 @@ export default function OverlordDashboard() {
         role: 'assistant', 
         content: data.message || "DIRECTIVE RECEIVED. SWARM INITIATED." 
       }]);
-    } catch (err) {
+    } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: "COMMUNICATION GLITCH. DIRECTIVE CACHED FOR RETRY." }]);
     } finally {
       setIsProcessing(false);
@@ -269,7 +269,7 @@ export default function OverlordDashboard() {
                           style={{ width: `${con.final_score}%` }}
                         />
                       </div>
-                      <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-3 italic">"{con.rationale}"</p>
+                      <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-3 italic">&quot;{con.rationale}&quot;</p>
                     </div>
                   ))}
                </div>
@@ -316,7 +316,14 @@ export default function OverlordDashboard() {
   );
 }
 
-function StatTile({ title, value, icon, color }: any) {
+interface StatTileProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: string;
+}
+
+function StatTile({ title, value, icon, color }: StatTileProps) {
   return (
     <div className="glass-card p-4 flex flex-col gap-3 hover:border-cyan-500/20 transition-all cursor-default">
       <div className={`p-2 w-fit rounded-lg bg-white/5 ${color}`}>
@@ -330,7 +337,13 @@ function StatTile({ title, value, icon, color }: any) {
   );
 }
 
-function BeeStatus({ icon, name, status }: any) {
+interface BeeStatusProps {
+  icon: React.ReactNode;
+  name: string;
+  status: string;
+}
+
+function BeeStatus({ icon, name, status }: BeeStatusProps) {
   return (
     <div className="flex items-center gap-3 px-3">
       <div className="text-cyan-400 opacity-50">{icon}</div>
@@ -342,7 +355,13 @@ function BeeStatus({ icon, name, status }: any) {
   );
 }
 
-function AgentStatusRow({ name, role, pulse }: any) {
+interface AgentStatusRowProps {
+  name: string;
+  role: string;
+  pulse: string;
+}
+
+function AgentStatusRow({ name, role, pulse }: AgentStatusRowProps) {
   return (
     <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-transparent hover:border-white/5 transition-all">
       <div>
