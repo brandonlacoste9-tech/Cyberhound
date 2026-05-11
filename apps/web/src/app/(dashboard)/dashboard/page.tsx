@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { 
   Activity, 
@@ -8,7 +8,17 @@ import {
   Target, 
   Cpu, 
   Globe,
-  DollarSign
+  DollarSign,
+  Send,
+  User,
+  Bot,
+  Terminal,
+  ShieldCheck,
+  Search,
+  MessageSquare,
+  Mic,
+  Eye,
+  PenTool
 } from "lucide-react";
 
 interface HiveLog {
@@ -26,11 +36,17 @@ interface ConsensusLog {
   rationale: string;
 }
 
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export default function OverlordDashboard() {
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
+  
   const [logs, setLogs] = useState<HiveLog[]>([]);
   const [stats, setStats] = useState({
     mrr: 0,
@@ -39,18 +55,30 @@ export default function OverlordDashboard() {
     consensus_avg: 0 
   });
   const [consensus, setConsensus] = useState<ConsensusLog[]>([]);
+  
+  // Command Mind State
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'assistant', content: "COMMANDER. THE HIVE IS SYNCHRONIZED. ISSUE YOUR DIRECTIVES." }
+  ]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   useEffect(() => {
     const fetchData = async () => {
-      // 1. Fetch Hive Logs (Real Data)
       const { data: hiveLogs } = await supabase
         .from("hive_log")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(15);
       setLogs((hiveLogs as HiveLog[]) || []);
 
-      // 2. Fetch Stats (Real Data)
       const { data: campaigns } = await supabase
         .from("campaigns")
         .select("mrr, status");
@@ -69,7 +97,6 @@ export default function OverlordDashboard() {
         consensus_avg: 0 
       });
 
-      // 3. Fetch Consensus Logs (Real Data)
       const { data: conLogs } = await supabase
         .from("consensus_logs")
         .select("*")
@@ -79,148 +106,252 @@ export default function OverlordDashboard() {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 10000); // Pulse every 10s
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [supabase]);
 
+  const handleSendCommand = async () => {
+    if (!input.trim() || isProcessing) return;
+    
+    const userMsg = input.trim();
+    setInput("");
+    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    setIsProcessing(true);
+
+    try {
+      // Direct Task Injection Logic
+      const response = await fetch("/api/scout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: userMsg })
+      });
+      
+      const data = await response.json();
+      
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: data.message || "DIRECTIVE RECEIVED. SWARM INITIATED." 
+      }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', content: "COMMUNICATION GLITCH. DIRECTIVE CACHED FOR RETRY." }]);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen p-8 space-y-8 bg-[#1a1a2e]">
-      {/* ── HEADER ── */}
-      <header className="flex justify-between items-end">
-        <div>
-          <h1 className="text-4xl font-extrabold tracking-tighter text-gradient-cyan">
-            OVERLORD COMMAND DECK <span className="text-sm font-mono text-cyan-400 ml-2">V2.0_SOVEREIGN</span>
-          </h1>
-          <p className="text-slate-400 mt-2">Neural Operations: All Agents Synchronized.</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="pill-live">
-            <div className="pill-live__dot" />
-            SWARM PERSISTENT
-          </div>
-        </div>
-      </header>
-
-      {/* ── STATS GRID ── */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard title="MONTHLY REVENUE" value={`$${stats.mrr}`} icon={<DollarSign className="text-cyan-400" />} />
-        <StatCard title="ACTIVE SWARMS" value={stats.active_swarms} icon={<Globe className="text-cyan-400" />} />
-        <StatCard title="TOTAL LEADS" value={stats.total_leads} icon={<Target className="text-cyan-400" />} />
-        <StatCard title="HIVE PULSE" value="ACTIVE" icon={<Zap className="text-cyan-400" />} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* ── HIVE STREAM ── */}
-        <div className="lg:col-span-2 glass-card p-6 space-y-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="text-cyan-400" />
-            <h2 className="text-xl font-bold text-white uppercase tracking-widest">Neural Hive Stream</h2>
-          </div>
-          <div className="space-y-3 font-mono text-[10px] sm:text-xs max-h-[500px] overflow-y-auto scrollbar-hide">
-            {logs.map((log) => (
-              <div key={log.id} className="flex gap-4 p-3 rounded border border-cyan-500/20 bg-cyan-950/20 group hover:bg-cyan-900/30 transition-colors">
-                <span className="text-cyan-700">[{new Date(log.created_at).toLocaleTimeString()}]</span>
-                <span className="text-cyan-400 font-bold uppercase w-20">{log.bee}</span>
-                <span className="text-slate-400 flex-1">{log.action}</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${log.status === 'success' ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'}`}>
-                  {log.status.toUpperCase()}
-                </span>
+    <div className="min-h-screen bg-[#0a0a12] text-slate-200 font-sans selection:bg-cyan-500/30">
+      <div className="max-w-[1600px] mx-auto p-4 md:p-8 space-y-8">
+        
+        {/* ── SOVEREIGN HEADER ── */}
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-cyan-900/30 pb-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.5)]">
+                <ShieldCheck className="text-white w-6 h-6" />
               </div>
-            ))}
+              <h1 className="text-4xl font-black tracking-tight text-white uppercase italic">
+                Cyberhound <span className="text-cyan-400 not-italic">Overlord</span>
+              </h1>
+            </div>
+            <p className="text-slate-500 font-mono text-xs tracking-widest pl-13">HIVE_OS v2.4.0 // SINGULARITY_ACTIVE</p>
           </div>
-        </div>
+          <div className="flex items-center gap-6 bg-slate-900/40 p-3 rounded-2xl border border-white/5">
+             <BeeStatus icon={<Search />} name="ORACLE" status="SEARCHING" />
+             <BeeStatus icon={<PenTool />} name="CONTENT" status="WRITING" />
+             <BeeStatus icon={<Mic />} name="VOICE" status="VOICING" />
+             <BeeStatus icon={<Eye />} name="SHADOW" status="SPYING" />
+          </div>
+        </header>
 
-        {/* ── ORACLE PULSE ── */}
-        <div className="glass-card p-6 space-y-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Cpu className="text-cyan-400" />
-            <h2 className="text-xl font-bold text-white uppercase tracking-widest">Oracle Pulse</h2>
-          </div>
-          <div className="space-y-6">
-            {consensus.map((con) => (
-              <div key={con.id} className="space-y-2 p-4 rounded-lg bg-slate-900/40 border border-slate-800">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-300 font-bold truncate max-w-[180px]">{con.niche}</span>
-                  <span className="text-cyan-400 font-mono font-bold tracking-widest">{con.final_score}% ALPHA</span>
+        {/* ── THE TRIAD: Command | Pulse | Stats ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* ── COLUMN 1: Command & Stream (8/12) ── */}
+          <div className="lg:col-span-8 space-y-8">
+            
+            {/* ── STATS ROW ── */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatTile title="TOTAL MRR" value={`$${stats.mrr}`} icon={<DollarSign />} color="text-green-400" />
+              <StatTile title="SWARMS" value={stats.active_swarms} icon={<Globe />} color="text-cyan-400" />
+              <StatTile title="VERIFIED LEADS" value={stats.total_leads} icon={<Target />} color="text-blue-400" />
+              <StatTile title="NEURAL LOAD" value="14%" icon={<Zap />} color="text-amber-400" />
+            </div>
+
+            {/* ── QUEEN COMMAND TERMINAL ── */}
+            <div className="glass-card flex flex-col h-[500px]">
+              <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
+                <div className="flex items-center gap-2">
+                  <Terminal className="w-4 h-4 text-cyan-400" />
+                  <span className="text-xs font-black tracking-widest text-white uppercase">Queen Command Terminal</span>
                 </div>
-                <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-                  <div 
-                    className="h-full bg-gradient-to-r from-cyan-900 via-cyan-500 to-cyan-400 transition-all duration-1000"
-                    style={{ width: `${con.final_score}%` }}
+                <div className="flex gap-1.5">
+                   <div className="w-2 h-2 rounded-full bg-red-500/20 border border-red-500/50" />
+                   <div className="w-2 h-2 rounded-full bg-amber-500/20 border border-amber-500/50" />
+                   <div className="w-2 h-2 rounded-full bg-green-500/20 border border-green-500/50" />
+                </div>
+              </div>
+              <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-hide">
+                {messages.map((m, i) => (
+                  <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[80%] flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                      <div className={`w-8 h-8 rounded flex items-center justify-center shrink-0 ${m.role === 'user' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-800 text-slate-400'}`}>
+                        {m.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                      </div>
+                      <div className={`p-3 rounded-2xl text-sm leading-relaxed ${m.role === 'user' ? 'bg-cyan-600 text-white rounded-tr-none' : 'bg-slate-900 border border-white/5 text-slate-300 rounded-tl-none'}`}>
+                        {m.content}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-4 bg-white/5 border-t border-white/5">
+                <div className="relative">
+                  <input 
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendCommand()}
+                    placeholder="ISSUE A DIRECTIVE... (e.g. 'Build a high-ticket agency in Dubai')"
+                    className="w-full bg-slate-950 border border-cyan-500/20 rounded-xl p-4 pr-16 text-sm focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-slate-700"
                   />
+                  <button 
+                    onClick={handleSendCommand}
+                    className="absolute right-2 top-2 p-2 bg-cyan-500 hover:bg-cyan-400 text-black rounded-lg transition-colors"
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
                 </div>
-                <p className="text-[10px] text-slate-500 leading-tight line-clamp-2 mt-2">{con.rationale}</p>
               </div>
-            ))}
-            {consensus.length === 0 && (
-              <div className="text-center py-12 text-slate-600 font-mono text-xs italic">
-                Scanning grid for alpha signals...
+            </div>
+
+            {/* ── HIVE ACTIVITY STREAM ── */}
+            <div className="glass-card p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                   <Activity className="w-5 h-5 text-cyan-400" />
+                   <h2 className="text-lg font-bold uppercase tracking-tight">Neural Hive Stream</h2>
+                </div>
+                <span className="text-[10px] font-mono text-slate-600">PULSE: 0.8ms</span>
               </div>
-            )}
+              <div className="space-y-2">
+                {logs.map((log) => (
+                  <div key={log.id} className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
+                    <div className={`w-1.5 h-1.5 rounded-full ${log.status === 'success' ? 'bg-green-500 shadow-[0_0_8px_#10b981]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`} />
+                    <span className="text-slate-600 font-mono text-[10px] w-20">[{new Date(log.created_at).toLocaleTimeString()}]</span>
+                    <span className="text-cyan-400 font-black text-[10px] tracking-widest w-24 uppercase">{log.bee}</span>
+                    <span className="text-slate-400 text-xs flex-1 truncate">{log.action}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── COLUMN 2: Oracle & Workforce (4/12) ── */}
+          <div className="lg:col-span-4 space-y-8">
+            
+            {/* ── ORACLE CONSENSUS ── */}
+            <div className="glass-card p-6">
+               <div className="flex items-center gap-2 mb-6">
+                  <MessageSquare className="w-5 h-5 text-cyan-400" />
+                  <h2 className="text-lg font-bold uppercase tracking-tight">The Oracle Pulse</h2>
+               </div>
+               <div className="space-y-6">
+                  {consensus.map((con) => (
+                    <div key={con.id} className="p-4 rounded-2xl bg-slate-900/50 border border-white/5 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-white truncate max-w-[150px]">{con.niche}</span>
+                        <span className="text-cyan-400 font-mono text-[10px] font-black">{con.final_score}% ALPHA</span>
+                      </div>
+                      <div className="h-1 w-full bg-slate-950 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-cyan-600 to-cyan-300"
+                          style={{ width: `${con.final_score}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-3 italic">"{con.rationale}"</p>
+                    </div>
+                  ))}
+               </div>
+            </div>
+
+            {/* ── WORKFORCE HUD ── */}
+            <div className="glass-card p-6">
+               <div className="flex items-center gap-2 mb-6">
+                  <Database className="w-5 h-5 text-cyan-400" />
+                  <h2 className="text-lg font-bold uppercase tracking-tight">Workforce HUD</h2>
+               </div>
+               <div className="space-y-4">
+                  <AgentStatusRow name="HERMES" role="ORACLE" pulse="ACTIVE" />
+                  <AgentStatusRow name="ANALYST" role="OSINT" pulse="ACTIVE" />
+                  <AgentStatusRow name="CMO BEE" role="CONTENT" pulse="IDLE" />
+                  <AgentStatusRow name="COO BEE" role="VOICE" pulse="ACTIVE" />
+                  <AgentStatusRow name="SHADOW" role="DEEP SPY" pulse="HUNTING" />
+                  <AgentStatusRow name="CLOSER" role="OUTREACH" pulse="STRIKING" />
+               </div>
+            </div>
+
           </div>
         </div>
       </div>
 
       <style jsx>{`
+        .glass-card {
+          background: rgba(15, 23, 42, 0.4);
+          backdrop-filter: blur(24px);
+          border: 1px solid rgba(255, 255, 255, 0.03);
+          border-radius: 24px;
+          box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.5);
+        }
         .text-gradient-cyan {
-          background: linear-gradient(135deg, #00ffff 0%, #00d2ff 100%);
+          background: linear-gradient(135deg, #fff 0%, #00ffff 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
         }
-        .glass-card {
-          background: rgba(15, 23, 42, 0.6);
-          backdrop-filter: blur(16px);
-          border: 1px solid rgba(0, 255, 255, 0.1);
-          border-radius: 20px;
-          box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
-        }
-        .pill-live {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.6rem;
-          padding: 0.5rem 1.2rem;
-          border-radius: 999px;
-          font-size: 0.7rem;
-          font-weight: 800;
-          letter-spacing: 0.15em;
-          border: 1px solid rgba(0, 255, 255, 0.3);
-          background: rgba(0, 255, 255, 0.05);
-          color: #00ffff;
-          text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-        }
-        .pill-live__dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: #00ffff;
-          box-shadow: 0 0 12px #00ffff;
-          animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-          0% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(1.2); }
-          100% { opacity: 1; transform: scale(1); }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
         }
       `}</style>
     </div>
   );
 }
 
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
+function StatTile({ title, value, icon, color }: any) {
+  return (
+    <div className="glass-card p-4 flex flex-col gap-3 hover:border-cyan-500/20 transition-all cursor-default">
+      <div className={`p-2 w-fit rounded-lg bg-white/5 ${color}`}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-[10px] font-black tracking-widest text-slate-500 uppercase">{title}</p>
+        <p className="text-2xl font-black text-white mt-0.5">{value}</p>
+      </div>
+    </div>
+  );
 }
 
-function StatCard({ title, value, icon }: StatCardProps) {
+function BeeStatus({ icon, name, status }: any) {
   return (
-    <div className="glass-card p-6 flex items-center justify-between hover:border-cyan-500/50 transition-all cursor-default group hover:translate-y-[-2px]">
-      <div>
-        <p className="text-[10px] font-black text-slate-500 tracking-[0.25em] uppercase">{title}</p>
-        <p className="text-3xl font-black text-white mt-1 group-hover:text-cyan-400 transition-colors tracking-tighter">{value}</p>
+    <div className="flex items-center gap-3 px-3">
+      <div className="text-cyan-400 opacity-50">{icon}</div>
+      <div className="hidden md:block">
+        <p className="text-[9px] font-black text-slate-500 tracking-tighter">{name}</p>
+        <p className="text-[10px] font-bold text-white tracking-widest">{status}</p>
       </div>
-      <div className="p-3 bg-cyan-900/20 rounded-2xl group-hover:bg-cyan-900/40 transition-colors border border-cyan-500/10">
-        {icon}
+    </div>
+  );
+}
+
+function AgentStatusRow({ name, role, pulse }: any) {
+  return (
+    <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-transparent hover:border-white/5 transition-all">
+      <div>
+        <p className="text-xs font-bold text-white tracking-widest">{name}</p>
+        <p className="text-[9px] text-slate-500 font-mono">{role}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className={`text-[10px] font-black tracking-widest ${pulse === 'IDLE' ? 'text-slate-600' : 'text-cyan-400'}`}>{pulse}</span>
+        <div className={`w-1 h-1 rounded-full ${pulse === 'IDLE' ? 'bg-slate-700' : 'bg-cyan-400 shadow-[0_0_8px_#00ffff]'}`} />
       </div>
     </div>
   );
