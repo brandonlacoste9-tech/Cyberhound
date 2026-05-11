@@ -291,6 +291,21 @@ export default function OverlordDashboard() {
                </div>
             </div>
 
+            {/* ── COMMAND INTEL ── */}
+            <div className="glass-card p-6 border-cyan-500/10 bg-cyan-950/10">
+               <div className="flex items-center gap-2 mb-4">
+                  <Terminal className="w-5 h-5 text-cyan-400" />
+                  <h2 className="text-lg font-bold uppercase tracking-tight">Command Intel</h2>
+               </div>
+               <div className="space-y-3">
+                  <CommandItem cmd="HUNT [Niche]" desc="Launch a new global swarm" />
+                  <CommandItem cmd="STATUS" desc="Deep neural diagnostic" />
+                  <CommandItem cmd="AUDIT" desc="Generate revenue/lead report" />
+                  <CommandItem cmd="ORACLE [Query]" desc="Ask the Triple-Model Consensus" />
+                  <CommandItem cmd="BOOST [ID]" desc="Prioritize a specific campaign" />
+               </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -372,6 +387,20 @@ function AgentStatusRow({ name, role, pulse }: AgentStatusRowProps) {
         <span className={`text-[10px] font-black tracking-widest ${pulse === 'IDLE' ? 'text-slate-600' : 'text-cyan-400'}`}>{pulse}</span>
         <div className={`w-1 h-1 rounded-full ${pulse === 'IDLE' ? 'bg-slate-700' : 'bg-cyan-400 shadow-[0_0_8px_#00ffff]'}`} />
       </div>
+    </div>
+  );
+}
+
+interface CommandItemProps {
+  cmd: string;
+  desc: string;
+}
+
+function CommandItem({ cmd, desc }: CommandItemProps) {
+  return (
+    <div className="group flex flex-col p-2 rounded-lg hover:bg-cyan-500/5 transition-all cursor-help border border-transparent hover:border-cyan-500/10">
+       <span className="text-[11px] font-mono font-black text-cyan-400 tracking-wider group-hover:text-white transition-colors">{cmd}</span>
+       <span className="text-[9px] text-slate-600 font-bold uppercase tracking-tighter">{desc}</span>
     </div>
   );
 }
