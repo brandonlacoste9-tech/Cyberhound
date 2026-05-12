@@ -14,9 +14,13 @@ import { publicOriginFromHeaders } from "@/lib/site/public-origin";
 import { sendHiveUpdate } from "@/lib/telegram/notify";
 
 export const runtime = "nodejs";
-export const maxDuration = 300; 
+export const maxDuration = 300;
 
-const BATCH_SIZE = 25;
+// Enrichment: one batched HTTP call to /api/enrich — can handle larger batches
+const ENRICH_BATCH_SIZE = 100;
+// Closer: sequential per-lead LLM + Resend calls (~2-3s each)
+// 50 × 2.5s avg + 50 × 200ms delay = ~135s — safely within 300s limit
+const CLOSER_BATCH_SIZE = 50;
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -47,7 +51,7 @@ export async function GET(req: NextRequest) {
     .select("id, company, url")
     .eq("status", "new")
     .not("company", "is", null)
-    .limit(BATCH_SIZE);
+    .limit(ENRICH_BATCH_SIZE);
 
   let enrichedCount = 0;
   if (canEnrich && newLeads && newLeads.length > 0) {
@@ -72,7 +76,7 @@ export async function GET(req: NextRequest) {
     .select("id, contact_email, status")
     .eq("status", "enriched")
     .not("contact_email", "is", null)
-    .limit(BATCH_SIZE);
+    .limit(CLOSER_BATCH_SIZE);
 
   let outreachCount = 0;
   if (readyLeads && readyLeads.length > 0) {
@@ -86,7 +90,7 @@ export async function GET(req: NextRequest) {
         const data = await res.json();
         // Count as success if email sent OR sequence was queued (no Resend key)
         if (data.sent || data.sequence) outreachCount++;
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 200)); // 200ms — 4× faster than before
       } catch (e) {
         console.error("[Backlog Cron] Closer error:", e);
       }
