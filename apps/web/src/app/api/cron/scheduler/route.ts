@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { Resend } from "resend";
 import { sendHiveUpdate } from "@/lib/telegram/notify";
+import { publicOriginFromHeaders } from "@/lib/site/public-origin";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // Vercel Pro: up to 300s
@@ -66,6 +67,18 @@ export async function GET(req: NextRequest) {
     details: { timestamp: now },
     status: "success"
   });
+
+  const origin = publicOriginFromHeaders(req.headers) ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://cyberhound.vercel.app";
+  
+  // ── Trigger Backlog Processor ──
+  try {
+    await fetch(`${origin}/api/cron/backlog`, {
+      method: "GET",
+      headers: { "Authorization": `Bearer ${cronSecret}` },
+    });
+  } catch (e) {
+    console.error("[Scheduler] Backlog trigger failed:", e);
+  }
 
   const { data: dueSequences, error } = await db
     .from("follow_up_sequences")

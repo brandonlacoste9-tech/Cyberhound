@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -62,6 +62,17 @@ export default function AnalystPage() {
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [log, setLog] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"scan" | "leads">("scan");
+  
+  // Load backlog on mount
+  useEffect(() => {
+    fetch("/api/analyst?status=all&limit=100")
+      .then(res => res.json())
+      .then(data => {
+        if (data.leads) setLeads(data.leads);
+      })
+      .catch(console.error);
+  }, []);
+
 
   function addLog(msg: string) {
     setLog((prev) => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev.slice(0, 49)]);
