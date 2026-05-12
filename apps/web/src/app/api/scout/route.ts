@@ -1,48 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { chat } from "@/lib/llm/client";
-import { findRecentOpportunity } from "@/lib/autonomy";
-import { buildSearchContext, hasLiveSearchProvider, searchWeb } from "@/lib/live-search";
-import { publicOriginFromRequest } from "@/lib/site/public-origin";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHiveUpdate } from "@/lib/telegram/notify";
-
-function shouldAutoApproveScout(score: number, competitionLevel: string): boolean {
-  const minScore = Number(process.env.SCOUT_AUTO_APPROVE_MIN_SCORE);
-  const threshold = Number.isFinite(minScore) && minScore > 0 ? minScore : 70;
-  if (String(competitionLevel).toLowerCase() === "high") return false;
-  return score >= threshold;
-}
-
-async function triggerAutonomousBuilder(req: NextRequest, opportunity: Record<string, unknown>) {
-  const origin = publicOriginFromRequest(req);
-
-  const copyRes = await fetch(`${origin}/api/builder`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ opportunity, action: "generate_copy" }),
-    cache: "no-store",
-  });
-  const copyData = await copyRes.json();
-  if (!copyRes.ok || !copyData?.campaign_id) {
-    return { copy: copyData, launch: null };
-  }
-
-  let launchData: Record<string, unknown> | null = null;
-  if (process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== "sk_test_placeholder") {
-    const launchRes = await fetch(`${origin}/api/builder`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        opportunity: { ...opportunity, campaign_id: copyData.campaign_id },
-        action: "create_stripe_product",
-      }),
-      cache: "no-store",
-    });
-    launchData = await launchRes.json();
-  }
-
-  return { copy: copyData, launch: launchData };
-}
 
 export async function POST(req: NextRequest) {
   try {
