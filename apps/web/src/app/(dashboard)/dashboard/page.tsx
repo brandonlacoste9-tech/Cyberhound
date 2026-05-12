@@ -37,15 +37,7 @@ export default function OverlordDashboard() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const supabase = useMemo(() => {
-    if (!supabaseUrl || !supabaseAnonKey) return null;
-    try {
-      return createBrowserClient(supabaseUrl, supabaseAnonKey);
-    } catch (e) {
-      console.error("Failed to create Supabase client:", e);
-      return null;
-    }
-  }, [supabaseUrl, supabaseAnonKey]);
+  
   
   const [logs, setLogs] = useState<HiveLog[]>([]);
   const [stats, setStats] = useState({

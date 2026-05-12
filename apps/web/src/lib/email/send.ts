@@ -11,7 +11,7 @@ export interface EmailPayload {
  * Unified Email Dispatcher
  * Priority: Resend -> Mailgun -> Log
  */
-export async function sendEmail(payload: EmailPayload): Promise<{ id?: string; error?: any }> {
+export async function sendEmail(payload: EmailPayload): Promise<{ id?: string; error?: string | Error | unknown }> {
   const { to, subject, text, from = "Brandon | CyberHound <cyberhound@adgenai.ca>" } = payload;
 
   // 1. Try Resend

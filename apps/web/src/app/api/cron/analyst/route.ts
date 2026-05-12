@@ -13,12 +13,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { chat } from "@/lib/llm/client";
-import { hasActiveOutreach } from "@/lib/autonomy";
 import { hasLiveSearchProvider, searchWeb } from "@/lib/live-search";
 import { publicOriginFromHeaders } from "@/lib/site/public-origin";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHiveUpdate } from "@/lib/telegram/notify";
-import { Resend } from "resend";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;

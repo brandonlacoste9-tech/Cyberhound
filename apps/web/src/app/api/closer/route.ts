@@ -377,7 +377,7 @@ export async function POST(req: NextRequest) {
 
       // Send Email 1 immediately
       const email1 = sequence[0];
-      const results: any[] = [];
+      const results: Record<string, unknown>[] = [];
 
       for (const recipient of recipientList) {
         if (!verifyRecipient(recipient.email)) {
