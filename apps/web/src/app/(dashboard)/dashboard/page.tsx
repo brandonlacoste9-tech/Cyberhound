@@ -82,30 +82,10 @@ export default function OverlordDashboard() {
 
     const fetchData = async () => {
       try {
-        const { data: hiveLogs } = await supabase
-          .from("hive_log")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(15);
-        if (hiveLogs) setLogs(hiveLogs as HiveLog[]);
-
-        const { data: campaigns } = await supabase
-          .from("campaigns")
-          .select("mrr, status");
-        
-        const mrr = campaigns?.reduce((acc, curr) => acc + (curr.mrr || 0), 0) || 0;
-        const active = campaigns?.filter(c => c.status === 'live').length || 0;
-        
-        const { count: leadCount } = await supabase
-          .from("analyst_leads")
-          .select("*", { count: 'exact', head: true });
-
-        setStats({
-          mrr,
-          active_swarms: active,
-          total_leads: leadCount || 0,
-          consensus_avg: 0 
-        });
+        const res = await fetch("/api/dashboard");
+        const data = await res.json();
+        if (data.logs) setLogs(data.logs);
+        if (data.stats) setStats(prev => ({ ...prev, ...data.stats }));
       } catch (e) {
         console.error("Fetch error:", e);
       }
@@ -114,7 +94,7 @@ export default function OverlordDashboard() {
     fetchData();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, [supabase]);
+  }, []); // Remove supabase dependency as we use fetch
 
   const handleSendCommand = async () => {
     if (!input.trim() || isProcessing) return;
