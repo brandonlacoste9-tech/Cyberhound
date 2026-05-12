@@ -19,8 +19,8 @@ export const maxDuration = 300;
 // Enrichment: one batched HTTP call to /api/enrich — can handle larger batches
 const ENRICH_BATCH_SIZE = 100;
 // Closer: sequential per-lead LLM + Resend calls (~2-3s each)
-// 50 × 2.5s avg + 50 × 200ms delay = ~135s — safely within 300s limit
-const CLOSER_BATCH_SIZE = 50;
+// 10 × 2.5s avg + 10 × 200ms delay = ~27s — safely within 300s limit
+const CLOSER_BATCH_SIZE = 10;
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
