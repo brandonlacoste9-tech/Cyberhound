@@ -94,123 +94,75 @@ export default function CampaignsPage() {
     loadCampaigns();
   }, [loadCampaigns]);
 
-  async function handleBuildDemo() {
+  async function triggerManualHunt() {
+    if (!confirm("Dispatch the Hive for a global North American hunt?")) return;
     setBuilding(true);
-    setBuildStep("Generating landing page copy...");
+    setBuildStep("Queen dispatching bees...");
     try {
-      const copyRes = await fetch("/api/builder", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "generate_copy",
-          opportunity: {
-            niche: "AI Scheduling for Dental Clinics",
-            market: "North America",
-            recommended_price_point: "$197/mo",
-            estimated_mrr_potential: "$5K-$20K/mo",
-            queen_reasoning:
-              "Dental clinics waste 8+ hours/week on scheduling. AI automation is a clear ROI win.",
-          },
-        }),
+      const res = await fetch("/api/cron/hunt", {
+        headers: { Authorization: "Bearer cyberhound-scheduler" }
       });
-      const copyData = (await copyRes.json()) as {
-        copy?: Record<string, unknown>;
-        error?: string;
-        campaign_id?: string;
-        landing_page_url?: string;
-        persist_error?: string;
-      };
-
-      if (!copyRes.ok || copyData.error) {
-        setBuildStep(copyData.error ?? "Build failed — check API configuration");
+      if (!res.ok) throw new Error();
+      setBuildStep("Success. Refreshing hive...");
+      setTimeout(() => {
         setBuilding(false);
-        return;
-      }
-
-      if (copyData.persist_error) {
-        setBuildStep(
-          `Copy generated but not saved: ${copyData.persist_error}. Check Supabase env.`
-        );
-        setBuilding(false);
-        await loadCampaigns();
-        return;
-      }
-
-      setBuildStep(
-        copyData.landing_page_url
-          ? "Landing page is live — opening list below."
-          : "Copy generated."
-      );
-      await loadCampaigns();
-      setBuilding(false);
-      setTimeout(() => setBuildStep(""), 4000);
+        loadCampaigns();
+      }, 2000);
     } catch {
-      setBuildStep("Build failed — check API configuration");
+      alert("Dispatch failed. Check logs.");
       setBuilding(false);
     }
   }
 
-  const showEmpty = !listLoading && campaigns.length === 0;
-
   return (
     <div className="space-y-8">
       <PageHeader
-        icon={<span aria-hidden>🚀</span>}
-        eyebrow="Pipeline · Builder Bee"
+        icon={<Layers className="w-6 h-6" style={{ color: "var(--status-amber)" }} />}
         title="Campaigns"
         subtitle="Builder Bee — live campaigns, payment links, and public landing pages."
         actions={
           <button
             type="button"
-            onClick={handleBuildDemo}
+            onClick={triggerManualHunt}
             disabled={building}
-            className="btn-primary gap-2 text-sm"
+            className="btn-amber gap-2"
           >
-            {building ? <Loader2 className="h-4 w-4 spin" /> : <Layers className="h-4 w-4" />}
-            {building ? "Building…" : "Trigger manual hunt"}
+            {building ? (
+              <>
+                <Loader2 className="w-4 h-4 spin" />
+                {buildStep}
+              </>
+            ) : (
+              <>Trigger manual hunt</>
+            )}
           </button>
         }
       />
 
-      {buildStep && (
-        <div
-          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
-          style={{
-            background: "var(--status-blue-bg)",
-            border: "1px solid rgba(37,99,235,0.15)",
-            color: "var(--status-blue)",
-          }}
-        >
-          {building ? (
-            <Loader2 className="w-4 h-4 spin shrink-0" />
-          ) : (
-            <CheckCircle className="w-4 h-4 shrink-0" />
-          )}
-          {buildStep}
-        </div>
-      )}
-
-      {listLoading ? (
-        <div className="card p-16 text-center">
-          <Loader2 className="w-8 h-8 mx-auto spin" style={{ color: "var(--text-muted)" }} />
-          <p className="text-sm mt-4" style={{ color: "var(--text-muted)" }}>
-            Loading campaigns…
+      {listLoading && campaigns.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <Loader2 className="w-8 h-8 spin" style={{ color: "var(--text-faint)" }} />
+          <p className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+            Scanning the hive for active campaigns...
           </p>
         </div>
-      ) : showEmpty ? (
-        <div className="card p-16 text-center">
-          <Layers className="w-10 h-10 mx-auto mb-4" style={{ color: "var(--text-faint)" }} />
-          <p className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
-            No campaigns yet
+      ) : campaigns.length === 0 ? (
+        <div className="card p-12 text-center border-dashed">
+          <div className="flex justify-center mb-4">
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+              <span className="text-2xl">🐝</span>
+            </div>
+          </div>
+          <h3 className="text-lg font-bold mb-2">No Active Campaigns</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
+            The Hive is currently idle. Trigger a manual hunt or wait for the autonomous scheduler to pick a niche.
           </p>
-          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-            Approve an opportunity to trigger Builder Bee, or click &quot;Build Demo Campaign&quot;
-          </p>
+          <button onClick={triggerManualHunt} className="btn-amber">Dispatch Hunt Bee</button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {campaigns.map((campaign) => (
-            <CampaignCard key={campaign.id} campaign={campaign} />
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {campaigns.map((c) => (
+            <CampaignCard key={c.id} campaign={c} />
           ))}
         </div>
       )}
@@ -222,7 +174,7 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
   const [showCopy, setShowCopy] = useState(false);
   const cfg = statusCfg(campaign.status);
   const copy = campaign.copy as Record<string, string> | undefined;
-  const mrrDisplay = (campaign.mrr / 100).toLocaleString(undefined, {
+  const mrrDisplay = ((campaign.mrr || 0) / 100).toLocaleString(undefined, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
@@ -275,10 +227,10 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
             style={{ background: "var(--bg-muted)", border: "1px solid var(--border)" }}
           >
             <p className="text-base font-bold mb-1" style={{ color: "var(--text-primary)" }}>
-              {copy.headline}
+              {String(copy.headline || "Building Copy...")}
             </p>
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              {copy.subheadline}
+              {String(copy.subheadline || "")}
             </p>
           </div>
 
@@ -319,7 +271,7 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
                   className="inline-block px-4 py-2 rounded-lg text-sm font-semibold"
                   style={{ background: "var(--text-primary)", color: "#ffffff" }}
                 >
-                  {copy.cta_primary}
+                  {String(copy.cta_primary)}
                 </span>
               )}
             </div>

@@ -55,11 +55,18 @@ async function extractLeads(
 ): Promise<Array<Record<string, unknown>>> {
   if (results.length === 0) return [];
 
-  const prompt = `You are the Analyst Bee for CyberHound. Extract warm B2B leads from these ${mode} results.
+  const prompt = `You are the Analyst Bee, a high-performance signal interceptor in the Cyberhound Neural Workforce.
+Your mission: extract high-urgency B2B leads from these ${mode} results.
 Context: ${context}
 
 Results:
 ${results.map((r, i) => `[${i + 1}] URL: ${r.url}\nTitle: ${r.title}\nSnippet: ${r.description}`).join("\n\n")}
+
+RULES:
+- Identify "High Urgency" signals: people losing money, active budgets, or extreme pain.
+- Filter out "Ghost Leads": anonymous, pre-revenue, or low-quality startups.
+- Focus on: Decision makers, specific pain points, and recommended high-ticket services.
+- Hook: Create a personalization hook that sounds like institutional intelligence, not a bot.
 
 Return ONLY valid JSON array (skip non-leads):
 [{
@@ -76,6 +83,7 @@ Return ONLY valid JSON array (skip non-leads):
   "personalization_hook": "...",
   "status": "new"
 }]`;
+
 
   try {
     const raw = await chat([{ role: "user", content: prompt }], {

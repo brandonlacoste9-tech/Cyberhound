@@ -42,8 +42,8 @@ const COMMANDS: Command[] = [
     prompt: "Validate our top opportunity. Score it 0–100 on: market size, competition, willingness to pay, speed to revenue, and Brandon's unfair advantage. Give a final go/no-go verdict." },
   { label: "30-Day Plan",icon: "📅", tag: "/plan",     color: "var(--blue)",         bg: "var(--blue-dim)",
     prompt: "Generate a 30-day execution plan to launch a SaaS and hit $5K MRR. Week-by-week breakdown: build, launch, outreach, and iterate. Be specific and actionable." },
-  { label: "Québec",     icon: "🍁", tag: "/qc",       color: "var(--red)",          bg: "var(--red-dim)",
-    prompt: "Switch to Québec Mode. Identify the top 3 high-MRR opportunities specifically for the Québec / French-Canadian market. Consider bilingual requirements, local regulations, and cultural fit." },
+  { label: "Neural",     icon: "🧠", tag: "/neural",    color: "var(--amber)",        bg: "var(--amber-dim)",
+    prompt: "Activate Neural Workforce. Scan all signal modes (Upwork, Churn, Reddit) for the highest-urgency B2B leads right now. Ignore low-budget projects and focus on enterprise pain points." },
   { label: "Veto",       icon: "🚫", tag: "/veto",     color: "var(--red)",          bg: "var(--red-dim)",
     prompt: "C'est pas chill. Veto the current top opportunity and explain why it's not the right move. Then immediately pivot and identify the next best alternative." },
 ];
@@ -52,7 +52,7 @@ const INITIAL_MESSAGES: Message[] = [
   {
     id: "1",
     role: "queen",
-    content: "Queen Bee online. CyberHound v1.0 initialized.\n\nScanning North American markets for high-MRR opportunities. Awaiting your directive — use the commands below or type your own.",
+    content: "Queen Bee online. CyberHound Neural Workforce initialized.\n\nMonitoring North American B2B signal streams. Awaiting your directive.",
     timestamp: new Date(),
   },
 ];

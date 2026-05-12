@@ -234,7 +234,12 @@ Return ONLY this JSON (no markdown):
         });
       } catch (stripeErr) {
         console.error("[Hunt Cron] Stripe error:", stripeErr);
+        // Still move to live (or 'ready') status if copy is done
+        await db.from("campaigns").update({ status: "live" }).eq("id", campaign.id);
       }
+    } else {
+      // No Stripe? Still mark as live/ready for outreach
+      await db.from("campaigns").update({ status: "live" }).eq("id", campaign.id);
     }
 
     return { campaign_id: campaign.id, landing_page_url };
@@ -328,14 +333,18 @@ export async function GET(req: NextRequest) {
 
   // Pick NICHES_PER_RUN niches randomly each run to avoid stale rotation
   const NICHE_TARGETS_FOR_RANDOM = [
-    "site:osha.gov violation manufacturing 2024 2025",
-    "small manufacturer OSHA 300A compliance software site:linkedin.com",
-    "upwork.com OSHA compliance reporting automation",
-    "site:upwork.com shopify chargeback fraud automation",
-    "shopify high risk merchant fraud prevention site:linkedin.com",
-    "OSHA safety training automation for construction companies",
-    "automated OSHA 300 log management for small factories",
-    "Shopify Plus fraud protection automation for high volume stores",
+    "site:osha.gov violation manufacturing 2025",
+    "small manufacturer OSHA 300A compliance automation",
+    "upwork.com HIPAA compliance reporting for clinics",
+    "site:upwork.com SOC2 compliance automation for startups",
+    "ISO 27001 automation for European SMEs",
+    "site:linkedin.com GDPR compliance officer for mid-market",
+    "automated environmental reporting for manufacturing firms",
+    "Shopify Plus fraud protection automation",
+    "real estate contract review automation for property managers",
+    "AI-powered medical billing audit for small practices",
+    "automated tax reconciliation for Dutch SMEs",
+    "German insurance claims intake automation",
   ];
 
   const shuffled = [...NICHE_TARGETS_FOR_RANDOM].sort(() => Math.random() - 0.5);

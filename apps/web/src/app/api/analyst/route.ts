@@ -33,41 +33,31 @@ export interface AnalystLead {
   urgency: "high" | "medium" | "low";
   recommended_service: string;
   personalization_hook: string;
-  status: "new" | "enriched" | "queued" | "sent" | "replied";
-  created_at?: string;
 }
 
-// ── Live search helper ───────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
-// ── LLM signal extraction ─────────────────────────────────────────────────────
-
-async function extractSignals(
+async function extractLeads(
   mode: "upwork" | "churn" | "reddit",
-  rawResults: Array<{ url: string; title: string; description: string }>,
-  niche: string
+  results: Array<{ url: string; title: string; description: string }>,
+  context: string
 ): Promise<AnalystLead[]> {
-  const systemPrompt = `You are the Analyst Bee for CyberHound, an autonomous revenue generation system.
-Your job is to extract high-quality warm leads from search results.
-Mode: ${mode}
-Niche: ${niche}
+  if (results.length === 0) return [];
 
-For each result, extract:
-- Whether it's a genuine buying signal (skip if not)
-- The company/person behind it
-- Their specific pain point
-- Urgency level (high/medium/low)
-- Best service to pitch (automation, AI integration, web app, SaaS, etc.)
-- A personalization hook (specific detail from their post/review to reference in outreach)
+  const prompt = `You are the Analyst Bee, a high-performance signal interceptor in the Cyberhound Neural Workforce.
+Your mission: extract high-urgency B2B leads from these ${mode} results.
+Context: ${context}
 
-Return ONLY valid JSON array. No markdown, no explanation.
+Results:
+${results.map((r, i) => `[${i + 1}] URL: ${r.url}\nTitle: ${r.title}\nSnippet: ${r.description}`).join("\n\n")}
 
-ZERO-FRICTION DIRECTIVE: Hermes doesn't ask questions. You don't ask questions. If a signal is ambiguous, interpret it as the most high-alpha opportunity. Figure it out.`;
+RULES:
+- Identify "High Urgency" signals: people losing money, active budgets, or extreme pain.
+- Filter out "Ghost Leads": anonymous, pre-revenue, or low-quality startups.
+- Focus on: Decision makers, specific pain points, and recommended high-ticket services.
+- Hook: Create a personalization hook that sounds like institutional intelligence, not a bot.
 
-  const userPrompt = `Extract warm leads from these ${mode} results for niche: "${niche}":
-
-${rawResults.map((r, i) => `[${i + 1}] URL: ${r.url}\nTitle: ${r.title}\nSnippet: ${r.description}`).join("\n\n")}
-
-Return JSON array of leads:
+Return ONLY valid JSON array (skip non-leads):
 [{
   "source": "${mode}",
   "signal_type": "upwork_job|bad_review|reddit_ask",
@@ -84,178 +74,71 @@ Return JSON array of leads:
 }]`;
 
   try {
-    const response = await chat(
-      [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      { temperature: 0.3, max_tokens: 3000, response_format: { type: "json_object" } }
-    );
-
-    // Handle both array and {leads: [...]} responses
-    const parsed = JSON.parse(response);
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed.leads) return parsed.leads;
-    if (parsed.results) return parsed.results;
-    // If object with numeric keys
-    const values = Object.values(parsed);
-    if (values.length > 0 && Array.isArray(values[0])) return values[0] as AnalystLead[];
-    return [];
-  } catch (e) {
-    console.error("[Analyst] LLM parse error:", e);
+    const raw = await chat([{ role: "user", content: prompt }], {
+      temperature: 0.3,
+      max_tokens: 3000,
+      response_format: { type: "json_object" },
+    });
+    const parsed = JSON.parse(raw);
+    const leads = Array.isArray(parsed) ? parsed : (parsed.leads || parsed.results || []);
+    return leads as AnalystLead[];
+  } catch {
     return [];
   }
 }
-
-// ── Mode: Upwork ──────────────────────────────────────────────────────────────
 
 async function runUpworkMode(niche: string, limit: number): Promise<AnalystLead[]> {
-  const queries = [
-    `site:upwork.com/jobs "${niche}" budget`,
-    `upwork.com job post "${niche}" automation OR "web app" OR "AI" 2025 2026`,
-    `upwork freelance project "${niche}" "looking for" developer`,
-  ];
-
-  const allResults: Array<{ url: string; title: string; description: string }> = [];
-  for (const q of queries) {
-    const results = await searchWeb(q, Math.ceil(limit / queries.length));
-    allResults.push(...results);
-  }
-
-  // Deduplicate by URL
-  const seen = new Set<string>();
-  const unique = allResults.filter((r) => {
-    if (seen.has(r.url)) return false;
-    seen.add(r.url);
-    return true;
-  });
-
-  return extractSignals("upwork", unique.slice(0, limit), niche);
+  const q = `site:upwork.com/jobs "${niche}" budget`;
+  const results = await searchWeb(q, limit);
+  return extractLeads("upwork", results, niche);
 }
-
-// ── Mode: Churn (competitor bad reviews) ─────────────────────────────────────
 
 async function runChurnMode(competitors: string[], limit: number): Promise<AnalystLead[]> {
-  const allResults: Array<{ url: string; title: string; description: string }> = [];
-
-  for (const competitor of competitors) {
-    const queries = [
-      `site:g2.com "${competitor}" review 1 star 2 star "disappointed" OR "switching" OR "cancelled"`,
-      `site:capterra.com "${competitor}" review "not worth" OR "switching to" OR "cancelled"`,
-      `"${competitor}" review "looking for alternative" OR "switched from" OR "disappointed"`,
-    ];
-    for (const q of queries) {
-      const results = await searchWeb(q, Math.ceil(limit / (competitors.length * queries.length)));
-      allResults.push(...results);
-    }
-  }
-
-  const seen = new Set<string>();
-  const unique = allResults.filter((r) => {
-    if (seen.has(r.url)) return false;
-    seen.add(r.url);
-    return true;
-  });
-
-  return extractSignals("churn", unique.slice(0, limit), competitors.join(", "));
+  const comp = competitors[Math.floor(Math.random() * competitors.length)];
+  const q = `site:g2.com "${comp}" review "switching" OR "disappointed"`;
+  const results = await searchWeb(q, limit);
+  return extractLeads("churn", results, comp);
 }
-
-// ── Mode: Reddit ──────────────────────────────────────────────────────────────
 
 async function runRedditMode(subreddits: string[], keywords: string[], limit: number): Promise<AnalystLead[]> {
-  const allResults: Array<{ url: string; title: string; description: string }> = [];
-
-  for (const sub of subreddits) {
-    for (const kw of keywords) {
-      const q = `site:reddit.com/r/${sub} "${kw}" "recommend" OR "looking for" OR "anyone use" OR "best tool"`;
-      const results = await searchWeb(q, Math.ceil(limit / (subreddits.length * keywords.length)));
-      allResults.push(...results);
-    }
-  }
-
-  const seen = new Set<string>();
-  const unique = allResults.filter((r) => {
-    if (seen.has(r.url)) return false;
-    seen.add(r.url);
-    return true;
-  });
-
-  return extractSignals("reddit", unique.slice(0, limit), keywords.join(", "));
+  const sub = subreddits[Math.floor(Math.random() * subreddits.length)];
+  const kw = keywords[Math.floor(Math.random() * keywords.length)];
+  const q = `site:reddit.com/r/${sub} "${kw}" "recommend" OR "looking for"`;
+  const results = await searchWeb(q, limit);
+  return extractLeads("reddit", results, `${sub} - ${kw}`);
 }
-
-// ── Persist leads to Supabase ─────────────────────────────────────────────────
 
 async function persistLeads(leads: AnalystLead[]): Promise<AnalystLead[]> {
   const db = getSupabaseServer();
-
-  const toInsert = leads.map((l) => ({
-    source: l.source,
-    signal_type: l.signal_type,
-    title: l.title,
-    url: l.url,
-    raw_text: l.raw_text?.slice(0, 2000),
-    company: l.company ?? null,
-    contact_name: l.contact_name ?? null,
-    contact_email: l.contact_email ?? null,
-    contact_linkedin: l.contact_linkedin ?? null,
-    budget: l.budget ?? null,
-    pain_point: l.pain_point,
-    urgency: l.urgency,
-    recommended_service: l.recommended_service,
-    personalization_hook: l.personalization_hook,
-    status: "new",
-  }));
-
-  const { data, error } = await db
-    .from("analyst_leads")
-    .upsert(toInsert, { onConflict: "url", ignoreDuplicates: true })
-    .select();
-
+  const { data, error } = await db.from("analyst_leads").insert(leads).select();
   if (error) {
-    console.error("[Analyst] Supabase persist error:", error);
-    return leads; // Return original if DB fails
+    console.error("[Analyst Persist Error]", error);
+    return leads;
   }
-
-  return (data as AnalystLead[]) ?? leads;
+  return (data || []) as AnalystLead[];
 }
 
-// ── Main handler ──────────────────────────────────────────────────────────────
+// ── Main handler ───────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
+    const { 
+      mode = "all", 
+      niche = "SaaS development", 
+      competitors = ["Zapier", "Make.com"],
+      subreddits = ["SaaS", "startups"],
+      keywords = ["automation"],
+      limit = 10,
+      persist = true
+    } = await req.json();
+
     if (!hasLiveSearchProvider()) {
-      return NextResponse.json(
-        { error: "Analyst requires a live search provider (FIRECRAWL_API_KEY or APIFY_API_TOKEN)." },
-        { status: 503 }
-      );
-    }
-
-    const body = await req.json();
-    const {
-      mode,
-      // upwork mode
-      niche = "OSHA compliance automation",
-      // churn mode
-      competitors = ["EverSafe", "SafetySync", "Signifyd", "NoFraud"],
-      // reddit mode
-      subreddits = ["manufacturing", "Shopify", "ecommerce", "safety"],
-      keywords = ["OSHA compliance software", "shopify fraud prevention", "chargeback automation"],
-      // shared
-      limit = 15,
-      persist = true,
-    } = body;
-
-    if (!mode || !["upwork", "churn", "reddit", "all"].includes(mode)) {
-      return NextResponse.json(
-        { error: "mode must be: upwork | churn | reddit | all" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No live search provider configured." }, { status: 503 });
     }
 
     const db = getSupabaseServer();
     const leads: AnalystLead[] = [];
 
-    // ── Run selected mode(s) ──
     if (mode === "upwork" || mode === "all") {
       const upworkLeads = await runUpworkMode(niche, limit);
       leads.push(...upworkLeads);

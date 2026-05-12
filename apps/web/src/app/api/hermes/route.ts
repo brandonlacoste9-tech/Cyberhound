@@ -1,10 +1,10 @@
-import { createClient } from '@/lib/supabase/server';
+import { getSupabaseServer } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const supabase = await createClient();
+  const supabase = getSupabaseServer();
 
   try {
     // 1. Fetch latest Hermes Activity
@@ -31,7 +31,7 @@ export async function GET() {
       consensus: consensus || []
     });
 
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Neural Disconnect" }, { status: 500 });
   }
 }

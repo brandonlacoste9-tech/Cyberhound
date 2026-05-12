@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { 
   Activity, 
@@ -18,7 +18,8 @@ import {
   Mic,
   Eye,
   PenTool,
-  Database
+  Database,
+  Loader2
 } from "lucide-react";
 
 interface HiveLog {
@@ -42,10 +43,18 @@ interface Message {
 }
 
 export default function OverlordDashboard() {
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const supabase = useMemo(() => {
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+    try {
+      return createBrowserClient(supabaseUrl, supabaseAnonKey);
+    } catch (e) {
+      console.error("Failed to create Supabase client:", e);
+      return null;
+    }
+  }, [supabaseUrl, supabaseAnonKey]);
   
   const [logs, setLogs] = useState<HiveLog[]>([]);
   const [stats, setStats] = useState({
@@ -71,38 +80,44 @@ export default function OverlordDashboard() {
   }, [messages]);
 
   useEffect(() => {
+    if (!supabase) return;
+
     const fetchData = async () => {
-      const { data: hiveLogs } = await supabase
-        .from("hive_log")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(15);
-      setLogs((hiveLogs as HiveLog[]) || []);
+      try {
+        const { data: hiveLogs } = await supabase
+          .from("hive_log")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(15);
+        if (hiveLogs) setLogs(hiveLogs as HiveLog[]);
 
-      const { data: campaigns } = await supabase
-        .from("campaigns")
-        .select("mrr, status");
-      
-      const mrr = campaigns?.reduce((acc, curr) => acc + (curr.mrr || 0), 0) || 0;
-      const active = campaigns?.filter(c => c.status === 'live').length || 0;
-      
-      const { count: leadCount } = await supabase
-        .from("analyst_leads")
-        .select("*", { count: 'exact', head: true });
+        const { data: campaigns } = await supabase
+          .from("campaigns")
+          .select("mrr, status");
+        
+        const mrr = campaigns?.reduce((acc, curr) => acc + (curr.mrr || 0), 0) || 0;
+        const active = campaigns?.filter(c => c.status === 'live').length || 0;
+        
+        const { count: leadCount } = await supabase
+          .from("analyst_leads")
+          .select("*", { count: 'exact', head: true });
 
-      setStats({
-        mrr,
-        active_swarms: active,
-        total_leads: leadCount || 0,
-        consensus_avg: 0 
-      });
+        setStats({
+          mrr,
+          active_swarms: active,
+          total_leads: leadCount || 0,
+          consensus_avg: 0 
+        });
 
-      const { data: conLogs } = await supabase
-        .from("consensus_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(5);
-      setConsensus((conLogs as ConsensusLog[]) || []);
+        const { data: conLogs } = await supabase
+          .from("consensus_logs")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(5);
+        if (conLogs) setConsensus(conLogs as ConsensusLog[]);
+      } catch (e) {
+        console.error("Fetch error:", e);
+      }
     };
 
     fetchData();
@@ -119,18 +134,17 @@ export default function OverlordDashboard() {
     setIsProcessing(true);
 
     try {
-      // Direct Task Injection Logic
-      const response = await fetch("/api/scout", {
+      const response = await fetch("/api/queen", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: userMsg })
+        body: JSON.stringify({ message: userMsg })
       });
       
       const data = await response.json();
       
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: data.message || "DIRECTIVE RECEIVED. SWARM INITIATED." 
+        content: data.response || "DIRECTIVE RECEIVED. SWARM INITIATED." 
       }]);
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: "COMMUNICATION GLITCH. DIRECTIVE CACHED FOR RETRY." }]);
@@ -138,6 +152,18 @@ export default function OverlordDashboard() {
       setIsProcessing(false);
     }
   };
+
+  if (!supabaseUrl) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#0a0a12] text-slate-200">
+        <div className="text-center space-y-4">
+          <ShieldCheck className="w-12 h-12 text-cyan-500 mx-auto" />
+          <h1 className="text-2xl font-bold">Configuration Required</h1>
+          <p className="text-slate-400">Please set NEXT_PUBLIC_SUPABASE_URL in your environment.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a12] text-slate-200 font-sans selection:bg-cyan-500/30">
@@ -157,10 +183,10 @@ export default function OverlordDashboard() {
             <p className="text-slate-500 font-mono text-xs tracking-widest pl-13">HIVE_OS v2.4.0 // SINGULARITY_ACTIVE</p>
           </div>
           <div className="flex items-center gap-6 bg-slate-900/40 p-3 rounded-2xl border border-white/5">
-             <BeeStatus icon={<Search />} name="ORACLE" status="SEARCHING" />
-             <BeeStatus icon={<PenTool />} name="CONTENT" status="WRITING" />
-             <BeeStatus icon={<Mic />} name="VOICE" status="VOICING" />
-             <BeeStatus icon={<Eye />} name="SHADOW" status="SPYING" />
+             <BeeStatus icon={<Search className="w-4 h-4" />} name="ORACLE" status="SEARCHING" />
+             <BeeStatus icon={<PenTool className="w-4 h-4" />} name="CONTENT" status="WRITING" />
+             <BeeStatus icon={<Mic className="w-4 h-4" />} name="VOICE" status="VOICING" />
+             <BeeStatus icon={<Eye className="w-4 h-4" />} name="SHADOW" status="SPYING" />
           </div>
         </header>
 
@@ -172,7 +198,7 @@ export default function OverlordDashboard() {
             
             {/* ── STATS ROW ── */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatTile title="TOTAL MRR" value={`$${stats.mrr}`} icon={<DollarSign />} color="text-green-400" />
+              <StatTile title="TOTAL MRR" value={`$${(stats.mrr / 100).toFixed(0)}`} icon={<DollarSign />} color="text-green-400" />
               <StatTile title="SWARMS" value={stats.active_swarms} icon={<Globe />} color="text-cyan-400" />
               <StatTile title="VERIFIED LEADS" value={stats.total_leads} icon={<Target />} color="text-blue-400" />
               <StatTile title="NEURAL LOAD" value="14%" icon={<Zap />} color="text-amber-400" />
@@ -204,6 +230,18 @@ export default function OverlordDashboard() {
                     </div>
                   </div>
                 ))}
+                {isProcessing && (
+                  <div className="flex justify-start">
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 bg-slate-800 text-slate-400">
+                        <Loader2 className="w-4 h-4 spin" />
+                      </div>
+                      <div className="p-3 rounded-2xl text-sm bg-slate-900 border border-white/5 text-slate-500 rounded-tl-none italic">
+                        Processing directive...
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="p-4 bg-white/5 border-t border-white/5">
                 <div className="relative">
@@ -217,7 +255,8 @@ export default function OverlordDashboard() {
                   />
                   <button 
                     onClick={handleSendCommand}
-                    className="absolute right-2 top-2 p-2 bg-cyan-500 hover:bg-cyan-400 text-black rounded-lg transition-colors"
+                    disabled={!input.trim() || isProcessing}
+                    className="absolute right-2 top-2 p-2 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-black rounded-lg transition-colors"
                   >
                     <Send className="w-5 h-5" />
                   </button>
@@ -243,84 +282,15 @@ export default function OverlordDashboard() {
                     <span className="text-slate-400 text-xs flex-1 truncate">{log.action}</span>
                   </div>
                 ))}
+                {logs.length === 0 && (
+                  <div className="text-center py-4 text-slate-600 text-xs font-mono">NO RECENT ACTIVITY DETECTED</div>
+                )}
               </div>
-            </div>
-
-            {/* ── HERMES DEEP INTELLIGENCE ── */}
-            <div className="glass-card p-6 border-blue-500/10 bg-blue-950/10">
-               <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                     <Search className="w-5 h-5 text-blue-400" />
-                     <h2 className="text-lg font-bold uppercase tracking-tight">Hermes Neural Link</h2>
-                  </div>
-                  <div className="px-2 py-1 rounded bg-blue-500/20 text-[10px] font-bold text-blue-400 border border-blue-500/30">
-                     MULTI-MODEL_CONSENSUS: ON
-                  </div>
-               </div>
-               <div className="space-y-4">
-                  {consensus.map((con) => (
-                    <div key={con.id} className="p-4 rounded-xl bg-slate-900/60 border border-white/5 space-y-4">
-                       <div className="flex justify-between items-start">
-                          <div>
-                             <p className="text-xs font-black text-white">{con.niche.toUpperCase()}</p>
-                             <p className="text-[9px] text-slate-500 mt-1">RESEARCH_NODE_ID: {con.id.split('-')[0]}</p>
-                          </div>
-                          <div className="text-right">
-                             <p className="text-xl font-black text-blue-400 leading-none">{con.final_score}%</p>
-                             <p className="text-[8px] font-mono text-slate-500 mt-1 uppercase tracking-widest">Confidence Alpha</p>
-                          </div>
-                       </div>
-                       <div className="grid grid-cols-3 gap-2 py-2 border-y border-white/5">
-                          <ModelScore name="DEEPSEEK" score={con.final_score - 2} color="cyan" />
-                          <ModelScore name="MOONSHOT" score={con.final_score + 1} color="purple" />
-                          <ModelScore name="GEMINI" score={con.final_score - 1} color="blue" />
-                       </div>
-                       <div className="flex gap-3 items-start">
-                          <Terminal className="w-3 h-3 text-slate-600 mt-1" />
-                          <p className="text-[10px] text-slate-400 leading-relaxed font-mono">
-                             <span className="text-blue-500/50 mr-1">&gt;</span> 
-                             {con.rationale}
-                          </p>
-                       </div>
-                    </div>
-                  ))}
-                  {consensus.length === 0 && (
-                    <div className="text-center py-8 text-slate-700 font-mono text-[10px] animate-pulse">
-                       AWAITING NEURAL SIGNALS FROM HERMES_NODE_01...
-                    </div>
-                  )}
-               </div>
             </div>
           </div>
 
           {/* ── COLUMN 2: Oracle & Workforce (4/12) ── */}
           <div className="lg:col-span-4 space-y-8">
-            
-            {/* ── ORACLE CONSENSUS ── */}
-            <div className="glass-card p-6">
-               <div className="flex items-center gap-2 mb-6">
-                  <MessageSquare className="w-5 h-5 text-cyan-400" />
-                  <h2 className="text-lg font-bold uppercase tracking-tight">The Oracle Pulse</h2>
-               </div>
-               <div className="space-y-6">
-                  {consensus.map((con) => (
-                    <div key={con.id} className="p-4 rounded-2xl bg-slate-900/50 border border-white/5 space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-white truncate max-w-[150px]">{con.niche}</span>
-                        <span className="text-cyan-400 font-mono text-[10px] font-black">{con.final_score}% ALPHA</span>
-                      </div>
-                      <div className="h-1 w-full bg-slate-950 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-cyan-600 to-cyan-300"
-                          style={{ width: `${con.final_score}%` }}
-                        />
-                      </div>
-                      <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-3 italic">&quot;{con.rationale}&quot;</p>
-                    </div>
-                  ))}
-               </div>
-            </div>
-
             {/* ── WORKFORCE HUD ── */}
             <div className="glass-card p-6">
                <div className="flex items-center gap-2 mb-6">
@@ -330,10 +300,9 @@ export default function OverlordDashboard() {
                <div className="space-y-4">
                   <AgentStatusRow name="HERMES" role="ORACLE" pulse="ACTIVE" />
                   <AgentStatusRow name="ANALYST" role="OSINT" pulse="ACTIVE" />
-                  <AgentStatusRow name="CMO BEE" role="CONTENT" pulse="IDLE" />
-                  <AgentStatusRow name="COO BEE" role="VOICE" pulse="ACTIVE" />
-                  <AgentStatusRow name="SHADOW" role="DEEP SPY" pulse="HUNTING" />
+                  <AgentStatusRow name="BUILDER" role="CONTENT" pulse="IDLE" />
                   <AgentStatusRow name="CLOSER" role="OUTREACH" pulse="STRIKING" />
+                  <AgentStatusRow name="SHADOW" role="DEEP SPY" pulse="HUNTING" />
                </div>
             </div>
 
@@ -347,11 +316,8 @@ export default function OverlordDashboard() {
                   <CommandItem cmd="HUNT [Niche]" desc="Launch a new global swarm" />
                   <CommandItem cmd="STATUS" desc="Deep neural diagnostic" />
                   <CommandItem cmd="AUDIT" desc="Generate revenue/lead report" />
-                  <CommandItem cmd="ORACLE [Query]" desc="Ask the Triple-Model Consensus" />
-                  <CommandItem cmd="BOOST [ID]" desc="Prioritize a specific campaign" />
                </div>
             </div>
-
           </div>
         </div>
       </div>
@@ -364,11 +330,6 @@ export default function OverlordDashboard() {
           border-radius: 24px;
           box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.5);
         }
-        .text-gradient-cyan {
-          background: linear-gradient(135deg, #fff 0%, #00ffff 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
         }
@@ -377,14 +338,7 @@ export default function OverlordDashboard() {
   );
 }
 
-interface StatTileProps {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  color: string;
-}
-
-function StatTile({ title, value, icon, color }: StatTileProps) {
+function StatTile({ title, value, icon, color }: { title: string; value: string | number; icon: React.ReactNode; color: string }) {
   return (
     <div className="glass-card p-4 flex flex-col gap-3 hover:border-cyan-500/20 transition-all cursor-default">
       <div className={`p-2 w-fit rounded-lg bg-white/5 ${color}`}>
@@ -398,13 +352,7 @@ function StatTile({ title, value, icon, color }: StatTileProps) {
   );
 }
 
-interface BeeStatusProps {
-  icon: React.ReactNode;
-  name: string;
-  status: string;
-}
-
-function BeeStatus({ icon, name, status }: BeeStatusProps) {
+function BeeStatus({ icon, name, status }: { icon: React.ReactNode; name: string; status: string }) {
   return (
     <div className="flex items-center gap-3 px-3">
       <div className="text-cyan-400 opacity-50">{icon}</div>
@@ -416,13 +364,7 @@ function BeeStatus({ icon, name, status }: BeeStatusProps) {
   );
 }
 
-interface AgentStatusRowProps {
-  name: string;
-  role: string;
-  pulse: string;
-}
-
-function AgentStatusRow({ name, role, pulse }: AgentStatusRowProps) {
+function AgentStatusRow({ name, role, pulse }: { name: string; role: string; pulse: string }) {
   return (
     <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-transparent hover:border-white/5 transition-all">
       <div>
@@ -437,37 +379,11 @@ function AgentStatusRow({ name, role, pulse }: AgentStatusRowProps) {
   );
 }
 
-interface CommandItemProps {
-  cmd: string;
-  desc: string;
-}
-
-function CommandItem({ cmd, desc }: CommandItemProps) {
+function CommandItem({ cmd, desc }: { cmd: string; desc: string }) {
   return (
     <div className="group flex flex-col p-2 rounded-lg hover:bg-cyan-500/5 transition-all cursor-help border border-transparent hover:border-cyan-500/10">
        <span className="text-[11px] font-mono font-black text-cyan-400 tracking-wider group-hover:text-white transition-colors">{cmd}</span>
        <span className="text-[9px] text-slate-600 font-bold uppercase tracking-tighter">{desc}</span>
-    </div>
-  );
-}
-
-interface ModelScoreProps {
-  name: string;
-  score: number;
-  color: 'cyan' | 'purple' | 'blue';
-}
-
-function ModelScore({ name, score, color }: ModelScoreProps) {
-  const colors = {
-    cyan: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
-    purple: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
-    blue: 'text-blue-400 bg-blue-500/10 border-blue-500/20'
-  };
-
-  return (
-    <div className={`p-2 rounded-lg border ${colors[color]} flex flex-col items-center gap-1`}>
-       <span className="text-[7px] font-black tracking-widest uppercase opacity-60">{name}</span>
-       <span className="text-xs font-black">{score}%</span>
     </div>
   );
 }

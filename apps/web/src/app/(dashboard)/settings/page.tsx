@@ -186,11 +186,11 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {/* ── Telegram HITL guide ─────────────────────── */}
-      <div className="card p-6">
-        <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-          Telegram HITL Setup
-        </p>
+      {/* ── Telegram setup instructions ─────────────── */}
+      <div className="card p-5">
+        <h3 className="text-sm font-bold mb-4" style={{ color: "var(--text-primary)" }}>
+          Telegram Bot Setup
+        </h3>
         <ol className="space-y-3">
           {[
             "Message @BotFather on Telegram → /newbot → copy the token",
@@ -214,6 +214,25 @@ export default function SettingsPage() {
             </li>
           ))}
         </ol>
+      </div>
+
+      {/* ── Danger Zone ─────────────────────────────── */}
+      <div className="card p-5 border-red-900/30">
+        <h3 className="text-sm font-bold text-red-500 mb-2">Danger Zone</h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          Irreversible actions for database management.
+        </p>
+        <button
+          onClick={async () => {
+            if (!confirm("Are you sure? This will wipe all hive data (logs, opportunities, leads, campaigns).")) return;
+            const res = await fetch("/api/settings/purge", { method: "POST" });
+            if (res.ok) alert("Hive purged.");
+            else alert("Purge failed.");
+          }}
+          className="btn-red text-xs"
+        >
+          Purge Hive Database
+        </button>
       </div>
     </div>
   );
