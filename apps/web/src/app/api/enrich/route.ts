@@ -294,6 +294,7 @@ async function enrichLead(
     contact_title: "",
     contact_linkedin: null
   };
+} // ← close enrichLead
 
 // ── Route handlers ────────────────────────────────────────────────────────────
 

@@ -74,15 +74,29 @@ export async function GET(req: NextRequest) {
     .from("analyst_leads")
     .select("id, company, status, urgency, contact_email, updated_at")
     .eq("status", "enriched")
+    .not("contact_email", "is", null)
     .lt("updated_at", oneHourAgo)
     .limit(10);
 
   let closerHealed = 0;
   if (stuckEnrichedLeads && stuckEnrichedLeads.length > 0) {
-    // We can't easily "trigger" the closer cron for specific leads without logic duplication
-    // or adding a specific "strike" API. For now, we'll just log them as "needing attention".
-    // Future: Call a /api/closer/strike endpoint.
-    closerHealed = stuckEnrichedLeads.length;
+    // Self-heal: trigger Closer Bee for each stuck enriched lead
+    for (const lead of stuckEnrichedLeads) {
+      try {
+        const res = await fetch(`${origin}/api/closer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "from_lead", lead_id: lead.id }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.sent || data.sequence) closerHealed++;
+        }
+      } catch (e) {
+        console.error("[Vigil] Closer heal error:", e);
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
   }
 
   // ── 3. Audit: Stalled Sequences ──
