@@ -187,22 +187,19 @@ function extractDomain(company: string): string | null {
 }
 
 // ── Main enrichment function ──────────────────────────────────────────────────
-
 async function enrichLead(
   company: string,
   domain?: string,
   leadId?: string
 ): Promise<EnrichmentResult> {
-  const resolvedDomain = domain ?? extractDomain(company) ?? undefined;
-
-  // 1. Try Apollo first
-  const contact = await apolloSearchPeople(company, resolvedDomain);
+  // 1. Try Apollo first by name
+  const contact = await apolloSearchPeople(company, domain ?? extractDomain(company) ?? undefined);
 
   if (contact && contact.email) {
     return {
       lead_id: leadId,
       company: contact.organization_name ?? company,
-      domain: resolvedDomain,
+      domain: domain ?? extractDomain(company) ?? undefined,
       contact_name: contact.name,
       contact_title: contact.title,
       contact_email: contact.email,
@@ -217,7 +214,47 @@ async function enrichLead(
     };
   }
 
-  // 2. If Apollo returns no verified email -> try Hunter.io
+  // 2. If Apollo returns no verified email by name -> try to find the domain via search
+  let resolvedDomain = domain ?? extractDomain(company) ?? undefined;
+  
+  if (!contact?.email && !resolvedDomain) {
+    try {
+      // Import and use searchWeb (we need to make sure this is available or use an internal API)
+      // For now, we'll use a fetch to our own scout/scout-v2 API if available, 
+      // or just try to improve the extraction.
+      const searchRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://cyberhound.vercel.app'}/api/scout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: `${company} official website`, limit: 1 })
+      });
+      const searchData = await searchRes.json();
+      if (searchData.results?.[0]?.url) {
+        resolvedDomain = new URL(searchData.results[0].url).hostname.replace('www.', '');
+      }
+    } catch (e) {
+      console.error("[Enrich] Search fallback error:", e);
+    }
+  }
+
+  // 3. Try Apollo again with the resolved domain
+  if (!contact?.email && resolvedDomain) {
+    const domainContact = await apolloSearchPeople(company, resolvedDomain);
+    if (domainContact?.email) {
+      return {
+        lead_id: leadId,
+        company: domainContact.organization_name ?? company,
+        domain: resolvedDomain,
+        contact_name: domainContact.name,
+        contact_title: domainContact.title,
+        contact_email: domainContact.email,
+        contact_linkedin: domainContact.linkedin_url,
+        enrichment_source: "apollo",
+        confidence: "high",
+      };
+    }
+  }
+
+  // 4. Try Hunter.io as final fallback
   if (resolvedDomain) {
     const hunterEmail = await hunterSearchEmail(resolvedDomain);
     if (hunterEmail) {
@@ -233,37 +270,20 @@ async function enrichLead(
         confidence: "medium",
       };
     }
-
-    // 3. If Hunter fails -> scrape company website /contact page
-    const scrapedEmail = await scrapeContactPage(resolvedDomain);
-    if (scrapedEmail) {
-      return {
-        lead_id: leadId,
-        company,
-        domain: resolvedDomain,
-        contact_name: contact?.name ?? "Contact",
-        contact_title: contact?.title ?? "Inquiry",
-        contact_email: scrapedEmail,
-        contact_linkedin: contact?.linkedin_url ?? null,
-        enrichment_source: "scraping",
-        confidence: "low",
-      };
-    }
   }
 
-  // 4. If all 3 fail -> mark "unresolvable" (handled by caller checking contact_email)
+  // 5. If all fail -> mark unresolvable
   return {
     lead_id: leadId,
     company,
     domain: resolvedDomain,
-    contact_name: contact?.name ?? "",
-    contact_title: contact?.title ?? "",
     contact_email: null,
-    contact_linkedin: contact?.linkedin_url ?? null,
     enrichment_source: "apollo",
     confidence: "low",
+    contact_name: "",
+    contact_title: "",
+    contact_linkedin: null
   };
-}
 
 // ── Route handlers ────────────────────────────────────────────────────────────
 
