@@ -14,7 +14,6 @@ import {
   Terminal,
   ShieldCheck,
   Search,
-  Mic,
   Eye,
   PenTool,
   Database,
@@ -27,13 +26,6 @@ interface HiveLog {
   bee: string;
   action: string;
   status: string;
-}
-
-interface ConsensusLog {
-  id: string;
-  niche: string;
-  final_score: number;
-  rationale: string;
 }
 
 interface Message {
@@ -60,8 +52,10 @@ export default function OverlordDashboard() {
     mrr: 0,
     active_swarms: 0,
     total_leads: 0,
-    consensus_avg: 0 
+    neural_load: "—",
   });
+  const [beeStatus, setBeeStatus] = useState<Record<string, { status: string; last_seen: string }>>({});
+  const [fetchMs, setFetchMs] = useState<number | null>(null);
   
   // Command Mind State
   const [input, setInput] = useState("");
@@ -86,6 +80,8 @@ export default function OverlordDashboard() {
         const data = await res.json();
         if (data.logs) setLogs(data.logs);
         if (data.stats) setStats(prev => ({ ...prev, ...data.stats }));
+        if (data.bee_status) setBeeStatus(data.bee_status);
+        if (typeof data.fetch_ms === "number") setFetchMs(data.fetch_ms);
       } catch (e) {
         console.error("Fetch error:", e);
       }
@@ -154,10 +150,10 @@ export default function OverlordDashboard() {
             <p className="text-slate-500 font-mono text-xs tracking-widest pl-13">HIVE_OS v2.4.0 // SINGULARITY_ACTIVE</p>
           </div>
           <div className="flex items-center gap-6 bg-slate-900/40 p-3 rounded-2xl border border-white/5">
-             <BeeStatus icon={<Search className="w-4 h-4" />} name="ORACLE" status="SEARCHING" />
-             <BeeStatus icon={<PenTool className="w-4 h-4" />} name="CONTENT" status="WRITING" />
-             <BeeStatus icon={<Mic className="w-4 h-4" />} name="VOICE" status="VOICING" />
-             <BeeStatus icon={<Eye className="w-4 h-4" />} name="SHADOW" status="SPYING" />
+             <BeeStatus icon={<Search className="w-4 h-4" />} name="SCOUT" status={beeStatusLabel(beeStatus["scout"])} />
+             <BeeStatus icon={<PenTool className="w-4 h-4" />} name="ANALYST" status={beeStatusLabel(beeStatus["analyst"])} />
+             <BeeStatus icon={<Eye className="w-4 h-4" />} name="CLOSER" status={beeStatusLabel(beeStatus["closer_v2"] ?? beeStatus["closer"])} />
+             <BeeStatus icon={<Activity className="w-4 h-4" />} name="VIGIL" status={beeStatusLabel(beeStatus["vigil"])} />
           </div>
         </header>
 
@@ -172,7 +168,7 @@ export default function OverlordDashboard() {
               <StatTile title="TOTAL MRR" value={`$${(stats.mrr / 100).toFixed(0)}`} icon={<DollarSign />} color="text-green-400" />
               <StatTile title="SWARMS" value={stats.active_swarms} icon={<Globe />} color="text-cyan-400" />
               <StatTile title="VERIFIED LEADS" value={stats.total_leads} icon={<Target />} color="text-blue-400" />
-              <StatTile title="NEURAL LOAD" value="14%" icon={<Zap />} color="text-amber-400" />
+              <StatTile title="NEURAL LOAD" value={stats.neural_load} icon={<Zap />} color="text-amber-400" />
             </div>
 
             {/* ── QUEEN COMMAND TERMINAL ── */}
@@ -242,7 +238,9 @@ export default function OverlordDashboard() {
                    <Activity className="w-5 h-5 text-cyan-400" />
                    <h2 className="text-lg font-bold uppercase tracking-tight">Neural Hive Stream</h2>
                 </div>
-                <span className="text-[10px] font-mono text-slate-600">PULSE: 0.8ms</span>
+                <span className="text-[10px] font-mono text-slate-600">
+                  {fetchMs !== null ? `SYNCED ${fetchMs}ms` : "SYNCING..."}
+                </span>
               </div>
               <div className="space-y-2">
                 {logs.map((log) => (
@@ -269,11 +267,11 @@ export default function OverlordDashboard() {
                   <h2 className="text-lg font-bold uppercase tracking-tight">Workforce HUD</h2>
                </div>
                <div className="space-y-4">
-                  <AgentStatusRow name="HERMES" role="ORACLE" pulse="ACTIVE" />
-                  <AgentStatusRow name="ANALYST" role="OSINT" pulse="ACTIVE" />
-                  <AgentStatusRow name="BUILDER" role="CONTENT" pulse="IDLE" />
-                  <AgentStatusRow name="CLOSER" role="OUTREACH" pulse="STRIKING" />
-                  <AgentStatusRow name="SHADOW" role="DEEP SPY" pulse="HUNTING" />
+                  <AgentStatusRow name="SCOUT" role="NICHE INTEL" pulse={beeStatusLabel(beeStatus["scout"])} />
+                  <AgentStatusRow name="ANALYST" role="OSINT" pulse={beeStatusLabel(beeStatus["analyst"])} />
+                  <AgentStatusRow name="BUILDER" role="CONTENT" pulse={beeStatusLabel(beeStatus["builder"])} />
+                  <AgentStatusRow name="CLOSER" role="OUTREACH" pulse={beeStatusLabel(beeStatus["closer_v2"] ?? beeStatus["closer"])} />
+                  <AgentStatusRow name="VIGIL" role="SELF-HEAL" pulse={beeStatusLabel(beeStatus["vigil"])} />
                </div>
             </div>
 
@@ -307,6 +305,19 @@ export default function OverlordDashboard() {
       `}</style>
     </div>
   );
+}
+
+/** Maps raw hive_log status → a short Workforce HUD label */
+function beeStatusLabel(entry: { status: string; last_seen: string } | undefined): string {
+  if (!entry) return "OFFLINE";
+  const s = entry.status;
+  if (s === "success") return "ACTIVE";
+  if (s === "idle") return "IDLE";
+  if (s === "error" || s === "failed") return "ERROR";
+  if (s === "vetoed") return "IDLE";
+  if (s === "warning") return "ALERT";
+  if (s === "pending") return "PENDING";
+  return "ACTIVE";
 }
 
 function StatTile({ title, value, icon, color }: { title: string; value: string | number; icon: React.ReactNode; color: string }) {

@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const db = getSupabaseServer();
+  const fetchStart = Date.now();
 
   try {
     // 1. Hive Logs (Recent Activity)
@@ -34,14 +35,48 @@ export async function GET(req: NextRequest) {
       .from("analyst_leads")
       .select("*", { count: 'exact', head: true });
 
+    // 3. Neural load — real: % of leads actively in the enrichment/outreach pipeline
+    const { count: pipelineLeadCount } = await db
+      .from("analyst_leads")
+      .select("*", { count: "exact", head: true })
+      .in("status", ["enriched", "queued"]);
+
+    const totalLeads = leadCount ?? 0;
+    const pipelineLeads = pipelineLeadCount ?? 0;
+    const neural_load = totalLeads > 0
+      ? `${Math.min(100, Math.round((pipelineLeads / totalLeads) * 100))}%`
+      : "0%";
+
+    // 4. Live bee activity — last status per bee in the past 6 hours
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    const { data: beeActivity } = await db
+      .from("hive_log")
+      .select("bee, status, created_at")
+      .gte("created_at", sixHoursAgo)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    const bee_status: Record<string, { status: string; last_seen: string }> = {};
+    for (const entry of (beeActivity ?? [])) {
+      const key = String(entry.bee);
+      if (!bee_status[key]) {
+        bee_status[key] = { status: String(entry.status), last_seen: String(entry.created_at) };
+      }
+    }
+
+    const fetchMs = Date.now() - fetchStart;
+
     return NextResponse.json({
       logs: hiveLogs || [],
       stats: {
         mrr,
         active_swarms: activeSwarms,
-        total_leads: leadCount || 0,
-        neural_load: "14%" // Hardcoded for aesthetics as per original design
-      }
+        total_leads: totalLeads,
+        pipeline_leads: pipelineLeads,
+        neural_load,
+      },
+      bee_status,
+      fetch_ms: fetchMs,
     });
   } catch (error) {
     console.error("[Dashboard API] Error:", error);
