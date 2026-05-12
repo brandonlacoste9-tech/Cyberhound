@@ -11,9 +11,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ask } from "@/lib/llm/client";
 import { hasActiveOutreach } from "@/lib/autonomy";
-import { Resend } from "resend";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { sendHiveUpdate } from "@/lib/telegram/notify";
+import { sendEmail } from "@/lib/email/send";
 
 interface EmailSequenceItem {
   sequence_number: number;
@@ -303,22 +303,22 @@ export async function POST(req: NextRequest) {
       await db.from("analyst_leads").update({ status: "queued" }).eq("id", lead_id);
 
       // Auto-send Email 1 immediately
-      const resendKeyLead = process.env.RESEND_API_KEY;
+      // Auto-send Email 1 immediately
       let leadSentId: string | null = null;
-      if (resendKeyLead && resendKeyLead !== "placeholder" && verifyRecipient(leadRecipient.email)) {
-        const resend = new Resend(resendKeyLead);
+      if (verifyRecipient(leadRecipient.email)) {
         const firstName = leadRecipient.name.split(" ")[0];
         const company = leadRecipient.company ?? "your company";
         const subject = leadSequence[0].subject.replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
         const body = leadSequence[0].body.replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
-        const { data: sendData, error: sendErr } = await resend.emails.send({
-          from: "Brandon | CyberHound <cyberhound@adgenai.ca>",
-          to: [leadRecipient.email],
+
+        const { id, error: sendErr } = await sendEmail({
+          to: leadRecipient.email,
           subject,
           text: body,
         });
+
         if (!sendErr) {
-          leadSentId = sendData?.id ?? null;
+          leadSentId = id ?? null;
           await db.from("outreach_log").insert({
             campaign_id: null,
             recipient_email: leadRecipient.email,
@@ -367,17 +367,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ──────────────────────────────────────────────
-    // ACTION: send_sequence
-    // Sends Email 1 immediately via Resend (post-HITL)
-    // ──────────────────────────────────────────────
     if (action === "send_sequence") {
-      const resendKey = process.env.RESEND_API_KEY;
-      if (!resendKey || resendKey === "placeholder") {
-        return NextResponse.json({ error: "Resend not configured" }, { status: 400 });
-      }
-
-      const resend = new Resend(resendKey);
       const recipientList: Recipient[] = Array.isArray(recipients) ? recipients : [];
       const sequence: EmailSequenceItem[] = campaign?.sequence ?? [];
 
@@ -387,7 +377,7 @@ export async function POST(req: NextRequest) {
 
       // Send Email 1 immediately
       const email1 = sequence[0];
-      const results = [];
+      const results: any[] = [];
 
       for (const recipient of recipientList) {
         if (!verifyRecipient(recipient.email)) {
@@ -411,18 +401,17 @@ export async function POST(req: NextRequest) {
           .replace(/\{\{COMPANY\}\}/g, recipient.company ?? "your company");
 
         try {
-          const { data, error } = await resend.emails.send({
-            from: "CyberHound <cyberhound@adgenai.ca>",
-            to: [recipient.email],
+          const { id: sentId, error: sendError } = await sendEmail({
+            to: recipient.email,
             subject: personalizedSubject,
             text: personalizedBody,
           });
 
-          if (error) {
-            console.error("[Closer Resend]", error);
-            results.push({ email: recipient.email, status: "failed", error: error.message });
+          if (sendError) {
+            console.error("[Closer Email Error]", sendError);
+            results.push({ email: recipient.email, status: "failed", error: String(sendError) });
           } else {
-            results.push({ email: recipient.email, status: "sent", id: data?.id });
+            results.push({ email: recipient.email, status: "sent", id: sentId });
 
             // Log each send to outreach_log
             await db.from("outreach_log").insert({
@@ -432,7 +421,7 @@ export async function POST(req: NextRequest) {
               subject: personalizedSubject,
               sequence_number: 1,
               status: "sent",
-              resend_id: data?.id ?? null,
+              resend_id: sentId ?? null,
             });
 
             // Update analyst_leads status if lead_id provided
@@ -500,30 +489,25 @@ export async function POST(req: NextRequest) {
     // Sends a single test email via Resend
     // ──────────────────────────────────────────────
     if (action === "send_single") {
-      const resendKey = process.env.RESEND_API_KEY;
-      if (!resendKey || resendKey === "placeholder") {
-        return NextResponse.json({ error: "Resend not configured" }, { status: 400 });
-      }
-
       const { to, subject, body } = await req.json().catch(() => ({ to: null, subject: null, body: null }));
       if (!to || !subject || !body) {
         return NextResponse.json({ error: "to, subject, body required" }, { status: 400 });
       }
 
-      const resend = new Resend(resendKey);
-      const { data, error } = await resend.emails.send({
-        from: "CyberHound <cyberhound@adgenai.ca>",
-        to: [to],
+      const { id, error: sendErr } = await sendEmail({
+        to,
         subject,
         text: body,
       });
 
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      if (sendErr) {
+        return NextResponse.json({ error: String(sendErr) }, { status: 500 });
       }
 
-      return NextResponse.json({ sent: true, id: data?.id });
+      return NextResponse.json({ success: true, id });
     }
+
+
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (error) {
