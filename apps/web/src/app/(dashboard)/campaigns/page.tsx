@@ -5,7 +5,6 @@ import {
   Layers,
   ExternalLink,
   Loader2,
-  CheckCircle,
   AlertCircle,
   ChevronDown,
   ChevronUp,

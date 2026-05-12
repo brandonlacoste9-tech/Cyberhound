@@ -14,7 +14,6 @@ import {
   Terminal,
   ShieldCheck,
   Search,
-  MessageSquare,
   Mic,
   Eye,
   PenTool,
@@ -63,7 +62,6 @@ export default function OverlordDashboard() {
     total_leads: 0,
     consensus_avg: 0 
   });
-  const [consensus, setConsensus] = useState<ConsensusLog[]>([]);
   
   // Command Mind State
   const [input, setInput] = useState("");
@@ -108,13 +106,6 @@ export default function OverlordDashboard() {
           total_leads: leadCount || 0,
           consensus_avg: 0 
         });
-
-        const { data: conLogs } = await supabase
-          .from("consensus_logs")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(5);
-        if (conLogs) setConsensus(conLogs as ConsensusLog[]);
       } catch (e) {
         console.error("Fetch error:", e);
       }

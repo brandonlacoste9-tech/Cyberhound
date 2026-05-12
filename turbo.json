@@ -30,8 +30,11 @@
     "APOLLO_API_KEY",
     "SCHEDULER_SECRET",
     "CRON_SECRET",
-    "SCOUT_AUTO_APPROVE_MIN_SCORE"
+    "SCOUT_AUTO_APPROVE_MIN_SCORE",
+    "MOONSHOT_API_KEY",
+    "ELEVENLABS_API_KEY"
   ],
+
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
