@@ -192,36 +192,11 @@ async function enrichLead(
   domain?: string,
   leadId?: string
 ): Promise<EnrichmentResult> {
-  // 1. Try Apollo first by name
-  const contact = await apolloSearchPeople(company, domain ?? extractDomain(company) ?? undefined);
-
-  if (contact && contact.email) {
-    return {
-      lead_id: leadId,
-      company: contact.organization_name ?? company,
-      domain: domain ?? extractDomain(company) ?? undefined,
-      contact_name: contact.name,
-      contact_title: contact.title,
-      contact_email: contact.email,
-      contact_linkedin: contact.linkedin_url,
-      company_size: contact.organization?.estimated_num_employees,
-      company_industry: contact.organization?.industry,
-      company_location: [contact.organization?.city, contact.organization?.country]
-        .filter(Boolean)
-        .join(", "),
-      enrichment_source: "apollo",
-      confidence: "high",
-    };
-  }
-
-  // 2. If Apollo returns no verified email by name -> try to find the domain via search
+  // 1. Resolve Domain First (Crucial for fallbacks)
   let resolvedDomain = domain ?? extractDomain(company) ?? undefined;
   
-  if (!contact?.email && !resolvedDomain) {
+  if (!resolvedDomain) {
     try {
-      // Import and use searchWeb (we need to make sure this is available or use an internal API)
-      // For now, we'll use a fetch to our own scout/scout-v2 API if available, 
-      // or just try to improve the extraction.
       const searchRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://cyberhound.vercel.app'}/api/scout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -232,24 +207,59 @@ async function enrichLead(
         resolvedDomain = new URL(searchData.results[0].url).hostname.replace('www.', '');
       }
     } catch (e) {
-      console.error("[Enrich] Search fallback error:", e);
+      console.error("[Enrich] Domain resolution error:", e);
     }
   }
 
-  // 3. Try Apollo again with the resolved domain
-  if (!contact?.email && resolvedDomain) {
-    const domainContact = await apolloSearchPeople(company, resolvedDomain);
-    if (domainContact?.email) {
+  // 2. Try Hunter.io FIRST (Higher success rate on free tiers)
+  if (resolvedDomain) {
+    const hunterEmail = await hunterSearchEmail(resolvedDomain);
+    if (hunterEmail) {
       return {
         lead_id: leadId,
-        company: domainContact.organization_name ?? company,
+        company,
         domain: resolvedDomain,
-        contact_name: domainContact.name,
-        contact_title: domainContact.title,
-        contact_email: domainContact.email,
-        contact_linkedin: domainContact.linkedin_url,
-        enrichment_source: "apollo",
-        confidence: "high",
+        contact_name: "Team",
+        contact_title: "Executive",
+        contact_email: hunterEmail,
+        contact_linkedin: null,
+        enrichment_source: "hunter",
+        confidence: "medium",
+      };
+    }
+  }
+
+  // 3. Try Apollo (as fallback or for metadata)
+  // Note: We use the simpler people/search if mixed_people is blocked
+  const contact = await apolloSearchPeople(company, resolvedDomain);
+  if (contact && contact.email) {
+    return {
+      lead_id: leadId,
+      company: contact.organization_name ?? company,
+      domain: resolvedDomain,
+      contact_name: contact.name,
+      contact_title: contact.title,
+      contact_email: contact.email,
+      contact_linkedin: contact.linkedin_url,
+      enrichment_source: "apollo",
+      confidence: "high",
+    };
+  }
+
+  // 4. Final Scrape Fallback
+  if (resolvedDomain) {
+    const scrapedEmail = await scrapeContactPage(resolvedDomain);
+    if (scrapedEmail) {
+      return {
+        lead_id: leadId,
+        company,
+        domain: resolvedDomain,
+        contact_name: "Contact",
+        contact_title: "Inquiry",
+        contact_email: scrapedEmail,
+        contact_linkedin: null,
+        enrichment_source: "scraping",
+        confidence: "low",
       };
     }
   }
