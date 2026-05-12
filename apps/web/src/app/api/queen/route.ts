@@ -16,7 +16,9 @@ Your capabilities:
 - Autonomous Veto: Automatically reject low-value "ghost" leads; aggressively pursue high-urgency signals.
 - Institutional Branding: Every touchpoint must feel premium, sovereign, and enterprise-grade.
 
-When the user says "hunt", identify 3 high-MRR opportunities and immediately dispatch the Scout Bee for the top one.`;
+When the user says "hunt" or asks to research a niche, identify 3 high-MRR opportunities, reply with your strategic analysis, and then insert an 'autonomous_scout' task into the Hive queue for the most promising one. Only trigger the task if you are certain.
+
+Return your response in plain text, but if you are triggering a task, include a final line: [TASK_DISPATCHED: <niche_name>]`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,6 +59,21 @@ ${(hiveLogs.data ?? []).map((l: { bee: string; action: string; status: string })
 
     const text = await chat(messages, { max_tokens: 1024, temperature: 0.7 });
     const response = text.trim() ? text : "Queen Bee is processing...";
+
+    // ── Task Delegation Logic ──
+    const taskMatch = response.match(/\[TASK_DISPATCHED:\s*(.*?)\]/);
+    if (taskMatch) {
+      const niche = taskMatch[1].trim();
+      try {
+        await db.from("agent_tasks").insert({
+          task_type: "autonomous_scout",
+          payload: { niche, market: "North America" },
+          status: "pending"
+        });
+      } catch (taskErr) {
+        console.error("[Queen Task Dispatch]", taskErr);
+      }
+    }
 
     // Log to Supabase hive_log (non-blocking)
     try {

@@ -146,59 +146,7 @@ async function runAllModes(): Promise<Array<Record<string, unknown>>> {
   });
 }
 
-// ── Generate outreach sequence for a lead ─────────────────────────────────────
-
-async function generateCloserSequence(lead: Record<string, unknown>): Promise<Array<Record<string, unknown>>> {
-  const prompt = `You are the Closer Bee for CyberHound. Generate a 3-email cold outreach sequence.
-
-Lead Intel:
-- Source: ${lead.source} (${lead.signal_type})
-- Pain: ${lead.pain_point}
-- Hook: ${lead.personalization_hook}
-- Service: ${lead.recommended_service}
-- Company: ${lead.company ?? "Unknown"}
-- Budget: ${lead.budget ?? "Unknown"}
-
-RULES: Under 150 words per email. Use {{FIRST_NAME}} and {{COMPANY}}. Curiosity subject lines. Sign as: Brandon | CyberHound.
-
-Return ONLY JSON array:
-[
-  {"sequence_number": 1, "subject": "...", "body": "...", "send_delay_days": 0, "goal": "pain_hook"},
-  {"sequence_number": 2, "subject": "...", "body": "...", "send_delay_days": 3, "goal": "social_proof"},
-  {"sequence_number": 3, "subject": "...", "body": "...", "send_delay_days": 7, "goal": "urgency_close"}
-]`;
-
-  try {
-    const raw = await chat([{ role: "user", content: prompt }], { temperature: 0.8, max_tokens: 2048 });
-    const match = raw.match(/\[[\s\S]*\]/);
-    return JSON.parse(match?.[0] ?? raw);
-  } catch {
-    return [];
-  }
-}
-
-async function enrichLeadViaApi(origin: string, lead: Record<string, unknown>): Promise<Record<string, unknown> | null> {
-  const company = String(lead.company ?? "").trim();
-  if (!company) return null;
-
-  try {
-    const res = await fetch(`${origin}/api/enrich`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        company,
-        lead_id: lead.id ?? null,
-        update_db: true,
-      }),
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch (error) {
-    console.error("[Analyst Cron] Enrich API error:", error);
-    return null;
-  }
-}
+// Deleted redundant internal enrich/closer logic — now handled by /api/cron/backlog
 
 // ── Main handler ───────────────────────────────────────────────────────────────
 
@@ -334,137 +282,16 @@ export async function GET(req: NextRequest) {
     status: rawLeads.length > 0 ? "success" : "idle",
   });
 
-  // 4. For each high-urgency lead — generate sequence and auto-send Email 1
-  const resendKey = process.env.RESEND_API_KEY;
-  const resend = resendKey && resendKey !== "re_placeholder" ? new Resend(resendKey) : null;
-  let sequencesQueued = 0;
-
-  for (const sourceLead of highUrgency) {
-    try {
-      let lead = sourceLead;
-      const leadId = lead.id as string | undefined;
-
-      if (!lead.contact_email && lead.company) {
-        const enriched = await enrichLeadViaApi(origin, lead);
-        if (enriched) {
-          lead = { ...lead, ...enriched };
-        }
-      }
-
-      const recipientEmail = String(lead.contact_email ?? "");
-      if (await hasActiveOutreach({ leadId, recipientEmail })) {
-        await db.from("hive_log").insert({
-          bee: "closer",
-          action: `Skipped duplicate outreach for ${lead.company ?? lead.title}`,
-          details: { lead_id: leadId, recipient_email: recipientEmail || null },
-          status: "idle",
-        });
-        continue;
-      }
-
-      if (!recipientEmail || !recipientEmail.includes("@")) {
-        await db.from("hive_log").insert({
-          bee: "enrich",
-          action: `Skipped outreach for ${lead.company ?? lead.title} — no verified email`,
-          details: { lead_id: leadId, company: lead.company, source: lead.source },
-          status: "vetoed",
-        });
-        continue;
-      }
-
-      const sequence = await generateCloserSequence(lead);
-      if (!sequence.length) continue;
-
-      const firstName = String(lead.contact_name ?? "there").split(" ")[0];
-      const company = String(lead.company ?? "your company");
-
-      await db.from("outreach_log").insert({
-        campaign_id: null,
-        sequence,
-        status: "approved",
-        recipient_count: 1,
-        recipients: leadId ? [{ lead_id: leadId, name: lead.contact_name ?? "Decision Maker", email: lead.contact_email ?? "", company: lead.company }] : [],
-      });
-
-      if (leadId) {
-        await db.from("analyst_leads").update({ status: "queued" }).eq("id", leadId);
-      }
-
-      // Auto-send Email 1 immediately if Resend is configured and we have a real email
-      const email1 = sequence[0] as Record<string, unknown>;
-      let sentId: string | null = null;
-
-      if (resend && recipientEmail && recipientEmail.includes("@")) {
-        const subject = String(email1.subject ?? "").replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
-        const body = String(email1.body ?? "").replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
-
-        const { data, error: sendErr } = await resend.emails.send({
-          from: "Brandon | CyberHound <cyberhound@adgenai.ca>",
-          to: [recipientEmail],
-          subject,
-          text: body,
-        });
-
-        if (!sendErr) {
-          sentId = data?.id ?? null;
-          await db.from("outreach_log").insert({
-            campaign_id: null,
-            recipient_email: recipientEmail,
-            recipient_name: String(lead.contact_name ?? "Decision Maker"),
-            subject,
-            sequence_number: 1,
-            status: "sent",
-            resend_id: sentId,
-          });
-
-          // Schedule Email 2 & 3 via follow_up_sequences
-          if (sequence.length > 1) {
-            const nextEmail = sequence[1] as Record<string, unknown>;
-            const nextSendAt = new Date();
-            nextSendAt.setDate(nextSendAt.getDate() + (Number(nextEmail.send_delay_days) || 3));
-            await db.from("follow_up_sequences").insert({
-              lead_id: leadId ?? null,
-              campaign_id: null,
-              recipient_email: recipientEmail,
-              recipient_name: String(lead.contact_name ?? "Decision Maker"),
-              company: company,
-              total_emails: sequence.length,
-              sent_count: 1,
-              current_step: 2,
-              next_send_at: nextSendAt.toISOString(),
-              last_sent_at: new Date().toISOString(),
-              status: "active",
-              sequence: sequence as unknown as never,
-            });
-          }
-
-          if (leadId) {
-            await db.from("analyst_leads").update({ status: "sent" }).eq("id", leadId);
-          }
-        }
-      }
-
-      await db.from("hive_log").insert({
-        bee: "closer",
-        action: sentId
-          ? `Auto-sent Email 1 to ${recipientEmail} (${lead.company ?? lead.title})`
-          : `Sequence auto-approved, queued for ${lead.company ?? lead.title}`,
-        details: { lead_id: leadId, source: lead.source, signal_type: lead.signal_type, sequence, sent_id: sentId, auto_approved: true },
-        status: "success",
-      });
-
-      const srcEmoji: Record<string, string> = { upwork: "💼", churn: "🔄", reddit: "🔴" };
-      const emoji = srcEmoji[String(lead.source ?? "")] ?? "📡";
-      await sendHiveUpdate(
-        `${emoji} *Closer Auto-Fired*\n\n👤 ${lead.contact_name ?? "Lead"} @ ${lead.company ?? "Unknown"}\n📧 ${sentId ? `Email 1 sent (${recipientEmail})` : "Sequence queued (no email on lead)"}\n📬 Subject: "${email1.subject}"\n🔄 Follow-ups: ${sequence.length - 1} scheduled`
-      );
-
-      sequencesQueued++;
-      await new Promise((r) => setTimeout(r, 800));
-    } catch (e) {
-      console.error("[Analyst Cron] Closer error:", e);
-    }
+  // 3. Delegate Enrichment & Outreach to Backlog Processor
+  // This ensures high-urgency leads are processed immediately using the unified logic
+  try {
+    await fetch(`${origin}/api/cron/backlog`, {
+      headers: { "Authorization": `Bearer ${cronSecret}` }
+    });
+  } catch (e) {
+    console.error("[Analyst Cron] Failed to trigger backlog:", e);
   }
+
 
   const highUrgencyCount = rawLeads.filter((l) => l.urgency === "high").length;
   const summary = rawLeads.slice(0, 3).map((l) => `• ${String(l.title ?? "").slice(0, 55)} [${l.urgency}]`).join("\n");
@@ -472,7 +299,6 @@ export async function GET(req: NextRequest) {
   const resultBody = {
     leads_found: rawLeads.length,
     high_urgency: highUrgencyCount,
-    sequences_queued: sequencesQueued,
     timestamp: new Date().toISOString()
   };
 
@@ -484,7 +310,7 @@ export async function GET(req: NextRequest) {
   });
 
   await sendHiveUpdate(
-    `✅ *Analyst Cron Complete*\n\n📊 Total leads: ${rawLeads.length}\n🔥 High urgency: ${highUrgencyCount}\n📧 Sequences queued: ${sequencesQueued}\n\nTop signals:\n${summary}\n\nReview in /analyst dashboard.`
+    `✅ *Analyst Cron Complete*\n\n📊 Total leads: ${rawLeads.length}\n🔥 High urgency: ${highUrgencyCount}\n\nTop signals:\n${summary}\n\n_Unified Backlog Processor triggered for enrichment & outreach._`
   );
 
   return NextResponse.json(resultBody);

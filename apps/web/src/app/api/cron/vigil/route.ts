@@ -116,6 +116,15 @@ export async function GET(req: NextRequest) {
     .lt("created_at", thirtyMinsAgo)
     .limit(10);
 
+  // ── 5. Dead Letter Queue: Archive stale new leads ──
+  // If a lead is over 24 hours old and still 'new', mark it as skipped
+  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: archivedStale } = await db
+    .from("analyst_leads")
+    .update({ status: "skipped" })
+    .eq("status", "new")
+    .lt("created_at", twentyFourHoursAgo);
+
   // ── 5. Neural Workforce Health ──
   const { count: totalLeads } = await db.from("analyst_leads").select("*", { count: "exact", head: true });
   const { count: activeSequences } = await db.from("follow_up_sequences").select("*", { count: "exact", head: true }).eq("status", "active");
@@ -128,6 +137,7 @@ export async function GET(req: NextRequest) {
     stuck_enriched_leads: closerHealed,
     stalled_sequences: stalledSequences?.length ?? 0,
     stalled_tasks: stalledTasks?.length ?? 0,
+    archived_stale_leads: archivedStale ?? 0,
     timestamp: now.toISOString(),
   };
 

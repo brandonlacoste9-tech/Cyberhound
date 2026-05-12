@@ -49,7 +49,9 @@ def process_scout_task(task):
     try:
         print(f"🧠 Hermes connecting to DeepSeek API for deep research on {niche}...")
         import requests
-        deepseek_api_key = os.environ.get("DEEPSEEK_API_KEY") or "sk-d4896ee1b6d64ad6b33c667a2ce6dd31"
+        deepseek_api_key = os.environ.get("DEEPSEEK_API_KEY")
+        if not deepseek_api_key:
+            raise Exception("❌ DEEPSEEK_API_KEY missing in environment.")
         
         headers = {
             "Authorization": f"Bearer {deepseek_api_key}",
