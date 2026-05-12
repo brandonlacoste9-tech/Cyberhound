@@ -5,7 +5,7 @@
  * Uses Service Role to bypass RLS for institutional internal visibility.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";

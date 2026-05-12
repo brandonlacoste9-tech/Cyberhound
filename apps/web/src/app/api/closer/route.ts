@@ -168,23 +168,25 @@ export async function POST(req: NextRequest) {
         status: "success",
       });
 
-      // Auto-send Email 1 immediately if Resend is configured
-      const resendKey = process.env.RESEND_API_KEY;
+      // Auto-send Email 1 immediately if a provider is configured
       let sentCount = 0;
-      if (resendKey && resendKey !== "placeholder" && verifyRecipient(recipient.email)) {
-        const resend = new Resend(resendKey);
+      let leadSentId = null;
+
+      if (verifyRecipient(recipient.email)) {
         const firstName = recipient.name.split(" ")[0];
         const company = recipient.company ?? "your company";
         const subject = sequence[0].subject.replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
         const body = sequence[0].body.replace(/\{\{FIRST_NAME\}\}/g, firstName).replace(/\{\{COMPANY\}\}/g, company);
-        const { data, error: sendErr } = await resend.emails.send({
-          from: "Brandon | CyberHound <cyberhound@adgenai.ca>",
-          to: [recipient.email],
+        
+        const { id, error: sendErr } = await sendEmail({
+          to: recipient.email,
           subject,
           text: body,
         });
+
         if (!sendErr) {
           sentCount = 1;
+          leadSentId = id ?? null;
           await db.from("outreach_log").insert({
             campaign_id: campaign?.id ?? null,
             recipient_email: recipient.email,
@@ -192,7 +194,7 @@ export async function POST(req: NextRequest) {
             subject,
             sequence_number: 1,
             status: "sent",
-            resend_id: data?.id ?? null,
+            resend_id: leadSentId,
           });
           // Schedule follow-ups
           if (sequence.length > 1) {

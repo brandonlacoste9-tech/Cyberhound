@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { 
   Activity, 
   Zap, 
@@ -35,7 +34,6 @@ interface Message {
 
 export default function OverlordDashboard() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   
   
