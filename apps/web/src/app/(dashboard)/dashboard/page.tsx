@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { 
   Activity, 
@@ -71,26 +71,24 @@ export default function OverlordDashboard() {
     }
   }, [messages]);
 
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/dashboard");
+      const data = await res.json();
+      if (data.logs) setLogs(data.logs);
+      if (data.stats) setStats(prev => ({ ...prev, ...data.stats }));
+      if (data.bee_status) setBeeStatus(data.bee_status);
+      if (typeof data.fetch_ms === "number") setFetchMs(data.fetch_ms);
+    } catch (e) {
+      console.error("Fetch error:", e);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!supabase) return;
-
-    const fetchData = async () => {
-      try {
-        const res = await fetch("/api/dashboard");
-        const data = await res.json();
-        if (data.logs) setLogs(data.logs);
-        if (data.stats) setStats(prev => ({ ...prev, ...data.stats }));
-        if (data.bee_status) setBeeStatus(data.bee_status);
-        if (typeof data.fetch_ms === "number") setFetchMs(data.fetch_ms);
-      } catch (e) {
-        console.error("Fetch error:", e);
-      }
-    };
-
     fetchData();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, []); // Remove supabase dependency as we use fetch
+  }, [fetchData]);
 
   const handleSendCommand = async () => {
     if (!input.trim() || isProcessing) return;
