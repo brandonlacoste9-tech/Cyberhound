@@ -32,6 +32,16 @@ TRACKED_DOMAINS = [
     'wmgroupsolutions.com'
 ]
 
+# ── Hermes AI Configuration ─────────────────────────────────────
+HERMES_BASE_URL = os.getenv('HERMES_BASE_URL', 'https://api.deepseek.com/v1')
+HERMES_API_KEY = os.getenv('HERMES_API_KEY') or os.getenv('DEEPSEEK_API_KEY', '')
+HERMES_MODEL = os.getenv('HERMES_MODEL', 'deepseek-chat')
+HERMES_MAX_MODEL = os.getenv('HERMES_MAX_MODEL', 'deepseek-reasoner')
+
+AI_EMAIL_ENABLED = os.getenv('AI_EMAIL_ENABLED', 'true').lower() == 'true'
+AI_ENRICH_ENABLED = os.getenv('AI_ENRICH_ENABLED', 'true').lower() == 'true'
+AI_WATCHDOG_ENABLED = os.getenv('AI_WATCHDOG_ENABLED', 'true').lower() == 'true'
+
 def check_config():
     """Verify all required credentials are set"""
     missing = []
