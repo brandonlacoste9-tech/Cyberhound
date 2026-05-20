@@ -3,6 +3,8 @@ SystemHound - Agent for monitoring and repairing system health
 """
 
 import asyncio
+import json
+import os
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -45,14 +47,17 @@ class SystemHound(BaseHound):
         
     async def hunt(self, filters: Optional[Dict] = None) -> List[Dict]:
         """
-        Hunt for system issues across all projects
-        
+        Hunt for system issues across all projects AND API health.
+
         Returns list of issues found (and optionally fixed)
         """
         self.status = "HUNTING"
         self.last_hunt = datetime.now()
         self.issues_found = []
         self.issues_fixed = []
+
+        # ── v2: API health checks ──────────────────────────
+        await self._check_api_health()
         
         for project in self.projects:
             project_path = Path.home() / project
@@ -273,6 +278,103 @@ DEEPSEEK_API_KEY=
         }
         vercel_path = path / 'vercel.json'
         vercel_path.write_text(json.dumps(config, indent=2))
+
+    # ── v2: API Health Checks ──────────────────────────────────────────────
+
+    async def _check_api_health(self):
+        """Check health of all integrated APIs."""
+        checks = []
+
+        # Hermes / DeepSeek
+        try:
+            from hermes_client import ping as hermes_ping
+            result = hermes_ping()
+            if not result["ok"]:
+                checks.append({
+                    "project": "cyberhound",
+                    "type": "api_down",
+                    "severity": "critical",
+                    "description": f"Hermes API unreachable: {result.get('error', 'unknown')}",
+                    "auto_fixable": False,
+                })
+        except Exception as e:
+            checks.append({
+                "project": "cyberhound",
+                "type": "api_down",
+                "severity": "critical",
+                "description": f"Hermes client failed: {e}",
+                "auto_fixable": False,
+            })
+
+        # Supabase
+        supabase_url = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
+        supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        if not supabase_url or not supabase_key:
+            checks.append({
+                "project": "cyberhound",
+                "type": "missing_config",
+                "severity": "high",
+                "description": "Supabase credentials not configured",
+                "auto_fixable": False,
+            })
+        else:
+            try:
+                import requests
+                r = requests.get(
+                    f"{supabase_url}/rest/v1/",
+                    headers={"apikey": supabase_key},
+                    timeout=10,
+                )
+                if r.status_code >= 500:
+                    checks.append({
+                        "project": "cyberhound",
+                        "type": "api_degraded",
+                        "severity": "high",
+                        "description": f"Supabase returned {r.status_code}",
+                        "auto_fixable": False,
+                    })
+            except Exception as e:
+                checks.append({
+                    "project": "cyberhound",
+                    "type": "api_down",
+                    "severity": "high",
+                    "description": f"Supabase unreachable: {e}",
+                    "auto_fixable": False,
+                })
+
+        # SMTP
+        from config import check_config
+        if not check_config():
+            checks.append({
+                "project": "cyberhound",
+                "type": "missing_config",
+                "severity": "medium",
+                "description": "SMTP credentials not configured",
+                "auto_fixable": False,
+            })
+
+        self.issues_found.extend(checks)
+
+        # Hermes-powered diagnostic summary
+        if checks:
+            try:
+                from hermes_client import chat
+                summary_prompt = f"""
+                You are a system health monitor. These issues were found:
+                {json.dumps(checks, indent=2)}
+                
+                Provide a CONCISE one-line diagnosis and recommended action.
+                """
+                diagnosis = chat(summary_prompt, max_tokens=200)
+                self.issues_found.append({
+                    "project": "cyberhound",
+                    "type": "ai_diagnosis",
+                    "severity": "low",
+                    "description": diagnosis.strip(),
+                    "auto_fixable": False,
+                })
+            except:
+                pass
     
     def get_summary(self) -> Dict:
         """Get repair summary"""
