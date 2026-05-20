@@ -266,7 +266,7 @@ class CommandCenter:
         return Panel(
             Align.center(commands),
             border_style=self.COLORS['gold'],
-            box=box.SINGLE
+            box=box.SIMPLE
         )
     
     # ═════════════════════════════════════════════════════════════════

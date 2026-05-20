@@ -49,6 +49,8 @@ export async function GET(req: NextRequest) {
     .select("id, company, url")
     .eq("status", "new")
     .not("company", "is", null)
+    .not("company", "ilike", "%unnamed%")
+    .not("company", "ilike", "%ghost%")
     .limit(ENRICH_BATCH_SIZE);
 
   let enrichedCount = 0;

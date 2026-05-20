@@ -18,7 +18,11 @@ Your capabilities:
 
 When the user says "hunt" or asks to research a niche, identify 3 high-MRR opportunities, reply with your strategic analysis, and then insert an 'autonomous_scout' task into the Hive queue for the most promising one. Only trigger the task if you are certain.
 
-Return your response in plain text, but if you are triggering a task, include a final line: [TASK_DISPATCHED: <niche_name>]`;
+If the user approves an opportunity or says "deploy" / "build", confirm the deployment and include the line: [BUILD_DISPATCHED: <niche_name>] to trigger the Builder Bee.
+
+Return your response in plain text. Always include one of the following tags at the end if you are triggering a background agent:
+- Research: [TASK_DISPATCHED: <niche_name>]
+- Build/Deploy: [BUILD_DISPATCHED: <niche_name>]`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -61,17 +65,38 @@ ${(hiveLogs.data ?? []).map((l: { bee: string; action: string; status: string })
     const response = text.trim() ? text : "Queen Bee is processing...";
 
     // ── Task Delegation Logic ──
-    const taskMatch = response.match(/\[TASK_DISPATCHED:\s*(.*?)\]/);
-    if (taskMatch) {
-      const niche = taskMatch[1].trim();
-      try {
-        await db.from("agent_tasks").insert({
-          task_type: "autonomous_scout",
-          payload: { niche, market: "North America" },
-          status: "pending"
-        });
-      } catch (taskErr) {
-        console.error("[Queen Task Dispatch]", taskErr);
+    const scoutMatch = response.match(/\[TASK_DISPATCHED:\s*(.*?)\]/);
+    const buildMatch = response.match(/\[BUILD_DISPATCHED:\s*(.*?)\]/);
+
+    if (scoutMatch) {
+      const niche = scoutMatch[1].trim();
+      await db.from("agent_tasks").insert({
+        task_type: "autonomous_scout",
+        payload: { niche, market: "North America" },
+        status: "pending"
+      });
+    }
+
+    if (buildMatch) {
+      const niche = buildMatch[1].trim();
+      // Find the opportunity to build from
+      const { data: opp } = await db
+        .from("opportunities")
+        .select("id")
+        .eq("niche", niche)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      await db.from("agent_tasks").insert({
+        task_type: "campaign_build",
+        payload: { niche, opportunity_id: opp?.id },
+        status: "pending"
+      });
+      
+      // Auto-approve the opportunity if found
+      if (opp?.id) {
+        await db.from("opportunities").update({ status: "building", approved_at: new Date().toISOString() }).eq("id", opp.id);
       }
     }
 

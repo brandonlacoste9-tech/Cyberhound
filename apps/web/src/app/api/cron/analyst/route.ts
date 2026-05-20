@@ -28,19 +28,19 @@ const NICHES_PER_RUN = 4;
 const ANALYST_CONFIG = {
   upwork: {
     niches: [
-      "web automation",
-      "AI integration",
-      "Next.js web app",
-      "workflow automation",
-      "SaaS development",
+      "AI compliance infrastructure",
+      "LLM governance automation",
+      "regulatory mapping AI",
+      "enterprise AI risk management",
+      "SEC cybersecurity disclosure automation",
     ],
   },
   churn: {
-    competitors: ["Zapier", "Make.com", "Monday.com", "Notion", "ClickUp"],
+    competitors: ["OneTrust", "BigID", "Vanta", "Drata", "AuditBoard"],
   },
   reddit: {
-    subreddits: ["entrepreneur", "smallbusiness", "startups", "webdev", "SaaS"],
-    keywords: ["automation tool", "web app", "AI agent", "workflow automation", "need developer"],
+    subreddits: ["compliance", "cybersecurity", "legaltech", "SaaS", "infosec"],
+    keywords: ["AI governance help", "compliance automation", "GDPR for LLMs", "audit tool", "security compliance cost"],
   },
 };
 
