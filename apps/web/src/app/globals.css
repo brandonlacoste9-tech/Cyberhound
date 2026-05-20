@@ -6,27 +6,43 @@
 ───────────────────────────────────────────────────────────── */
 
 :root {
-  /* ── Sovereign Overlord Palette ────────────────────── */
-  --bg-base:       #1a1a2e;
-  --bg-surface:    #16213e;
-  --bg-card:       rgba(22, 33, 62, 0.7);
-  --bg-card-hover: rgba(22, 33, 62, 0.9);
+  /* ── Core Palette ── */
+  --bg-base:       #0a0a12;
+  --bg-surface:    #111827;
+  --bg-card:       rgba(17, 24, 39, 0.7);
+  --bg-card-hover: rgba(17, 24, 39, 0.9);
+  --bg-sidebar:    rgba(6, 8, 15, 0.9);
+  --bg-muted:      rgba(255, 255, 255, 0.03);
+  --bg-input:      rgba(0, 0, 0, 0.3);
   
-  --primary:       #00ffff;
-  --primary-glow:  rgba(0, 255, 255, 0.4);
-  --secondary:     #0f3460;
-  --accent:        #e94560;
+  --primary:       #f59e0b;
+  --primary-glow:  rgba(245, 158, 11, 0.4);
+  --secondary:     #1e293b;
+  --accent:        #ef4444;
   
   --text-primary:   #ffffff;
   --text-secondary: #94a3b8;
   --text-muted:     #64748b;
+  --text-faint:     #3d4456;
   
-  --border:        rgba(0, 255, 255, 0.15);
-  --border-strong: rgba(0, 255, 255, 0.3);
+  --border:        rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-focus:  rgba(245, 158, 11, 0.4);
+  --border-amber:  rgba(245, 158, 11, 0.2);
+  
+  --amber:         #f59e0b;
+  --amber-bright:  #fbbf24;
+  --amber-dim:     rgba(245, 158, 11, 0.15);
+  --green:         #10b981;
+  --green-bright:  #34d399;
   
   --radius-lg:     16px;
+  --radius-md:     10px;
   --shadow-card:   0 8px 32px 0 rgba(0, 0, 0, 0.5);
-  --glass-border:  rgba(0, 255, 255, 0.2);
+  --shadow-float:  0 12px 40px -8px rgba(0, 0, 0, 0.6);
+  --shadow-glow-sm: 0 0 16px rgba(245, 158, 11, 0.15);
+  --shadow-amber:  0 0 20px rgba(245, 158, 11, 0.1);
+  --glass-border:  rgba(245, 158, 11, 0.2);
 
   /* ── Layout ── */
   --sidebar-width: 268px;
