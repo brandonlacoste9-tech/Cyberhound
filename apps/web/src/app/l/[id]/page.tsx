@@ -263,7 +263,5 @@ export default async function PublicLandingPage({
         </footer>
       </main>
     </div>
-      </main>
-    </div>
   );
 }
