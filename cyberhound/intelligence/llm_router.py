@@ -83,6 +83,18 @@ def vertex_generate(prompt: str) -> str:
 
 
 def generate_text(prompt: str, system: Optional[str] = None) -> str:
+    """
+    Legacy entry point. Now delegates to the unified client (cyberhound.llm)
+    for consistency with the Next.js side (OpenClaw → DeepSeek priority).
+    Falls back to old providers for full flexibility.
+    """
+    try:
+        from ..llm import ask
+        return ask(prompt, system_prompt=system)
+    except Exception as e:
+        print(f"[llm_router] Unified client unavailable, using legacy: {e}")
+
+    # Original legacy logic
     prefer_ollama = AI_PROVIDER in {"auto", "ollama", "ollama-first"}
 
     if prefer_ollama:

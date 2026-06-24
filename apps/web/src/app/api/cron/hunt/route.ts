@@ -430,6 +430,15 @@ export async function GET(req: NextRequest) {
       status: autoApproved ? "success" : "vetoed",
     });
 
+    // Wire to Python side: insert task so Python autonomy_engine / task_runner can pick it up for cross-language autonomy
+    if (autoApproved) {
+      await db.from("agent_tasks").insert({
+        task_type: "autonomous_scout",
+        payload: { niche, opportunity_id: opportunityId, market, from: "hunt_cron" },
+        status: "pending",
+      });
+    }
+
     const result: (typeof results)[number] = { niche, score, auto_approved: autoApproved };
 
     if (autoApproved) {

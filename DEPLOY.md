@@ -17,7 +17,28 @@ Boring but necessary steps before you rely on the hive in production.
 
 Vercel sets variables on the host, but **Turbo** only forwards into `turbo run build` the names listed in **`turbo.json` → `globalPassThroughEnv`**. If you add a new secret, add its name there too or the build log will warn and `next build` may not see it.
 
-## 3. Environment variables (Vercel or similar)
+## 3. Supabase & RLS Hardening (IMPORTANT)
+
+Run migrations **in order**, including the hardening migration:
+
+```bash
+supabase db push
+# or run 010_rls_hardening.sql manually in the SQL editor
+```
+
+After applying `010_rls_hardening.sql`:
+1. Go to Supabase Dashboard → Settings → API → **Reload schema cache**
+2. Test public landing pages (`/l/[id]`)
+3. Verify all bee APIs still work (they use service_role)
+
+The new policies:
+- `service_role` has full access (explicit)
+- `anon` only sees public/live campaigns + assets (for landing pages)
+- Internal tables are no longer broadly readable by anon
+
+See `supabase/migrations/010_rls_hardening.sql` for full details.
+
+## 4. Environment variables (Vercel or similar)
 
 Set these on the **web** app (`apps/web` / Next.js root):
 
@@ -62,6 +83,131 @@ pnpm smoke
 ```
 
 (On Windows PowerShell: `$env:SMOKE_BASE_URL="http://127.0.0.1:3000"; pnpm smoke`.)
+
+## Running with Ollama (Recommended for Local / Autonomous Testing)
+
+Ollama lets you run Cyberhound completely locally with no paid LLM keys.
+
+### One-Click Setup (Recommended)
+
+```powershell
+.\start-ollama-autonomous.ps1
+```
+
+The script automatically:
+- Checks that Ollama is running
+- Pulls the model if missing
+- Configures your `.env` for Ollama + autonomous mode
+- Starts the autonomous agent loop
+
+**With options:**
+```powershell
+# Use a stronger model
+.\start-ollama-autonomous.ps1 -Model qwen2.5:14b
+
+# Run the task queue instead of full loop
+.\start-ollama-autonomous.ps1 -Mode task-runner
+```
+
+### Manual Setup
+```bash
+# 1. Install Ollama (https://ollama.com)
+ollama pull llama3.2          # light & fast
+# ollama pull qwen2.5:14b     # stronger at structured JSON (recommended)
+```
+
+Add to `.env` (or `.env.local`):
+```env
+AI_PROVIDER=ollama
+OLLAMA_MODEL=llama3.2
+# OLLAMA_BASE_URL=http://localhost:11434/v1   # optional
+```
+
+Run:
+```bash
+# Python side (the bees)
+python cyberhound/run.py autonomous --loop
+
+# Or the task worker
+python -m cyberhound.task_runner --loop
+```
+
+The web app will also use Ollama if you set the same variables when running `pnpm dev`.
+
+---
+
+## Running Fully Autonomously
+
+The system is designed to run with **minimal intervention** — set it and forget it.
+
+### Docker (recommended for Python worker)
+Use the provided files:
+
+```bash
+docker build -f Dockerfile.python-autonomous -t cyberhound-autonomous .
+docker run -d --env-file .env --name ch-autonomous --restart unless-stopped cyberhound-autonomous
+```
+
+Or with compose:
+
+```bash
+docker-compose -f docker-compose.autonomous.yml up -d
+```
+
+See `docker-compose.autonomous.yml` and `Dockerfile.python-autonomous`.
+
+### systemd (for VPS)
+See `cyberhound-autonomous.service` example. Copy to /etc/systemd/system/, then:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now cyberhound-autonomous
+sudo journalctl -u cyberhound-autonomous -f
+```
+
+Adjust paths, user, venv in the .service file.
+
+### Option A: Vercel Crons (easiest for web bees - highly recommended)
+The **Hunt cron** (`/api/cron/hunt`) is the star of autonomy:
+- Every 6 hours it does: Scout niches → score → auto-approve (≥70) → Builder (landing page copy + Stripe product/link) → Closer (outreach sequence).
+- Scheduler cron handles drip sequences hourly.
+
+**Setup:**
+- Set `CRON_SECRET` (and other keys).
+- Configure in Vercel:
+  - `/api/cron/hunt` → `0 */6 * * *`
+  - `/api/cron/scheduler` → `0 * * * *`
+  - Optionally analyst/backlog/vigil.
+
+The hunt cron already does end-to-end autonomous revenue pipeline with Telegram notifications.
+
+### Option B: Python Full Autonomous Worker
+For the classic lead pipeline (Scout → Enrich → Strike → Watchdog → Sequence):
+
+```bash
+# One cycle
+python cyberhound/run.py autonomous
+
+# True hands-off continuous mode (best for VPS / Docker / Render worker)
+python cyberhound/run.py autonomous --loop
+```
+
+**Task Queue Worker** (for Queen Bee chat dispatches + cron-fed tasks):
+```bash
+python -m cyberhound.task_runner --loop
+```
+
+Both use the unified LLM and log heavily to `hive_log` (visible in dashboard).
+
+**Production tips for autonomy:**
+- Run the Python worker in `screen`, `tmux`, Docker, or as a systemd service.
+- Set all LLM + Supabase + enrichment keys.
+- Use `SCOUT_INTERVAL_HOURS=4` etc. via env.
+- Monitor via `/dashboard/hive`, `/api/autonomy/status` (JSON), Telegram.
+- Set `AUTONOMOUS_MODE=true` to disable HITL where possible (auto-approve sequences, tasks etc).
+- The Queen (`/dashboard` chat) can still inject tasks even in full auto mode.
+
+See `cyberhound/run.py --help` and the crons for details.
 
 ## 5. Telegram webhook (optional)
 

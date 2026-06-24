@@ -42,6 +42,9 @@ AI_EMAIL_ENABLED = os.getenv('AI_EMAIL_ENABLED', 'true').lower() == 'true'
 AI_ENRICH_ENABLED = os.getenv('AI_ENRICH_ENABLED', 'true').lower() == 'true'
 AI_WATCHDOG_ENABLED = os.getenv('AI_WATCHDOG_ENABLED', 'true').lower() == 'true'
 
+# Autonomous mode: disable HITL approvals, auto everything possible
+AUTONOMOUS_MODE = os.getenv('AUTONOMOUS_MODE', 'false').lower() == 'true'
+
 def check_config():
     """Verify all required credentials are set"""
     missing = []

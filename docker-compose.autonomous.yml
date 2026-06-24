@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  cyberhound-autonomous:
+    build:
+      context: .
+      dockerfile: Dockerfile.python-autonomous
+    env_file:
+      - .env
+    restart: unless-stopped
+    # For full autonomy loop instead of just task runner:
+    # command: ["python", "cyberhound/run.py", "autonomous", "--loop"]
+    volumes:
+      - ./PIPELINE_LEADS.json:/app/PIPELINE_LEADS.json  # persist local leads if used
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

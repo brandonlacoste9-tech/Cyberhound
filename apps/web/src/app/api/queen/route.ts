@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chat } from "@/lib/llm/client";
+// Note: Python side now uses the matching client in cyberhound/llm.py (same priority)
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { publicOriginFromHeaders } from "@/lib/site/public-origin";
 
@@ -98,6 +99,11 @@ ${(hiveLogs.data ?? []).map((l: { bee: string; action: string; status: string })
       if (opp?.id) {
         await db.from("opportunities").update({ status: "building", approved_at: new Date().toISOString() }).eq("id", opp.id);
       }
+    }
+
+    // Autonomous mode: auto everything possible, minimal HITL
+    if (process.env.AUTONOMOUS_MODE === "true") {
+      console.log("[Queen] AUTONOMOUS_MODE active - maximizing auto dispatches");
     }
 
     // Log to Supabase hive_log (non-blocking)

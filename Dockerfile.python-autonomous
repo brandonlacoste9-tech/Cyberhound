@@ -1,0 +1,24 @@
+# Dockerfile for CyberHound Python Autonomous Worker
+# Build: docker build -f Dockerfile.python-autonomous -t cyberhound-autonomous .
+# Run: docker run --env-file .env -d cyberhound-autonomous
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system deps
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy only Python autonomous code
+COPY cyberhound/ ./cyberhound/
+COPY .env* ./
+
+# Default to autonomous loop
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "-m", "cyberhound.task_runner", "--loop"]
+# Or for full loop: CMD ["python", "cyberhound/run.py", "autonomous", "--loop"]

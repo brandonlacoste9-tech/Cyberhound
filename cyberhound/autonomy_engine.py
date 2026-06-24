@@ -1,22 +1,21 @@
 """
-AUTONOMY ENGINE — CyberHound Full Loop
-======================================
-This is the single process that runs everything.
+AUTONOMY ENGINE — CyberHound Full Autonomous Loop
+=================================================
+This powers the classic lead-based autonomous revenue pipeline.
 
-LOOP:
-  1. Scout runs every N hours → finds leads (name + website)
-  2. Enricher extracts contact email from each lead
-  3. Touch 1 fires automatically if lead not already in pipeline
-  4. Watchdog runs continuously → detects replies → auto-responds
-  5. Sequence scheduler fires Touch 2 (Day 3) + Touch 3 (Day 7)
-  6. Stripe webhook marks CLOSED_WON when payment lands
+FULL LOOP:
+  1. Scout (periodic) → discovers leads
+  2. Enrich (periodic) → finds emails
+  3. Strike (periodic) → fires first outreach (Touch 1)
+  4. Watchdog (continuous thread) → detects replies → auto-responds
+  5. Sequence (periodic) → fires follow-up drips
+  6. (Web side) Stripe webhooks + Treasurer update revenue
 
-Run:
-  python3 autonomy_engine.py            # Full loop
-  python3 autonomy_engine.py scout      # Scout only
-  python3 autonomy_engine.py enrich     # Enrich leads only
-  python3 autonomy_engine.py strike     # Fire pending touches
-  python3 autonomy_engine.py watchdog   # Watchdog only
+Run autonomously:
+  python cyberhound/run.py autonomous --loop     # Recommended continuous mode
+  python -m cyberhound.task_runner --loop        # For Queen-dispatched tasks
+
+Queen Bee (web chat) can inject work into `agent_tasks` table which the task_runner consumes.
 """
 import asyncio
 import json
@@ -25,8 +24,43 @@ import re
 import sys
 import time
 import threading
+import logging
 from datetime import datetime
 from pathlib import Path
+
+# Structured logging for autonomy
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s [autonomy] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger("cyberhound.autonomy")
+
+# Unified LLM
+from .llm import ask
+
+# Supabase for shared state & hive_log (for autonomy)
+try:
+    from supabase import create_client, Client
+    SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL") or os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+except Exception:
+    supabase = None
+
+def log_to_hive(bee: str, action: str, details: dict = None, status: str = "success"):
+    if not supabase:
+        print(f"[{bee}] {action} (no Supabase)")
+        return
+    try:
+        supabase.table("hive_log").insert({
+            "bee": bee,
+            "action": action,
+            "details": details or {},
+            "status": status
+        }).execute()
+    except Exception as e:
+        print(f"[hive_log error] {e}")
 
 # ── Config ───────────────────────────────────────────────────
 SCOUT_INTERVAL_HOURS = int(os.getenv("SCOUT_INTERVAL_HOURS", 6))
@@ -42,22 +76,79 @@ MAX_DAILY_STRIKES = int(os.getenv("MAX_DAILY_STRIKES", 20))
 # ══════════════════════════════════════════════════════════════
 
 def load_leads() -> list:
-    if not Path(LEADS_FILE).exists():
-        return []
-    with open(LEADS_FILE) as f:
+    """Load leads, preferring Supabase if available for shared state with web bees."""
+    supabase_leads = []
+    if supabase:
         try:
-            return json.load(f)
-        except:
-            return []
+            # Use analyst_leads as shared leads table (populated by web analyst/hunt too)
+            res = supabase.table("analyst_leads").select("*").execute()
+            supabase_leads = res.data or []
+            # Normalize to our format
+            for l in supabase_leads:
+                l["id"] = l.get("id")
+                l["name"] = l.get("company") or l.get("title", "Unknown")
+                l["website"] = l.get("url") or ""
+                l["email"] = l.get("contact_email") or l.get("enriched_data", {}).get("email", "")
+                l["risk_score"] = l.get("score", 7) or 7
+                l["source"] = l.get("source", "supabase")
+                l["struck"] = l.get("status") in ["sent", "replied"]
+        except Exception as e:
+            print(f"[Supabase leads load warn] {e}")
+
+    # Load local as fallback/merge
+    local_leads = []
+    if not Path(LEADS_FILE).exists():
+        local_leads = []
+    else:
+        with open(LEADS_FILE) as f:
+            try:
+                local_leads = json.load(f)
+            except:
+                local_leads = []
+
+    # Merge, prefer Supabase data, dedup by website
+    merged = {}
+    for l in local_leads + supabase_leads:
+        key = (l.get("website") or "").lower().strip()
+        if key and key not in merged:
+            merged[key] = l
+        elif key in merged:
+            # Merge email etc
+            if not merged[key].get("email") and l.get("email"):
+                merged[key]["email"] = l["email"]
+            if l.get("struck"):
+                merged[key]["struck"] = True
+
+    return list(merged.values())
 
 def save_leads(leads: list):
     with open(LEADS_FILE, "w") as f:
         json.dump(leads, f, indent=2)
 
+    # Also persist key leads to Supabase analyst_leads for sharing with web
+    if supabase:
+        for lead in leads[-5:]:  # recent ones
+            try:
+                data = {
+                    "source": lead.get("source", "python_scout"),
+                    "title": lead.get("name"),
+                    "url": lead.get("website"),
+                    "contact_email": lead.get("email"),
+                    "status": "sent" if lead.get("struck") else "new",
+                    "score": lead.get("risk_score", 50),
+                    "pain_point": "Autonomous scout lead",
+                    "urgency": "medium",
+                    "recommended_service": "CyberHound automation",
+                    "personalization_hook": lead.get("name"),
+                }
+                supabase.table("analyst_leads").upsert(data, on_conflict="url").execute()
+            except Exception as e:
+                print(f"[Supabase lead sync warn] {e}")
+
 def add_lead(name: str, website: str, email: str = "", risk_score: int = 7,
              source: str = "scout") -> dict:
     leads = load_leads()
-    existing = next((l for l in leads if l.get("website", "").lower() == website.lower()), None)
+    existing = next((l for l in leads if (l.get("website") or "").lower() == website.lower()), None)
     if existing:
         return existing  # Already known
 
@@ -96,20 +187,9 @@ def get_unstrucked_leads() -> list:
 
 async def run_scout() -> list:
     """Run the imperial scout to discover new Quebec leads"""
-    print(f"\n🔍 [{_ts()}] SCOUT — Running...")
+    logger.info("SCOUT — Running...")
     
     try:
-        import os
-        from google import genai
-        from google.genai import types
-
-        client = genai.Client(
-            api_key=os.environ.get("VERTEX_API_KEY", ""),
-            vertexai=True,
-            project=os.environ.get("VERTEX_PROJECT_ID", ""),
-            location="us-central1"
-        )
-
         prompt = (
             "Search for high-growth B2B SaaS opportunities and underserved niches in North America. "
             "Focus on: workflow automation, AI-driven logistics, specialized CRM tools, and automated "
@@ -120,19 +200,11 @@ async def run_scout() -> list:
             "Return ONLY the JSON array, no other text."
         )
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())]
-            )
-        )
-
-        raw = response.text.strip()
-        # Extract JSON from response
+        raw = ask(prompt, system="You are the Scout Bee for CyberHound. Return strict JSON only.")
         match = re.search(r'\[.*\]', raw, re.DOTALL)
         if not match:
-            print(f"  ⚠️  Scout: Could not parse JSON from response")
+            logger.warning("Scout: Could not parse JSON from response")
+            log_to_hive("scout", "scout_failed", {"reason": "parse_error"})
             return []
 
         leads_raw = json.loads(match.group())
@@ -146,11 +218,11 @@ async def run_scout() -> list:
             )
             new_leads.append(lead)
 
-        print(f"  ✅ Scout found {len(new_leads)} leads")
+        logger.info(f"Scout found {len(new_leads)} leads")
         return new_leads
 
     except Exception as e:
-        print(f"  ❌ Scout error: {e}")
+        logger.error(f"Scout error: {e}")
         return []
 
 
@@ -170,16 +242,6 @@ async def enrich_lead(lead: dict) -> str:
     print(f"  🔎 Enriching: {lead['name']} ({website})")
 
     try:
-        from google import genai
-        from google.genai import types
-
-        client = genai.Client(
-            api_key=os.environ.get("VERTEX_API_KEY", ""),
-            vertexai=True,
-            project=os.environ.get("VERTEX_PROJECT_ID", ""),
-            location="us-central1"
-        )
-
         prompt = (
             f"Visit {website} and find the best contact email address for the marketing "
             f"director, CMO, or general manager of {lead['name']}. "
@@ -188,19 +250,11 @@ async def enrich_lead(lead: dict) -> str:
             f"If no email found, return: NOT_FOUND"
         )
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())]
-            )
-        )
+        result = ask(prompt, system="You are a helpful research assistant. Return only the email or NOT_FOUND.")
 
-        result = response.text.strip()
         email_match = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', result)
         if email_match:
             email = email_match.group()
-            # Update lead record
             leads = load_leads()
             for l in leads:
                 if l["id"] == lead["id"]:
@@ -214,7 +268,7 @@ async def enrich_lead(lead: dict) -> str:
             return ""
 
     except Exception as e:
-        print(f"    ❌ Enrichment error: {e}")
+        logger.error(f"Enrichment error: {e}")
         return ""
 
 
@@ -302,7 +356,7 @@ def _ts():
     return datetime.now().strftime("%H:%M:%S")
 
 async def main_loop():
-    """The full autonomous loop"""
+    """The full autonomous loop — runs forever with resilience."""
     print("""
 ╔══════════════════════════════════════════════════════════════╗
 ║   🐾 CYBERHOUND — AUTONOMY ENGINE ACTIVATED                 ║
@@ -315,7 +369,13 @@ async def main_loop():
     print(f"  Sequence interval: every {SEQUENCE_INTERVAL_HOURS}h")
     print(f"  Watchdog interval: every {WATCHDOG_INTERVAL_SEC}s")
     print(f"  Max daily strikes: {MAX_DAILY_STRIKES}")
+    print("  State: Using local JSON + Supabase hive_log when available")
     print()
+
+    log_to_hive("system", "AUTONOMY_ENGINE_STARTED", {
+        "scout_interval_h": SCOUT_INTERVAL_HOURS,
+        "max_daily_strikes": MAX_DAILY_STRIKES
+    })
 
     # Start watchdog in background thread
     watchdog_thread = threading.Thread(target=run_watchdog_thread, daemon=True)
@@ -327,23 +387,40 @@ async def main_loop():
     sequence_interval_sec = SEQUENCE_INTERVAL_HOURS * 3600
 
     while True:
-        now = time.time()
+        try:
+            now = time.time()
 
-        # ── Scout cycle ──────────────────────────────────────
-        if now - last_scout >= scout_interval_sec:
-            await run_scout()
-            await enrich_all_leads()
-            await run_striker()
-            last_scout = time.time()
+            # ── Scout cycle ──────────────────────────────────────
+            if now - last_scout >= scout_interval_sec:
+                try:
+                    leads = await run_scout()
+                    await enrich_all_leads()
+                    await run_striker()
+                    log_to_hive("scout", "full_cycle_complete", {"leads_found": len(leads) if leads else 0})
+                except Exception as e:
+                    print(f"  ❌ Scout cycle error: {e}")
+                    log_to_hive("scout", "cycle_error", {"error": str(e)}, "error")
+                last_scout = time.time()
 
-        # ── Sequence cycle ───────────────────────────────────
-        if now - last_sequence >= sequence_interval_sec:
-            await run_sequence()
-            last_sequence = time.time()
+            # ── Sequence cycle ───────────────────────────────────
+            if now - last_sequence >= sequence_interval_sec:
+                try:
+                    await run_sequence()
+                    log_to_hive("scheduler", "sequence_tick")
+                except Exception as e:
+                    print(f"  ❌ Sequence error: {e}")
+                    log_to_hive("scheduler", "sequence_error", {"error": str(e)}, "error")
+                last_sequence = time.time()
 
-        # ── Heartbeat ────────────────────────────────────────
-        print(f"  💓 [{_ts()}] Alive — next scout in "
-              f"{max(0, int((scout_interval_sec - (time.time() - last_scout)) / 60))}m")
+            # ── Heartbeat ────────────────────────────────────────
+            mins_to_next = max(0, int((scout_interval_sec - (time.time() - last_scout)) / 60))
+            print(f"  💓 [{_ts()}] Alive — next scout in {mins_to_next}m")
+            log_to_hive("system", "heartbeat", {"next_scout_in_min": mins_to_next}, "idle")
+
+        except Exception as loop_err:
+            print(f"  🔥 Main loop error (recovering): {loop_err}")
+            log_to_hive("system", "loop_error", {"error": str(loop_err)}, "error")
+
         await asyncio.sleep(300)  # Heartbeat every 5 min
 
 

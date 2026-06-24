@@ -1,0 +1,22 @@
+# Example systemd service for CyberHound autonomous worker
+# Place in /etc/systemd/system/cyberhound-autonomous.service
+# Then: sudo systemctl daemon-reload && sudo systemctl enable --now cyberhound-autonomous
+
+[Unit]
+Description=CyberHound Autonomous Revenue Agent (task runner + loops)
+After=network.target
+
+[Service]
+Type=simple
+User=youruser
+WorkingDirectory=/opt/cyberhound
+Environment=PATH=/opt/cyberhound/venv/bin
+EnvironmentFile=/opt/cyberhound/.env
+ExecStart=/opt/cyberhound/venv/bin/python -m cyberhound.task_runner --loop
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

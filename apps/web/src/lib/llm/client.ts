@@ -4,10 +4,11 @@
  * Use `chat()` or `ask()` for all bees — same routing everywhere.
  *
  * Priority:
- *   1. OpenClaw Gateway  — OpenAI-compatible (dev always tries; prod if OPENCLAW_BASE_URL set)
- *   2. DeepSeek API      — cloud fallback
+ *   1. Ollama (local)    — when AI_PROVIDER=ollama or OLLAMA_BASE_URL set
+ *   2. OpenClaw Gateway  — OpenAI-compatible (dev always tries; prod if OPENCLAW_BASE_URL set)
+ *   3. DeepSeek API      — cloud fallback
  *
- * Legacy `llm` export hits DeepSeek only; prefer `chat()` for OpenClaw support.
+ * Perfect for fully autonomous local runs with no API costs.
  */
 import OpenAI from "openai";
 
@@ -20,6 +21,11 @@ const OPENCLAW_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN ?? "openclaw";
 
 const DEEPSEEK_BASE  = "https://api.deepseek.com/v1";
 const DEEPSEEK_KEY   = process.env.DEEPSEEK_API_KEY ?? "";
+
+// Ollama (local) - set OLLAMA_BASE_URL or AI_PROVIDER=ollama
+const OLLAMA_BASE = (process.env.OLLAMA_BASE_URL ?? "http://localhost:11434/v1").replace(/\/$/, "");
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "llama3.2";
+const OLLAMA_ENABLED = !!process.env.OLLAMA_BASE_URL || process.env.AI_PROVIDER?.toLowerCase() === "ollama";
 
 // ── Legacy exports (backward compat with existing routes) ────────────────────
 
@@ -58,6 +64,31 @@ export async function chat(
   const { temperature = 0.7, max_tokens = 2048, response_format } = options;
   const timeout = options.timeoutMs ?? 90_000;
 
+  // 1. Ollama (local, free) - perfect for autonomous runs
+  if (OLLAMA_ENABLED) {
+    try {
+      const client = new OpenAI({
+        baseURL: OLLAMA_BASE,
+        apiKey: "ollama",
+        timeout,
+      });
+      const res = await client.chat.completions.create({
+        model: OLLAMA_MODEL,
+        messages,
+        temperature,
+        max_tokens,
+        ...(response_format ? { response_format } : {}),
+      });
+      const text = res.choices[0]?.message?.content ?? "";
+      if (text) {
+        console.log(`[LLM] ✓ Ollama (${OLLAMA_MODEL})`);
+        return text;
+      }
+    } catch (e) {
+      console.warn("[LLM] Ollama unavailable, falling back:", (e as Error).message);
+    }
+  }
+
   const tryOpenClaw =
     process.env.NODE_ENV === "development" ||
     !!process.env.OPENCLAW_BASE_URL;
@@ -91,7 +122,7 @@ export async function chat(
 
   // DeepSeek fallback
   if (!DEEPSEEK_KEY) {
-    throw new Error("No LLM: OpenClaw unreachable and DEEPSEEK_API_KEY missing.");
+    throw new Error("No LLM: OpenClaw/Ollama unreachable and DEEPSEEK_API_KEY missing.");
   }
   const client = new OpenAI({
     baseURL: DEEPSEEK_BASE,
