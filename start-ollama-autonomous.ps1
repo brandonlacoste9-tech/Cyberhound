@@ -5,7 +5,7 @@
 .DESCRIPTION
     This script:
     - Checks that Ollama is installed and running
-    - Pulls a recommended model (llama3.2 by default, or qwen2.5 for better agents)
+    - Pulls a recommended model (deepseek-r1 by default - strong reasoning model for agents)
     - Ensures .env is configured for Ollama
     - Starts the full autonomous loop (or task runner)
 
@@ -16,7 +16,7 @@
 #>
 
 param(
-    [string]$Model = "llama3.2",
+    [string]$Model = "deepseek-r1",
     [ValidateSet("full", "task-runner")]
     [string]$Mode = "full",
     [switch]$SkipPull,

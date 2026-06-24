@@ -112,14 +112,13 @@ The script automatically:
 ### Manual Setup
 ```bash
 # 1. Install Ollama (https://ollama.com)
-ollama pull llama3.2          # light & fast
-# ollama pull qwen2.5:14b     # stronger at structured JSON (recommended)
+ollama pull deepseek-r1       # recommended for reasoning agents
 ```
 
 Add to `.env` (or `.env.local`):
 ```env
 AI_PROVIDER=ollama
-OLLAMA_MODEL=llama3.2
+OLLAMA_MODEL=deepseek-r1
 # OLLAMA_BASE_URL=http://localhost:11434/v1   # optional
 ```
 

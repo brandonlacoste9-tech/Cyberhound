@@ -44,11 +44,11 @@ The script will:
 - Start the autonomous agent loop
 
 **Manual alternative** (if you prefer):
-1. `ollama pull llama3.2`
+1. `ollama pull deepseek-r1` (recommended for agent reasoning)
 2. Set in `.env`:
    ```env
    AI_PROVIDER=ollama
-   OLLAMA_MODEL=llama3.2
+   OLLAMA_MODEL=deepseek-r1
    AUTONOMOUS_MODE=true
    ```
 3. `python cyberhound/run.py autonomous --loop`
