@@ -37,3 +37,7 @@ next-env.d.ts
 apps/web/vertex-sa.json
 apps/web/.env.production
 apps/web/.env.cron
+
+# broken submodule leftover
+DeepSeek-TUI/
+
