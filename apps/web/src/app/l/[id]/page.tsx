@@ -52,23 +52,11 @@ export async function generateMetadata({
   const { brand } = brandFromNiche(data.name, data.copy.headline);
   const title =
     data.copy.seo_title?.trim() ||
-    `${data.copy.headline ?? data.name} · ${brand}`;
+    `${data.copy.headline ?? data.name} | ${brand}`;
   const description =
     data.copy.seo_description?.trim() || data.copy.subheadline || undefined;
-  return {
-    title,
-    description,
-    openGraph: { title, description },
-    robots: { index: true, follow: true },
-  };
+  return { title, description, openGraph: { title, description } };
 }
-
-const FEATURE_ICONS = [
-  "M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
-  "M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z",
-  "M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z",
-  "m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z",
-];
 
 export default async function PublicLandingPage({
   params,
@@ -82,380 +70,756 @@ export default async function PublicLandingPage({
   if (!data) notFound();
 
   const { copy, paymentUrl, name } = data;
-  const pains = Array.isArray(copy.pain_points) ? copy.pain_points : [];
-  const features = Array.isArray(copy.features) ? copy.features : [];
-  const { brand, domain, initials } = brandFromNiche(name, copy.headline);
-  const price = priceLabel(copy.pricing_description);
-  const priceMain = price.replace(/\/mo.*/i, "").trim() || "$149";
-  const cta = copy.cta_primary?.trim() || "Start free trial";
+  const pains = (Array.isArray(copy.pain_points) ? copy.pain_points : []).slice(0, 3);
+  const features = (Array.isArray(copy.features) ? copy.features : []).slice(0, 4);
+  const { brand, initials, tagline } = brandFromNiche(name, copy.headline);
+  const { amount, period, detail } = priceLabel(copy.pricing_description);
+  const cta = copy.cta_primary?.trim() || "Get started";
   const year = new Date().getFullYear();
 
-  const quote = copy.testimonial?.quote?.trim();
-  const authorRaw = copy.testimonial?.author?.trim() || "";
-  const authorLooksFake =
-    /sarah johnson|john doe|jane doe|office manager, family/i.test(authorRaw) ||
-    authorRaw.length < 3;
-  const showTestimonial = Boolean(quote) && !authorLooksFake;
-
   return (
-    <div className="w-full min-h-screen bg-slate-50 text-slate-900">
-      {/* Top bar — full width, content centered */}
-      <div className="w-full border-b border-slate-200 bg-white">
-        <div className="lp-wrap flex flex-wrap items-center justify-center gap-x-5 gap-y-1 py-2.5 text-center text-[11px] font-medium text-slate-500 sm:justify-between sm:text-left">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Systems operational
-          </span>
-          <span className="hidden text-slate-400 sm:inline">
-            Secure checkout · Cancel anytime
-          </span>
-          <span className="text-slate-400">{domain}</span>
-        </div>
-      </div>
-
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="lp-wrap flex h-16 items-center justify-between">
-          <div className="flex items-center gap-2.5">
+    <div
+      style={{
+        minHeight: "100vh",
+        width: "100%",
+        margin: 0,
+        background: "#ffffff",
+        color: "#0f172a",
+        fontFamily:
+          'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        WebkitFontSmoothing: "antialiased",
+      }}
+    >
+      {/* Nav */}
+      <header
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          background: "rgba(255,255,255,0.92)",
+          backdropFilter: "blur(12px)",
+          borderBottom: "1px solid #e2e8f0",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1080,
+            margin: "0 auto",
+            padding: "0 24px",
+            height: 64,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold text-white shadow-sm"
-              style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)" }}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: "#0f172a",
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: "-0.02em",
+              }}
             >
               {initials}
             </div>
-            <span className="text-base font-semibold tracking-tight text-slate-900">
+            <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.02em" }}>
               {brand}
             </span>
           </div>
-          <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
-            <a href="#features" className="hover:text-slate-900">
-              Features
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            <a
+              href="#features"
+              style={{ fontSize: 14, color: "#475569", textDecoration: "none", fontWeight: 500 }}
+            >
+              Product
             </a>
-            <a href="#pricing" className="hover:text-slate-900">
+            <a
+              href="#pricing"
+              style={{ fontSize: 14, color: "#475569", textDecoration: "none", fontWeight: 500 }}
+            >
               Pricing
             </a>
-          </nav>
-          {paymentUrl ? (
-            <a
-              href={paymentUrl}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-            >
-              {cta}
-            </a>
-          ) : (
-            <span className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-400">
-              Soon
-            </span>
-          )}
+            {paymentUrl ? (
+              <a
+                href={paymentUrl}
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "#fff",
+                  background: "#0f172a",
+                  padding: "9px 16px",
+                  borderRadius: 8,
+                  textDecoration: "none",
+                }}
+              >
+                {cta}
+              </a>
+            ) : null}
+          </div>
         </div>
       </header>
 
-      <main className="w-full">
-        {/* HERO — fully centered stack */}
-        <section className="w-full border-b border-slate-200 bg-white">
-          <div className="lp-wrap flex flex-col items-center py-14 text-center sm:py-20">
-            <p className="mb-5 inline-flex rounded-full border border-indigo-100 bg-indigo-50 px-3.5 py-1 text-xs font-semibold text-indigo-700">
-              Built for teams that need fewer errors
+      {/* Hero */}
+      <section style={{ width: "100%", background: "#fff" }}>
+        <div
+          style={{
+            maxWidth: 720,
+            margin: "0 auto",
+            padding: "72px 24px 40px",
+            textAlign: "center",
+          }}
+        >
+          <p
+            style={{
+              margin: "0 0 20px",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#64748b",
+              letterSpacing: "0.01em",
+            }}
+          >
+            {tagline}
+          </p>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: "clamp(2rem, 5vw, 3.25rem)",
+              fontWeight: 650,
+              letterSpacing: "-0.035em",
+              lineHeight: 1.12,
+              color: "#0f172a",
+            }}
+          >
+            {copy.headline ?? "Fewer errors. Clearer results."}
+          </h1>
+          {copy.subheadline ? (
+            <p
+              style={{
+                margin: "20px auto 0",
+                maxWidth: 540,
+                fontSize: 18,
+                lineHeight: 1.6,
+                color: "#475569",
+                fontWeight: 400,
+              }}
+            >
+              {copy.subheadline}
             </p>
+          ) : null}
 
-            <h1 className="mx-auto max-w-3xl text-balance text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl sm:leading-[1.12]">
-              {copy.headline ?? "Work smarter with modern automation"}
-            </h1>
-
-            {copy.subheadline && (
-              <p className="mx-auto mt-5 max-w-2xl text-pretty text-base leading-relaxed text-slate-600 sm:text-lg">
-                {copy.subheadline}
-              </p>
-            )}
-
-            <div className="mt-8 flex w-full max-w-md flex-col items-stretch justify-center gap-3 sm:max-w-none sm:flex-row sm:items-center">
-              {paymentUrl ? (
-                <a
-                  href={paymentUrl}
-                  className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-7 py-3.5 text-sm font-semibold text-white shadow-md shadow-indigo-600/25 hover:bg-indigo-500"
-                >
-                  {cta}
-                </a>
-              ) : null}
+          <div
+            style={{
+              marginTop: 32,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 12,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            {paymentUrl ? (
               <a
-                href="#features"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-7 py-3.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                href={paymentUrl}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 160,
+                  padding: "14px 22px",
+                  borderRadius: 10,
+                  background: "#4f46e5",
+                  color: "#fff",
+                  fontSize: 15,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  boxShadow: "0 1px 2px rgba(15,23,42,0.08), 0 8px 24px rgba(79,70,229,0.25)",
+                }}
               >
-                See features
+                {cta}
               </a>
+            ) : null}
+            <a
+              href="#features"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: 140,
+                padding: "14px 22px",
+                borderRadius: 10,
+                background: "#fff",
+                color: "#0f172a",
+                fontSize: 15,
+                fontWeight: 600,
+                textDecoration: "none",
+                border: "1px solid #e2e8f0",
+              }}
+            >
+              Learn more
+            </a>
+          </div>
+
+          <p style={{ marginTop: 18, fontSize: 13, color: "#94a3b8" }}>
+            {amount}
+            {period} · Cancel anytime · Card payments by Stripe
+          </p>
+        </div>
+
+        {/* Product frame */}
+        <div style={{ maxWidth: 920, margin: "0 auto", padding: "0 24px 80px" }}>
+          <div
+            style={{
+              borderRadius: 16,
+              border: "1px solid #e2e8f0",
+              background: "#fff",
+              boxShadow:
+                "0 0 0 1px rgba(15,23,42,0.02), 0 20px 50px -20px rgba(15,23,42,0.18)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                height: 44,
+                background: "#f8fafc",
+                borderBottom: "1px solid #e2e8f0",
+                display: "flex",
+                alignItems: "center",
+                padding: "0 14px",
+                gap: 8,
+              }}
+            >
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#cbd5e1" }} />
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#cbd5e1" }} />
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#cbd5e1" }} />
+              <div
+                style={{
+                  marginLeft: 8,
+                  flex: 1,
+                  height: 28,
+                  borderRadius: 6,
+                  background: "#fff",
+                  border: "1px solid #e2e8f0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  color: "#94a3b8",
+                }}
+              >
+                app.{brand.toLowerCase()}.com
+              </div>
             </div>
-
-            <p className="mt-5 text-xs font-medium text-slate-500">
-              {priceMain}/mo · Setup in a day · Cancel anytime
-            </p>
-
-            {/* Product mock — centered under copy */}
-            <div className="mx-auto mt-12 w-full max-w-3xl">
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-xl shadow-slate-900/10">
-                <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3">
-                  <span className="h-2.5 w-2.5 rounded-full bg-red-400/90" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-amber-400/90" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/90" />
-                  <span className="ml-2 flex-1 truncate rounded-md bg-white px-3 py-1 text-center text-[11px] text-slate-400 ring-1 ring-slate-200">
-                    app.{domain}/dashboard
+            <div
+              className="lp-product-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 200px) 1fr",
+                minHeight: 320,
+              }}
+            >
+              <div
+                style={{
+                  borderRight: "1px solid #e2e8f0",
+                  background: "#f8fafc",
+                  padding: 16,
+                }}
+              >
+                {["Dashboard", "Reviews", "Reports", "Team", "Settings"].map((item, i) => (
+                  <div
+                    key={item}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: i === 0 ? 600 : 500,
+                      color: i === 0 ? "#0f172a" : "#64748b",
+                      background: i === 0 ? "#fff" : "transparent",
+                      boxShadow: i === 0 ? "0 1px 2px rgba(15,23,42,0.06)" : "none",
+                      marginBottom: 4,
+                    }}
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+              <div style={{ padding: 20 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 16,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a" }}>
+                      Weekly summary
+                    </div>
+                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>
+                      Last 7 days
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#047857",
+                      background: "#ecfdf5",
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                    }}
+                  >
+                    On track
                   </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-12">
-                  <aside className="hidden space-y-1.5 border-r border-slate-100 bg-slate-50/90 p-3 sm:col-span-3 sm:block">
-                    {["Overview", "Audits", "Reports", "Settings"].map((item, i) => (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: 12,
+                    marginBottom: 16,
+                  }}
+                >
+                  {[
+                    { label: "Items reviewed", value: "148" },
+                    { label: "Flags opened", value: "11" },
+                    { label: "Resolved", value: "9" },
+                  ].map((card) => (
+                    <div
+                      key={card.label}
+                      style={{
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 12,
+                        padding: 14,
+                        background: "#fff",
+                      }}
+                    >
+                      <div style={{ fontSize: 12, color: "#64748b" }}>{card.label}</div>
                       <div
-                        key={item}
-                        className={`rounded-lg px-2.5 py-2 text-[11px] font-medium ${
-                          i === 0
-                            ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
-                            : "text-slate-500"
-                        }`}
+                        style={{
+                          fontSize: 24,
+                          fontWeight: 650,
+                          letterSpacing: "-0.03em",
+                          marginTop: 6,
+                          color: "#0f172a",
+                        }}
                       >
-                        {item}
+                        {card.value}
                       </div>
-                    ))}
-                  </aside>
-                  <div className="space-y-3 p-4 sm:col-span-9">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-semibold text-slate-900">This week</p>
-                        <p className="text-[11px] text-slate-500">Sample activity</p>
-                      </div>
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-100">
-                        Healthy
+                    </div>
+                  ))}
+                </div>
+                <div
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 12,
+                    overflow: "hidden",
+                  }}
+                >
+                  {[
+                    ["Missing supporting note", "Open"],
+                    ["Duplicate line item", "Resolved"],
+                    ["Out-of-date code set", "Resolved"],
+                  ].map(([title, status], i) => (
+                    <div
+                      key={title}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "12px 14px",
+                        borderTop: i === 0 ? "none" : "1px solid #f1f5f9",
+                        fontSize: 13,
+                      }}
+                    >
+                      <span style={{ color: "#334155", fontWeight: 500 }}>{title}</span>
+                      <span
+                        style={{
+                          color: status === "Open" ? "#b45309" : "#047857",
+                          fontWeight: 600,
+                          fontSize: 12,
+                        }}
+                      >
+                        {status}
                       </span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { l: "Issues found", v: "12" },
-                        { l: "Fixed", v: "9" },
-                        { l: "Est. saved", v: "$4.2k" },
-                      ].map((s) => (
-                        <div
-                          key={s.l}
-                          className="rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-center"
-                        >
-                          <p className="text-[10px] font-medium text-slate-500">{s.l}</p>
-                          <p className="mt-1 text-lg font-semibold text-slate-900">{s.v}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="space-y-2 rounded-xl border border-slate-100 p-3">
-                      {["Claim coding mismatch", "Missing modifiers", "Duplicate entry"].map(
-                        (row, i) => (
-                          <div
-                            key={row}
-                            className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-[11px]"
-                          >
-                            <span className="font-medium text-slate-700">{row}</span>
-                            <span
-                              className={
-                                i === 0
-                                  ? "font-semibold text-amber-600"
-                                  : "font-semibold text-emerald-600"
-                              }
-                            >
-                              {i === 0 ? "Review" : "Resolved"}
-                            </span>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
-              <p className="mt-2 text-center text-[11px] text-slate-400">
-                Product preview · illustrative data
-              </p>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Logos */}
-        <section className="w-full border-b border-slate-200 bg-slate-50">
-          <div className="lp-wrap py-10 text-center">
-            <p className="mb-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              Patterns used by modern ops teams
+      {/* Value props */}
+      {pains.length > 0 && (
+        <section
+          style={{
+            width: "100%",
+            background: "#f8fafc",
+            borderTop: "1px solid #e2e8f0",
+            borderBottom: "1px solid #e2e8f0",
+            padding: "72px 0",
+          }}
+        >
+          <div style={{ maxWidth: 920, margin: "0 auto", padding: "0 24px" }}>
+            <h2
+              style={{
+                margin: "0 0 12px",
+                textAlign: "center",
+                fontSize: 28,
+                fontWeight: 650,
+                letterSpacing: "-0.03em",
+                color: "#0f172a",
+              }}
+            >
+              Why teams switch
+            </h2>
+            <p
+              style={{
+                margin: "0 auto 40px",
+                textAlign: "center",
+                maxWidth: 480,
+                color: "#64748b",
+                fontSize: 16,
+                lineHeight: 1.6,
+              }}
+            >
+              Common friction we hear from operators — and the reason {brand} exists.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-              {["Northwind Clinics", "Harbor Labs", "Keystone Ops", "Atlas Practice", "Summit Group"].map(
-                (n) => (
-                  <span key={n} className="text-sm font-semibold text-slate-400">
-                    {n}
-                  </span>
-                )
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Pains */}
-        {pains.length > 0 && (
-          <section className="w-full border-b border-slate-200 bg-white py-16 sm:py-20">
-            <div className="lp-wrap">
-              <div className="mx-auto max-w-2xl text-center">
-                <h2 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-                  The problems we fix every week
-                </h2>
-                <p className="mt-3 text-slate-600">
-                  If these sound familiar, {brand} was built for your team.
-                </p>
-              </div>
-              <div className="mx-auto mt-10 grid max-w-4xl gap-4 sm:grid-cols-3">
-                {pains.slice(0, 3).map((p, i) => (
-                  <div
-                    key={i}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center shadow-sm"
-                  >
-                    <div className="mx-auto mb-3 flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-sm font-bold text-rose-600 ring-1 ring-rose-100">
-                      {i + 1}
-                    </div>
-                    <p className="text-sm font-medium leading-relaxed text-slate-700">{p}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Features */}
-        {features.length > 0 && (
-          <section id="features" className="w-full border-b border-slate-200 bg-slate-50 py-16 sm:py-20">
-            <div className="lp-wrap">
-              <div className="mx-auto max-w-2xl text-center">
-                <h2 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-                  Everything you need
-                </h2>
-                <p className="mt-3 text-slate-600">
-                  Practical tools your team will use on Monday morning.
-                </p>
-              </div>
-              <div className="mx-auto mt-10 grid max-w-4xl gap-4 sm:grid-cols-2">
-                {features.map((f, i) => (
-                  <div
-                    key={i}
-                    className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm"
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d={FEATURE_ICONS[i % FEATURE_ICONS.length]}
-                        />
-                      </svg>
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-semibold text-slate-900">
-                        {f.title ?? `Feature ${i + 1}`}
-                      </h3>
-                      {f.description && (
-                        <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                          {f.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {showTestimonial && (
-          <section className="w-full border-b border-slate-200 bg-white py-14">
-            <div className="lp-wrap-narrow text-center">
-              <blockquote className="text-lg font-medium leading-relaxed text-slate-800 sm:text-xl">
-                “{quote}”
-              </blockquote>
-              {authorRaw && (
-                <p className="mt-5 text-sm font-semibold text-slate-500">{authorRaw}</p>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* Pricing — centered card */}
-        <section id="pricing" className="w-full bg-white py-16 sm:py-20">
-          <div className="lp-wrap flex flex-col items-center">
-            <div className="w-full max-w-md text-center">
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-                Simple pricing
-              </h2>
-              <p className="mt-2 text-slate-600">One plan. Full access.</p>
-            </div>
-
-            <div className="mt-8 w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white text-center shadow-xl shadow-slate-900/5">
-              <div className="border-b border-slate-100 bg-gradient-to-b from-indigo-50 to-white px-6 py-8">
-                <p className="text-sm font-semibold text-indigo-700">
-                  {copy.pricing_name ?? "Professional"}
-                </p>
-                <p className="mt-2 text-5xl font-semibold tracking-tight text-slate-900">
-                  {priceMain}
-                  <span className="text-lg font-medium text-slate-500">/mo</span>
-                </p>
-                {copy.pricing_description && (
-                  <p className="mt-3 text-sm text-slate-600">{copy.pricing_description}</p>
-                )}
-              </div>
-              <ul className="space-y-3 px-8 py-6 text-left text-sm text-slate-700">
-                {[
-                  "Full product access",
-                  "Email support (business hours)",
-                  "Monthly updates",
-                  "Cancel anytime",
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-2.5">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
-                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                      </svg>
-                    </span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <div className="px-6 pb-8">
-                {paymentUrl ? (
-                  <a
-                    href={paymentUrl}
-                    className="flex w-full items-center justify-center rounded-xl bg-indigo-600 py-3.5 text-sm font-semibold text-white shadow-md shadow-indigo-600/20 hover:bg-indigo-500"
-                  >
-                    {cta}
-                  </a>
-                ) : (
-                  <div className="rounded-xl bg-slate-100 py-3.5 text-sm font-semibold text-slate-400">
-                    Checkout unavailable
-                  </div>
-                )}
-                <p className="mt-3 text-center text-[11px] text-slate-400">
-                  Secure checkout powered by Stripe
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <footer className="w-full border-t border-slate-200 bg-slate-50">
-        <div className="lp-wrap flex flex-col items-center gap-3 py-10 text-center">
-          <div className="flex items-center gap-2">
             <div
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-[10px] font-bold text-white"
-              style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)" }}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                gap: 16,
+              }}
+            >
+              {pains.map((p, i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: "#fff",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 14,
+                    padding: 22,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 8,
+                      background: "#f1f5f9",
+                      color: "#475569",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginBottom: 12,
+                    }}
+                  >
+                    {i + 1}
+                  </div>
+                  <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: "#334155", fontWeight: 500 }}>
+                    {p}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Features */}
+      {features.length > 0 && (
+        <section
+          id="features"
+          style={{ width: "100%", background: "#fff", padding: "72px 0" }}
+        >
+          <div style={{ maxWidth: 920, margin: "0 auto", padding: "0 24px" }}>
+            <h2
+              style={{
+                margin: "0 0 12px",
+                textAlign: "center",
+                fontSize: 28,
+                fontWeight: 650,
+                letterSpacing: "-0.03em",
+              }}
+            >
+              What you get
+            </h2>
+            <p
+              style={{
+                margin: "0 auto 40px",
+                textAlign: "center",
+                maxWidth: 440,
+                color: "#64748b",
+                fontSize: 16,
+              }}
+            >
+              Focused capabilities — not a bloated suite you&apos;ll never open.
+            </p>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gap: 16,
+              }}
+            >
+              {features.map((f, i) => (
+                <div
+                  key={i}
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 14,
+                    padding: 24,
+                    background: "#fff",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      background: "#eef2ff",
+                      color: "#4338ca",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginBottom: 14,
+                      fontSize: 14,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {i + 1}
+                  </div>
+                  <h3
+                    style={{
+                      margin: "0 0 8px",
+                      fontSize: 16,
+                      fontWeight: 600,
+                      color: "#0f172a",
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    {f.title ?? `Feature ${i + 1}`}
+                  </h3>
+                  {f.description ? (
+                    <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "#64748b" }}>
+                      {f.description}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Pricing */}
+      <section
+        id="pricing"
+        style={{
+          width: "100%",
+          background: "#f8fafc",
+          borderTop: "1px solid #e2e8f0",
+          padding: "72px 24px 88px",
+        }}
+      >
+        <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
+          <h2
+            style={{
+              margin: "0 0 8px",
+              fontSize: 28,
+              fontWeight: 650,
+              letterSpacing: "-0.03em",
+            }}
+          >
+            Pricing
+          </h2>
+          <p style={{ margin: "0 0 28px", color: "#64748b", fontSize: 15 }}>
+            Straightforward monthly plan.
+          </p>
+
+          <div
+            style={{
+              background: "#fff",
+              border: "1px solid #e2e8f0",
+              borderRadius: 16,
+              padding: "32px 28px",
+              boxShadow: "0 10px 40px -20px rgba(15,23,42,0.15)",
+              textAlign: "left",
+            }}
+          >
+            <div style={{ textAlign: "center", marginBottom: 24 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#4f46e5" }}>
+                {copy.pricing_name ?? "Professional"}
+              </div>
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 48,
+                  fontWeight: 650,
+                  letterSpacing: "-0.04em",
+                  color: "#0f172a",
+                  lineHeight: 1,
+                }}
+              >
+                {amount}
+                <span style={{ fontSize: 16, fontWeight: 500, color: "#64748b" }}>
+                  {period}
+                </span>
+              </div>
+              <p style={{ margin: "12px 0 0", fontSize: 14, color: "#64748b" }}>{detail}</p>
+            </div>
+
+            <ul
+              style={{
+                listStyle: "none",
+                margin: "0 0 24px",
+                padding: 0,
+                display: "grid",
+                gap: 10,
+              }}
+            >
+              {[
+                "Full access to the product",
+                "Email support on business days",
+                "Ongoing product updates",
+                "Cancel from your billing portal",
+              ].map((item) => (
+                <li
+                  key={item}
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "flex-start",
+                    fontSize: 14,
+                    color: "#334155",
+                  }}
+                >
+                  <span style={{ color: "#16a34a", fontWeight: 700, lineHeight: 1.4 }}>✓</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+
+            {paymentUrl ? (
+              <a
+                href={paymentUrl}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "100%",
+                  padding: "14px 16px",
+                  borderRadius: 10,
+                  background: "#4f46e5",
+                  color: "#fff",
+                  fontSize: 15,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  boxSizing: "border-box",
+                }}
+              >
+                {cta}
+              </a>
+            ) : (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: 14,
+                  borderRadius: 10,
+                  background: "#f1f5f9",
+                  color: "#94a3b8",
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                Checkout unavailable
+              </div>
+            )}
+            <p
+              style={{
+                margin: "14px 0 0",
+                textAlign: "center",
+                fontSize: 12,
+                color: "#94a3b8",
+              }}
+            >
+              Payments secured by Stripe
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer
+        style={{
+          width: "100%",
+          borderTop: "1px solid #e2e8f0",
+          background: "#fff",
+          padding: "40px 24px 48px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 920,
+            margin: "0 auto",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 12,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 7,
+                background: "#0f172a",
+                color: "#fff",
+                fontSize: 11,
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
               {initials}
             </div>
-            <span className="text-sm font-semibold text-slate-900">{brand}</span>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>{brand}</span>
           </div>
-          <p className="max-w-sm text-sm text-slate-500">
-            Software for teams that want fewer manual errors and clearer results.
+          <p style={{ margin: 0, fontSize: 13, color: "#64748b", maxWidth: 360 }}>
+            {tagline}.
           </p>
-          <p className="text-xs text-slate-400">
-            © {year} {brand}. Payments by Stripe.
+          <p style={{ margin: 0, fontSize: 12, color: "#94a3b8" }}>
+            © {year} {brand}. All rights reserved.
           </p>
         </div>
       </footer>
+
+      <style>{`
+        @media (max-width: 720px) {
+          .lp-product-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .lp-product-grid > div:first-child {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
