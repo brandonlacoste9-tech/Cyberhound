@@ -3,7 +3,7 @@
  */
 import { NextResponse } from "next/server";
 import { configuredProviders } from "@/lib/llm/client";
-import { hasLiveSearchProvider } from "@/lib/live-search";
+import { hasLiveSearchProvider, hasPaidSearchProvider } from "@/lib/live-search";
 import { getSupabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -76,6 +76,7 @@ export async function GET() {
   const llmProviders = configuredProviders();
   const llmOk = llmProviders.length > 0;
   const searchOk = hasLiveSearchProvider();
+  const paidSearch = hasPaidSearchProvider();
   const stripeOk = hasKey("STRIPE_SECRET_KEY") && process.env.STRIPE_SECRET_KEY!.startsWith("sk_");
   const emailOk = hasKey("RESEND_API_KEY");
   const telegramOk = hasKey("TELEGRAM_BOT_TOKEN") && hasKey("TELEGRAM_CHAT_ID");
@@ -83,7 +84,6 @@ export async function GET() {
   const blockers: string[] = [];
   if (!dbOk) blockers.push(`database: ${dbError ?? "unknown"}`);
   if (!llmOk) blockers.push("llm: no provider keys configured");
-  if (!searchOk) blockers.push("search: set FIRECRAWL_API_KEY or APIFY_API_TOKEN for hunt cron");
 
   checks.database = { ok: dbOk, error: dbError, counts };
   checks.llm = {
@@ -93,7 +93,13 @@ export async function GET() {
       ? "DeepSeek is configured — if hunt logs show 402, top up balance or set GEMINI/OPENAI/Ollama"
       : null,
   };
-  checks.search = { ok: searchOk };
+  checks.search = {
+    ok: searchOk,
+    paid: paidSearch,
+    note: paidSearch
+      ? "Firecrawl/Apify configured"
+      : "Using free DuckDuckGo fallback — set FIRECRAWL_API_KEY for higher-quality hunt signals",
+  };
   checks.stripe = { ok: stripeOk };
   checks.email = { ok: emailOk };
   checks.telegram = { ok: telegramOk };
@@ -102,7 +108,9 @@ export async function GET() {
   checks.ready_for_autonomous_hunt = dbOk && llmOk && searchOk;
   checks.message = blockers.length
     ? `Colony blocked: ${blockers.join(" · ")}`
-    : "Colony infrastructure OK — run /api/cron/hunt with CRON_SECRET to scout";
+    : paidSearch
+      ? "Colony infrastructure OK — run /api/cron/hunt with CRON_SECRET to scout"
+      : "Colony OK with free search fallback — add FIRECRAWL_API_KEY for premium hunt intel";
 
   return NextResponse.json(checks, { status: checks.ok ? 200 : 503 });
 }
