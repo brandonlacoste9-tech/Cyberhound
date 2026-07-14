@@ -95,6 +95,49 @@ body::after {
   z-index: 0;
 }
 
+/* ── Public product landings (/l/*) — full-width, light, centered ── */
+body:has(.landing-shell) {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  letter-spacing: normal;
+  overflow-x: hidden;
+}
+body:has(.landing-shell)::before,
+body:has(.landing-shell)::after {
+  display: none !important;
+}
+.landing-shell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0 auto;
+  background: #f8fafc;
+  color: #0f172a;
+}
+.landing-shell .lp-wrap {
+  width: 100%;
+  max-width: 72rem; /* 1152px */
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+@media (min-width: 640px) {
+  .landing-shell .lp-wrap {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+.landing-shell .lp-wrap-narrow {
+  width: 100%;
+  max-width: 40rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
 /* ── Typography ───────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
   line-height: 1.2;
