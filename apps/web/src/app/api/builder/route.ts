@@ -20,32 +20,42 @@ export async function POST(req: NextRequest) {
     // ACTION: generate_copy
     // ──────────────────────────────────────────────
     if (action === "generate_copy") {
-      const copyPrompt = `You are the Builder Bee for CyberHound. Generate complete landing page copy for this SaaS opportunity.
+      const copyPrompt = `You write landing page copy for a real B2B SaaS product (think Stripe, Linear, Notion — calm and credible).
 
 Niche: ${opportunity.niche}
 Market: ${opportunity.market}
 Price Point: ${opportunity.recommended_price_point}
-MRR Potential: ${opportunity.estimated_mrr_potential}
-Queen Assessment: ${opportunity.queen_reasoning}
+Context: ${opportunity.queen_reasoning}
+
+RULES:
+- Sound like a real company, not an AI agent or crypto product
+- NO words: sovereignty, institutional grade, colony, cyberhound, neural, deploy to infrastructure
+- Headline: plain benefit, 6–12 words
+- Subheadline: concrete outcome for a specific buyer (ops lead, clinic manager, founder)
+- Pain points: specific operational pains (not vague "keep up with regulations")
+- Features: practical capabilities a buyer would pay for
+- CTA: "Start free trial" or "Get started" or "Book a demo" — not hype
+- Testimonial: omit fake people — set "quote" and "author" to empty strings ""
+- Pricing description must include the price point as e.g. "$149/mo"
 
 Return ONLY this JSON (no markdown):
 {
-  "headline": "<powerful, benefit-driven headline — max 10 words>",
-  "subheadline": "<1-2 sentence value prop>",
-  "pain_points": ["<pain 1>", "<pain 2>", "<pain 3>"],
+  "headline": "<benefit headline>",
+  "subheadline": "<1-2 sentences, specific buyer + outcome>",
+  "pain_points": ["<specific pain 1>", "<specific pain 2>", "<specific pain 3>"],
   "features": [
-    {"title": "<feature 1>", "description": "<one sentence>"},
-    {"title": "<feature 2>", "description": "<one sentence>"},
-    {"title": "<feature 3>", "description": "<one sentence>"},
-    {"title": "<feature 4>", "description": "<one sentence>"}
+    {"title": "<short title>", "description": "<one concrete sentence>"},
+    {"title": "<short title>", "description": "<one concrete sentence>"},
+    {"title": "<short title>", "description": "<one concrete sentence>"},
+    {"title": "<short title>", "description": "<one concrete sentence>"}
   ],
-  "testimonial": {"quote": "<realistic testimonial>", "author": "<Name, Title, Company>"},
-  "cta_primary": "<CTA button text>",
-  "cta_secondary": "<secondary CTA>",
-  "pricing_name": "<plan name e.g. Pro, Growth, Starter>",
-  "pricing_description": "<what's included in 1 sentence>",
-  "seo_title": "<SEO-optimized page title under 60 chars>",
-  "seo_description": "<meta description under 160 chars>"
+  "testimonial": {"quote": "", "author": ""},
+  "cta_primary": "Start free trial",
+  "cta_secondary": "See how it works",
+  "pricing_name": "Professional",
+  "pricing_description": "<include $price/mo and what's included>",
+  "seo_title": "<under 60 chars>",
+  "seo_description": "<under 160 chars>"
 }`;
 
       const rawResponse =

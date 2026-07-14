@@ -112,32 +112,37 @@ async function triggerBuilder(
   const db = getSupabaseServer();
 
   // Generate landing page copy via LLM
-  const copyPrompt = `You are the Builder Bee for CyberHound. Generate complete landing page copy.
+  const copyPrompt = `You write landing page copy for a real B2B SaaS product (calm, credible — like Stripe or Linear).
 
 Niche: ${opportunity.niche}
 Market: ${opportunity.market}
 Price Point: ${opportunity.recommended_price_point}
-MRR Potential: ${opportunity.estimated_mrr_potential}
 Assessment: ${opportunity.queen_reasoning}
+
+RULES:
+- Sound like a real company. No AI-agent, crypto, or "colony" language.
+- Ban: sovereignty, institutional grade, neural, cyberhound, deploy to infrastructure
+- Specific buyer + concrete outcome. Empty testimonial quote/author.
+- pricing_description must include a $price/mo
 
 Return ONLY this JSON (no markdown):
 {
-  "headline": "<powerful, benefit-driven — max 10 words>",
-  "subheadline": "<1-2 sentence value prop>",
-  "pain_points": ["<pain 1>", "<pain 2>", "<pain 3>"],
+  "headline": "<benefit, 6-12 words>",
+  "subheadline": "<1-2 sentences for a specific buyer>",
+  "pain_points": ["<specific pain 1>", "<specific pain 2>", "<specific pain 3>"],
   "features": [
-    {"title": "<feature 1>", "description": "<one sentence>"},
-    {"title": "<feature 2>", "description": "<one sentence>"},
-    {"title": "<feature 3>", "description": "<one sentence>"},
-    {"title": "<feature 4>", "description": "<one sentence>"}
+    {"title": "<title>", "description": "<one concrete sentence>"},
+    {"title": "<title>", "description": "<one concrete sentence>"},
+    {"title": "<title>", "description": "<one concrete sentence>"},
+    {"title": "<title>", "description": "<one concrete sentence>"}
   ],
-  "testimonial": {"quote": "<realistic testimonial>", "author": "<Name, Title, Company>"},
-  "cta_primary": "<CTA button text>",
-  "cta_secondary": "<secondary CTA>",
-  "pricing_name": "<plan name>",
-  "pricing_description": "<what's included in 1 sentence>",
-  "seo_title": "<SEO page title under 60 chars>",
-  "seo_description": "<meta description under 160 chars>"
+  "testimonial": {"quote": "", "author": ""},
+  "cta_primary": "Start free trial",
+  "cta_secondary": "See how it works",
+  "pricing_name": "Professional",
+  "pricing_description": "<$price/mo and what's included>",
+  "seo_title": "<under 60 chars>",
+  "seo_description": "<under 160 chars>"
 }`;
 
   try {
