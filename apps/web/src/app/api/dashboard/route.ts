@@ -12,21 +12,26 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const db = getSupabaseServer();
   const fetchStart = Date.now();
 
   try {
+    const db = getSupabaseServer();
+
     // 1. Hive Logs (Recent Activity)
-    const { data: hiveLogs } = await db
+    const { data: hiveLogs, error: logErr } = await db
       .from("hive_log")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(15);
 
     // 2. Stats (MRR, Active Swarms, Total Leads)
-    const { data: campaigns } = await db
+    const { data: campaigns, error: campErr } = await db
       .from("campaigns")
       .select("mrr, status");
+
+    const { count: oppCount, error: oppErr } = await db
+      .from("opportunities")
+      .select("*", { count: "exact", head: true });
     
     const mrr = campaigns?.reduce((acc, curr) => acc + (curr.mrr || 0), 0) || 0;
     const activeSwarms = campaigns?.filter(c => c.status === 'live').length || 0;
@@ -65,6 +70,13 @@ export async function GET() {
     }
 
     const fetchMs = Date.now() - fetchStart;
+    const dbError = logErr?.message || campErr?.message || oppErr?.message || null;
+    // Supabase client soft-fails: empty + message on DNS death
+    const connectivityBroken =
+      !!dbError &&
+      (dbError.includes("fetch failed") ||
+        dbError.includes("ENOTFOUND") ||
+        dbError.includes("getaddrinfo"));
 
     return NextResponse.json({
       logs: hiveLogs || [],
@@ -72,11 +84,15 @@ export async function GET() {
         mrr,
         active_swarms: activeSwarms,
         total_leads: totalLeads,
+        opportunities: oppCount ?? 0,
         pipeline_leads: pipelineLeads,
         neural_load,
       },
       bee_status,
       fetch_ms: fetchMs,
+      db_ok: !connectivityBroken && !dbError,
+      db_error: dbError,
+      healthy: !connectivityBroken,
     });
   } catch (error) {
     console.error("[Dashboard API] Error:", error);

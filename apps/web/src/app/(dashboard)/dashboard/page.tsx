@@ -106,10 +106,14 @@ export default function OverlordDashboard() {
     mrr: 0,
     active_swarms: 0,
     total_leads: 0,
+    opportunities: 0,
     neural_load: "—",
   });
   const [beeStatus, setBeeStatus] = useState<Record<string, { status: string; last_seen: string }>>({});
   const [fetchMs, setFetchMs] = useState<number | null>(null);
+  const [dbOk, setDbOk] = useState<boolean | null>(null);
+  const [dbError, setDbError] = useState<string | null>(null);
+  const [healthMsg, setHealthMsg] = useState<string | null>(null);
   
   // Command Mind State
   const [input, setInput] = useState("");
@@ -130,11 +134,23 @@ export default function OverlordDashboard() {
       const res = await fetch("/api/dashboard");
       const data = await res.json();
       if (data.logs) setLogs(data.logs);
-      if (data.stats) setStats(prev => ({ ...prev, ...data.stats }));
+      if (data.stats) setStats((prev) => ({ ...prev, ...data.stats }));
       if (data.bee_status) setBeeStatus(data.bee_status);
       if (typeof data.fetch_ms === "number") setFetchMs(data.fetch_ms);
+      setDbOk(data.db_ok !== false && data.healthy !== false);
+      setDbError(data.db_error ?? null);
     } catch (e) {
       console.error("Fetch error:", e);
+      setDbOk(false);
+      setDbError("Dashboard API unreachable");
+    }
+    try {
+      const h = await fetch("/api/health");
+      const hj = await h.json();
+      setHealthMsg(hj.message ?? null);
+      if (typeof hj.ok === "boolean") setDbOk(hj.database?.ok ?? hj.ok);
+    } catch {
+      /* health optional */
     }
   }, []);
 
@@ -205,15 +221,20 @@ export default function OverlordDashboard() {
                   Cyber<span className="text-amber-400">Hound</span>
                 </h1>
                 <p className="text-[10px] font-mono text-slate-500 tracking-widest uppercase">
-                  Colony OS v2 · Hermes Autonomy Engine · {HOUNDS.length} Hounds Active
+                  Colony OS v2 · Hermes · real metrics only
                 </p>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="pill-live">
-              <span className="pill-live__dot" />
-              <span className="text-[11px]">DeepSeek Connected</span>
+            <div className={dbOk === false ? "pill-live" : "pill-live"} style={dbOk === false ? { borderColor: "rgba(239,68,68,0.4)" } : undefined}>
+              <span
+                className="pill-live__dot"
+                style={dbOk === false ? { background: "#ef4444", boxShadow: "0 0 8px #ef4444" } : undefined}
+              />
+              <span className="text-[11px]">
+                {dbOk === null ? "Checking DB…" : dbOk ? "Database linked" : "Database DOWN"}
+              </span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
               <Brain className="w-3.5 h-3.5 text-purple-400" />
@@ -222,11 +243,29 @@ export default function OverlordDashboard() {
           </div>
         </header>
 
+        {(dbOk === false || healthMsg) && (
+          <div
+            className="rounded-xl border px-4 py-3 text-sm"
+            style={{
+              borderColor: dbOk === false ? "rgba(239,68,68,0.35)" : "rgba(245,158,11,0.25)",
+              background: dbOk === false ? "rgba(239,68,68,0.08)" : "rgba(245,158,11,0.06)",
+              color: "#e2e8f0",
+            }}
+          >
+            <p className="font-semibold text-xs uppercase tracking-wider mb-1" style={{ color: dbOk === false ? "#f87171" : "#fbbf24" }}>
+              {dbOk === false ? "Colony blocked" : "Colony status"}
+            </p>
+            <p className="text-[13px] text-slate-300">
+              {dbError || healthMsg || "See /api/health for diagnostics."}
+            </p>
+          </div>
+        )}
+
         {/* ── STATS ROW ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatTile title="Total MRR" value={`$${(stats.mrr / 100).toFixed(0)}`} icon={<DollarSign className="w-4 h-4" />} color="text-green-400" glow="rgba(16,185,129,0.15)" />
-          <StatTile title="Active Hounds" value={HOUNDS.length} icon={<Target className="w-4 h-4" />} color="text-amber-400" glow="rgba(245,158,11,0.15)" />
-          <StatTile title="Opportunities" value={stats.total_leads || HOUNDS.reduce((s,h) => s + h.bounties, 0)} icon={<Sparkles className="w-4 h-4" />} color="text-cyan-400" glow="rgba(6,182,212,0.15)" />
+          <StatTile title="Live campaigns" value={stats.active_swarms ?? 0} icon={<Target className="w-4 h-4" />} color="text-amber-400" glow="rgba(245,158,11,0.15)" />
+          <StatTile title="Opportunities" value={stats.opportunities ?? 0} icon={<Sparkles className="w-4 h-4" />} color="text-cyan-400" glow="rgba(6,182,212,0.15)" />
           <StatTile title="API Latency" value={fetchMs ? `${fetchMs}ms` : "—"} icon={<Zap className="w-4 h-4" />} color="text-blue-400" glow="rgba(59,130,246,0.15)" />
         </div>
 
@@ -235,26 +274,37 @@ export default function OverlordDashboard() {
           <div className="flex items-center gap-2 mb-4">
             <Cpu className="w-4 h-4 text-amber-400" />
             <h2 className="text-sm font-black uppercase tracking-wider text-white">Hound Pack</h2>
-            <span className="text-[10px] font-mono text-slate-500 ml-auto">{HOUNDS.length} active</span>
+            <span className="text-[10px] font-mono text-slate-500 ml-auto">
+              {Object.keys(beeStatus).length} bees with recent logs
+            </span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            {HOUNDS.map((hound) => (
+            {HOUNDS.map((hound) => {
+              const live = beeStatus[hound.name.toLowerCase().replace("hound", "")] 
+                || beeStatus[hound.category.toLowerCase()]
+                || null;
+              const derivedStatus = live
+                ? (live.status === "success" ? "hunting" : live.status === "error" ? "offline" : "hunting")
+                : "idle";
+              return (
               <div
                 key={hound.name}
                 className={`relative rounded-xl p-3.5 bg-gradient-to-br ${HOUND_CATEGORY_COLORS[hound.category] || "from-slate-500/20 to-slate-600/20 border-slate-500/30"} border transition-all duration-200 hover:border-opacity-60 hover:-translate-y-0.5`}
               >
                 <div className="flex items-start justify-between mb-2">
                   <span className="text-xl">{hound.icon}</span>
-                  <StatusDot status={hound.status} />
+                  <StatusDot status={derivedStatus as HoundInfo["status"]} />
                 </div>
                 <p className="text-[11px] font-bold text-white truncate">{hound.name}</p>
                 <p className="text-[9px] text-slate-400 mt-0.5">{hound.description}</p>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-[9px] font-mono text-slate-500 uppercase">{hound.category}</span>
-                  <span className="text-[10px] font-bold text-amber-400 ml-auto">{hound.bounties}</span>
+                  <span className="text-[10px] font-bold text-slate-500 ml-auto">
+                    {live ? "seen" : "idle"}
+                  </span>
                 </div>
               </div>
-            ))}
+            );})}
           </div>
         </div>
 

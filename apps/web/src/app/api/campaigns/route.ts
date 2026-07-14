@@ -15,7 +15,17 @@ export async function GET() {
 
     if (error) {
       console.error("[Campaigns API]", error);
-      return NextResponse.json({ error: "Failed to load campaigns" }, { status: 500 });
+      const msg = error.message || "Failed to load campaigns";
+      const hint =
+        msg.includes("fetch failed") || msg.includes("ENOTFOUND")
+          ? "Supabase project host is unreachable (deleted/paused or wrong NEXT_PUBLIC_SUPABASE_URL). Check /api/health."
+          : msg.includes("column")
+            ? "Schema drift — run migration 011_colony_repair.sql"
+            : undefined;
+      return NextResponse.json(
+        { error: msg, hint, campaigns: [] },
+        { status: 500 }
+      );
     }
 
     const campaigns = await Promise.all(

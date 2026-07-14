@@ -100,24 +100,79 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/** GET /api/leads - fetch leads with optional filters */
+/** GET /api/leads - fetch inbound + analyst leads with optional filters */
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const status = searchParams.get('status');
-  const campaign_id = searchParams.get('campaign_id');
-  const limit = parseInt(searchParams.get('limit') || '100');
+  try {
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get("status");
+    const campaign_id = searchParams.get("campaign_id");
+    const limit = parseInt(searchParams.get("limit") || "100", 10);
 
-  const supabase = getSupabaseServer();
-  let query = supabase
-    .from('leads')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(limit);
+    const supabase = getSupabaseServer();
+    let query = supabase
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
-  if (status) query = query.eq('status', status);
-  if (campaign_id) query = query.eq('campaign_id', campaign_id);
+    if (status) query = query.eq("status", status);
+    if (campaign_id) query = query.eq("campaign_id", campaign_id);
 
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ leads: data });
+    const { data, error } = await query;
+
+    // Fallback: many installs only have analyst_leads (Scout/Analyst path)
+    if (error) {
+      const msg = error.message || "";
+      const missingTable =
+        msg.includes("does not exist") ||
+        msg.includes("Could not find the table") ||
+        msg.includes("schema cache");
+
+      if (missingTable || msg.includes("fetch failed")) {
+        let aQuery = supabase
+          .from("analyst_leads")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(limit);
+        if (status) aQuery = aQuery.eq("status", status);
+        const { data: analyst, error: aErr } = await aQuery;
+        if (aErr) {
+          return NextResponse.json(
+            {
+              error: aErr.message,
+              hint:
+                aErr.message.includes("fetch failed") || aErr.message.includes("ENOTFOUND")
+                  ? "Supabase host unreachable — see /api/health"
+                  : "Run migrations 001–011",
+              leads: [],
+            },
+            { status: 500 }
+          );
+        }
+        return NextResponse.json({
+          leads: analyst ?? [],
+          source: "analyst_leads",
+          warning: missingTable
+            ? "public.leads missing — showing analyst_leads. Apply migration 011."
+            : undefined,
+        });
+      }
+
+      return NextResponse.json({ error: msg, leads: [] }, { status: 500 });
+    }
+
+    return NextResponse.json({ leads: data ?? [], source: "leads" });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json(
+      {
+        error: message,
+        hint: message.includes("ENOTFOUND")
+          ? "Supabase DNS failure — project deleted or URL wrong"
+          : undefined,
+        leads: [],
+      },
+      { status: 500 }
+    );
+  }
 }

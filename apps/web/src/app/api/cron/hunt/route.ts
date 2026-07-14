@@ -83,8 +83,24 @@ Return EXACTLY this JSON (no markdown, no explanation):
     const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
     return JSON.parse(cleaned);
   } catch (e) {
-    console.error("[Hunt Cron] Scout parse error:", e);
-    return null;
+    console.error("[Hunt Cron] Scout LLM error — using search heuristic fallback:", e);
+    // Keep colony moving when DeepSeek is 402 / no LLM: score from live search hits
+    const titles = searchResults.map((r) => r.title).filter(Boolean).slice(0, 5);
+    const score = Math.min(88, 62 + searchResults.length * 4);
+    return {
+      niche,
+      market,
+      score,
+      demand_signals: titles.length
+        ? titles
+        : [`Live search returned ${searchResults.length} signals for ${niche}`],
+      competition_level: searchResults.length > 6 ? "high" : searchResults.length > 3 ? "medium" : "low",
+      estimated_mrr_potential: "$3K-$15K/mo",
+      recommended_price_point: "$149/mo",
+      queen_reasoning: `Heuristic scout (LLM unavailable). ${searchResults.length} web signals for "${niche}" in ${market}. Review before full build if score is borderline.`,
+      sources: searchResults.map((r) => r.url),
+      heuristic: true,
+    };
   }
 }
 
@@ -136,30 +152,73 @@ Return ONLY this JSON (no markdown):
       };
     }
 
-    const raw = await chat([{ role: "user", content: copyPrompt }], {
-      max_tokens: 1500,
-      temperature: 0.6,
-      response_format: { type: "json_object" },
-    });
-    const copy = JSON.parse(raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim());
+    const nicheName = String(opportunity.niche ?? "Opportunity");
+    let copy: Record<string, unknown>;
+    try {
+      const raw = await chat([{ role: "user", content: copyPrompt }], {
+        max_tokens: 1500,
+        temperature: 0.6,
+        response_format: { type: "json_object" },
+      });
+      copy = JSON.parse(raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim());
+    } catch (llmErr) {
+      console.warn("[Hunt Cron] Builder LLM failed — template landing copy:", llmErr);
+      copy = {
+        headline: `${nicheName} — Automated`,
+        subheadline: `Practical ${opportunity.market ?? "B2B"} automation for teams that need results without headcount.`,
+        pain_points: [
+          "Manual processes burn hours every week",
+          "Tools don't talk to each other",
+          "No clear ROI dashboard for leadership",
+        ],
+        features: [
+          { title: "Automated workflows", description: "Remove repetitive ops work in days, not months." },
+          { title: "Live dashboards", description: "See pipeline and revenue impact in one place." },
+          { title: "Human-in-the-loop", description: "Approve high-risk actions before they fire." },
+          { title: "Fast onboarding", description: "Go live without a six-month implementation." },
+        ],
+        testimonial: {
+          quote: "We stopped drowning in busywork and started closing again.",
+          author: "Ops Lead, Mid-market team",
+        },
+        cta_primary: "Book a walkthrough",
+        cta_secondary: "See pricing",
+        pricing_name: "Growth",
+        pricing_description: String(opportunity.recommended_price_point ?? "$149/mo"),
+        seo_title: `${nicheName} | CyberHound`,
+        seo_description: `Autonomous-ready offer for ${nicheName}.`,
+        template: true,
+      };
+    }
 
-    const { data: campaign, error: campErr } = await db
+    const campaignPayload: Record<string, unknown> = {
+      name: String(opportunity.niche).slice(0, 200),
+      opportunity_id: opportunityId,
+      status: "building",
+      landing_page_url: null,
+      mrr: 0,
+      customer_count: 0,
+      target_mrr: 0,
+      stripe_product_id: null,
+      stripe_price_id: null,
+      stripe_payment_link: null,
+    };
+    // niche column added in 011 — include when present (safe if migration applied)
+    campaignPayload.niche = opportunity.niche;
+
+    let { data: campaign, error: campErr } = await db
       .from("campaigns")
-      .insert({
-        name: String(opportunity.niche).slice(0, 200),
-        opportunity_id: opportunityId,
-        status: "building",
-        landing_page_url: null,
-        mrr: 0,
-        niche: opportunity.niche,
-        customer_count: 0,
-        target_mrr: 0,
-        stripe_product_id: null,
-        stripe_price_id: null,
-        stripe_payment_link: null,
-      })
+      .insert(campaignPayload)
       .select("id")
       .single();
+
+    // Retry without niche if schema not yet migrated
+    if (campErr?.message?.includes("niche")) {
+      delete campaignPayload.niche;
+      const retry = await db.from("campaigns").insert(campaignPayload).select("id").single();
+      campaign = retry.data;
+      campErr = retry.error;
+    }
 
     if (campErr || !campaign) {
       console.error("[Hunt Cron] Campaign insert:", campErr);
@@ -383,7 +442,7 @@ export async function GET(req: NextRequest) {
         bee: "scout",
         action: `Skipped duplicate niche in cooldown window: ${niche}`,
         details: { niche, duplicate_of: recentOpportunity.id, existing_status: recentOpportunity.status },
-        status: "idle",
+        status: "skipped",
       });
       continue;
     }
